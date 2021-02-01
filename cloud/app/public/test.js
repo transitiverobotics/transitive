@@ -13,7 +13,13 @@ class Health extends HTMLElement {
     const style = document.createElement('style');
     style.textContent = '.wrapper { background-color: red; }';
 
-    shadow.append(style,wrapper);
+    shadow.append(style, wrapper);
+
+
+    this.webSocket = new WebSocket('ws://localhost2:9000');
+    this.webSocket.onopen = (event) => {
+      this.webSocket.send("Hi from client");
+    };
   }
 }
 

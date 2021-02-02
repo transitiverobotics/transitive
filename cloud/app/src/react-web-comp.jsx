@@ -22,10 +22,7 @@ const CPU = () => {
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };
-      ws.onmessage = function (event) {
-        console.log(event.data)
-        setCPU(JSON.parse(event.data));
-      };
+      ws.onmessage = (event) => setCPU(JSON.parse(event.data));
     }, []);
 
   return <div>
@@ -39,9 +36,8 @@ const CPU = () => {
 class App extends React.Component {
 
   render() {
-    console.log('render comp');
-
-    return <div>
+    console.log('rendering web component');
+    return <div style={{backgroundColor: 'black'}}>
       Hello from react-web-comp!
       <Counter />
       <CPU />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactWebComponent from 'react-web-component';
+import _ from 'lodash';
 
 
 const Counter = () => {
@@ -13,27 +14,33 @@ const Counter = () => {
 
 
 const CPU = () => {
-  const [cpu, setCPU] = useState('waiting..');
+  const [cpu, setCPU] = useState({msg: 'waiting..'});
 
   useEffect(() => {
+      console.log('connecting to websocket server')
       const ws = new WebSocket('ws://localhost2:9000');
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };
       ws.onmessage = function (event) {
         console.log(event.data)
-        setCPU(event.data);
+        setCPU(JSON.parse(event.data));
       };
     }, []);
 
   return <div>
-    CPU: {cpu}
+    CPU: {_.map(cpu, (val, key) =>
+      <div>{key}: {val}</div>
+    )}
   </div>;
 };
 
 
 class App extends React.Component {
+
   render() {
+    console.log('render comp');
+
     return <div>
       Hello from react-web-comp!
       <Counter />

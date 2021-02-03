@@ -22,12 +22,13 @@ const CPU = () => {
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };
+
       ws.onmessage = (event) => setCPU(JSON.parse(event.data));
     }, []);
 
   return <div>
     CPU: {_.map(cpu, (val, key) =>
-      <div>{key}: {val}</div>
+      <div>{key}: {JSON.stringify(val)}</div>
     )}
   </div>;
 };

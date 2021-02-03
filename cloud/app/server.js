@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
-
+const startMQTT = require('./mqtt.js').startMQTT;
 
 const app = express();
 
@@ -51,5 +51,7 @@ const update = () => {
 server.listen(9000, () => {
   console.log(`Server started on port ${server.address().port} :)`);
 
-  setInterval(update, 1000);
+  // setInterval(update, 1000);
 });
+
+startMQTT(clients);

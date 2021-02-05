@@ -22,7 +22,7 @@ rosnodejs.initNode('/snap_health', {
 }).then((rosNode) => {
   rosNode.subscribe('/diagnostics_agg', 'diagnostic_msgs/DiagnosticArray',
     (data) => {
-      client.publish('/plusone/health/robot1', JSON.stringify(data));
+      client.publish('/plusone/health/site1/robot1', JSON.stringify(data));
       // TODO: send binary data instead (more compact)
     });
 });

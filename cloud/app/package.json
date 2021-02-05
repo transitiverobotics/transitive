@@ -13,6 +13,8 @@
     "react-dom": "^17.0.1",
     "react-scripts": "4.0.1",
     "react-web-component": "^2.0.1",
+    "semantic-ui-css": "^2.4.1",
+    "semantic-ui-react": "^2.0.3",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
@@ -41,6 +43,9 @@
   },
   "devDependencies": {
     "@babel/preset-react": "^7.12.10",
+    "css-loader": "^5.0.1",
+    "extract-loader": "^5.1.0",
+    "react-web-component-style-loader": "^0.1.4-alpha",
     "webpack": "^5.19.0",
     "webpack-cli": "^4.4.0"
   }

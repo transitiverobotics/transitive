@@ -1,8 +1,12 @@
 #! /bin/bash
 
+# usage: newWindow NAME COMMAND [DIRECTORY]
 function newWindow() {
   tmux new-window
   tmux rename-window $1
+  if [[ $# > 2 ]]; then
+    tmux send "cd \"$3\"" C-m
+  fi;
   tmux send "$2" C-m
 }
 
@@ -13,13 +17,13 @@ tmux rename-window "roscore"
 
 sleep 1
 
-newWindow "ex:react" "cd examples/react-app && npm run start"
-newWindow "ex:express" "cd examples/express && node server.js"
-newWindow "cloud:build" "cd cloud/app && npx webpack"
-newWindow "cloud:run" "cd cloud/app && node server.js"
+newWindow "ex:react" "npm run start" "examples/react-app"
+newWindow "ex:express" "node server.js" "examples/express"
+newWindow "cloud:build" "npx webpack" "cloud/app"
+newWindow "cloud:run" "node server.js" "cloud/app"
 # using webviz demo bag file from
 # http://wiki.ros.org/rosbag/Tutorials/reading%20msgs%20from%20a%20bag%20file
-newWindow "bag" "cd tmp && rosbag play -l webviz_diag.bag"
-newWindow "robot" "cd robot_snap/health && node main.js"
+newWindow "bag" "rosbag play -l diag_only.bag" "tmp"
+newWindow "robot" "node main.js" "robot_snap/health"
 
 tmux attach

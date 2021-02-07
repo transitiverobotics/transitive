@@ -15,11 +15,8 @@ import Badge from 'react-bootstrap/Badge';
 
 const styles = {
   wrapper: {
-     // backgroundColor: 'black',
-    border: '1px solid gray',
-    padding: '1em',
+    padding: '0.5em',
     textAlign: 'left',
-    width: '80vw',
     color: '#000',
   },
   indent: {
@@ -30,6 +27,7 @@ const styles = {
   icon: {
     height: '1em',
     width: '1em',
+    transition: 'transform 0.3s'
   }
 };
 
@@ -51,10 +49,12 @@ const AwareToggle = ({ children, eventKey, callback }) => {
     () => callback && callback(eventKey),
   );
 
+  // <FontAwesomeIcon icon={isCurrentEventKey ? faChevronDown : faChevronRight}
   return <Card.Header onClick={decoratedOnClick}>
     {/* TODO: use transform rotation instead to animate this */}
-    <FontAwesomeIcon icon={isCurrentEventKey ? faChevronDown : faChevronRight}
-      style={styles.icon} /> {children}
+    <FontAwesomeIcon icon={faChevronRight}
+      style={_.defaults(isCurrentEventKey ? {transform: 'rotate(90deg)'} : {},
+        styles.icon)} /> {children}
   </Card.Header>;
 }
 
@@ -64,7 +64,7 @@ const AwareToggle = ({ children, eventKey, callback }) => {
 //   {levelBadges[level]} {name} ({hardware_id}): {message}
 // </Accordion.Toggle>
 const DiagnosticsStatus = ({level, message, name, hardware_id, values, i}) =>
-  <Card>
+  <Card style={level == 3 ? {color: '#aaa'} : {}}>
     <AwareToggle eventKey={i}>
       {levelBadges[level]} {name} ({hardware_id}): {message}
     </AwareToggle>

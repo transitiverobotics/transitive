@@ -1,10 +1,20 @@
 console.log('health!');
 
+console.log(process.env);
+const execSync = require('child_process').execSync;
+
+console.log(execSync('hostname').toString());
+console.log(execSync('ls $SNAP').toString());
+
+process.env.CMAKE_PREFIX_PATH = process.env.SNAP;
+process.env.ROS_PACKAGE_PATH = `${process.env.SNAP}/share`;
+
 const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');
 
-const client  = mqtt.connect('mqtt://localhost')
-client.on('connect', function () {
+const client  = mqtt.connect('mqtt://localhost');
+client.on('connect', function(x) {
+  console.log('connected to mqtt broker', x);
   // client.subscribe('/plusone/health/#', function (err) {
   //   if (!err) {
   //     client.publish('/plusone/health/clients', 'Hi, I am the robot');
@@ -12,14 +22,23 @@ client.on('connect', function () {
   // })
 });
 
+client.on('error', console.log);
+client.on('disconnect', console.log);
+
+
 client.on('message', function (topic, message) {
   // message is Buffer
   console.log(`mqtt, ${topic}: ${message.toString()}`);
 });
 
 rosnodejs.initNode('/snap_health', {
-  node: { forceExit: true },
+  rosMasterUri: `http://localhost:11311`,
+  notime: true,
+  logging: {skipRosLogging: true},
+  node: {forceExit: true}
 }).then((rosNode) => {
+
+  console.log(rosNode.getParam('rosdistro'));
 
   rosNode.subscribe('/diagnostics_agg', 'diagnostic_msgs/DiagnosticArray',
     (data) => {

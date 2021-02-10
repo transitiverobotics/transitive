@@ -28,15 +28,18 @@ const styles = {
     height: '1em',
     width: '1em',
     transition: 'transform 0.3s'
+  },
+  badge: {
+    width: '4em'
   }
 };
 
 /** badges for levels */
 const levelBadges = [
-  <Badge variant="success">OK</Badge>,
-  <Badge variant="warning">Warning</Badge>,
-  <Badge variant="danger">Error</Badge>,
-  <Badge variant="secondary">Stale</Badge>,
+  <Badge variant="success" style={styles.badge}>OK</Badge>,
+  <Badge variant="warning" style={styles.badge}>Warn</Badge>,
+  <Badge variant="danger" style={styles.badge}>Error</Badge>,
+  <Badge variant="secondary" style={styles.badge}>Stale</Badge>,
 ];
 
 
@@ -66,7 +69,8 @@ const AwareToggle = ({ children, eventKey, callback }) => {
 const DiagnosticsStatus = ({level, message, name, hardware_id, values, i}) =>
   <Card style={level == 3 ? {color: '#aaa'} : {}}>
     <AwareToggle eventKey={i}>
-      {levelBadges[level]} {name} ({hardware_id}): {message}
+      {levelBadges[level]} {name}
+      {hardware_id && <span> ({hardware_id})</span>}: {message}
     </AwareToggle>
     <Accordion.Collapse eventKey={i}>
       <Card.Body>

@@ -46,3 +46,4 @@ apps:
   health:
     command: node $SNAP/main.js
     plugs: [network, network-bind]
+    daemon: simple

@@ -1,0 +1,24 @@
+[Unit]
+Description=Transitive Robotics Robot Agent Service
+# After=network.target
+
+# Cannot use env variables like $USER but systemd provides some very useful
+# specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
+[Service]
+ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
+WorkingDirectory=%h/.transitive
+# EnvironmentFile=/home/cfritz/software/env
+
+# -- from https://computingforgeeks.com/how-to-run-systemd-service-without-root-sudo/
+Restart=on-failure
+SuccessExitStatus=3 4
+RestartForceExitStatus=3 4
+
+# Hardening, see `man systemd.exec`
+SystemCallArchitectures=native
+#MemoryDenyWriteExecute=true
+# ^ doesn't work with nodejs, which uses a JIT
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

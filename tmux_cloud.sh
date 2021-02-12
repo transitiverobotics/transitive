@@ -17,10 +17,11 @@ tmux rename-window "roscore"
 
 sleep 1
 
-newWindow "ex:react" "npm run start" "examples/react-app"
+#newWindow "ex:react" "npm run start" "examples/react-app"
 newWindow "ex:express" "node server.js" "examples/express"
 newWindow "cloud:build" "npx webpack" "cloud/app"
 newWindow "cloud:run" "node server.js" "cloud/app"
+newWindow "portal" "meteor" "cloud/portal"
 # using webviz demo bag file from
 # http://wiki.ros.org/rosbag/Tutorials/reading%20msgs%20from%20a%20bag%20file
 newWindow "bag" "rosbag play -l diag_only.bag" "tmp"

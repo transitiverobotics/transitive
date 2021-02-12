@@ -1,13 +1,11 @@
 console.log('health!');
 
-console.log(process.env);
-const execSync = require('child_process').execSync;
-
-console.log(execSync('hostname').toString());
-console.log(execSync('ls $SNAP').toString());
-
-process.env.CMAKE_PREFIX_PATH = process.env.SNAP;
-process.env.ROS_PACKAGE_PATH = `${process.env.SNAP}/share`;
+// const execSync = require('child_process').execSync;
+// console.log(execSync('hostname').toString());
+// console.log(execSync('ls $SNAP').toString());
+//
+// process.env.CMAKE_PREFIX_PATH = process.env.SNAP;
+// process.env.ROS_PACKAGE_PATH = `${process.env.SNAP}/share`;
 
 const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');

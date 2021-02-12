@@ -11,6 +11,6 @@ cp transitive-robot.service $HOME/.config/systemd/user/
 loginctl enable-linger $USER
 systemctl --user daemon-reload
 systemctl --user enable transitive-robot.service
-systemctl --user start transitive-robot.service
+systemctl --user restart transitive-robot.service
 
 echo postinstall done!

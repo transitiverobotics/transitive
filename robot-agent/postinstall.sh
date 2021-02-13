@@ -1,7 +1,11 @@
+#!/bin/sh
+
 echo postinstall!
 
-# env > /tmp/ENV
-# date > /tmp/postinstalled
+if [ $PWD != ~/.transitive/node_modules/@transitive-robotics/robot-agent ]; then
+  echo "refusing to run postinstall; not installed in correct directory";
+  exit 1;
+fi
 
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/

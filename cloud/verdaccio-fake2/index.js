@@ -20,15 +20,19 @@ class AuthCustomPlugin {
   /**
    * check grants for such user.
    */
-  allow_access() {
+  allow_access(user, pkg, callback) {
     // in case of restrict the access
+    console.log('yep, access!');
+    callback(null, true);
   }
 
   /**
    * check grants to publish
    */
-  allow_publish() {
+  allow_publish(user, pkg, callback) {
     // in cass to check if has permission to publish
+    console.log('yep, publish!');
+    callback(null, true);
   }
 }
 

@@ -1,6 +1,8 @@
 #!/bin/sh
 
-echo postinstall!
+echo robot-agent postinstall!
+
+set -e
 
 if [ $PWD != ~/.transitive/node_modules/@transitive-robotics/robot-agent ]; then
   echo "refusing to run postinstall; not installed in correct directory";
@@ -17,4 +19,4 @@ systemctl --user daemon-reload
 systemctl --user enable transitive-robot.service
 systemctl --user restart transitive-robot.service
 
-echo postinstall done!
+echo robot-agent postinstall done!

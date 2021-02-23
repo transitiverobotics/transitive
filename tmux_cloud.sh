@@ -26,5 +26,7 @@ newWindow "portal" "meteor" "cloud/portal"
 # http://wiki.ros.org/rosbag/Tutorials/reading%20msgs%20from%20a%20bag%20file
 newWindow "bag" "rosbag play -l diag_only.bag" "tmp"
 newWindow "robot" "node main.js" "robot_snap/health"
+newWindow "verdaccio" "node index.js" "cloud/registry"
+newWindow "journalctl" "journalctl --user -f"
 
 tmux attach

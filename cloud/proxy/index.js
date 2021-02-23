@@ -1,36 +1,103 @@
+"use strict";
+
 // set in prod environment
 const domain = process.env.DOMAIN || 'localhost';
 const production = !!process.env.PRODUCTION;
 
-const proxy = require('redbird')({
-  port: production ? 80 : 8000,
-  letsencrypt: {
-    path: __dirname + '/certs',
-    port: 9999, // LetsEncrypt minimal web server port for handling challenges. Routed 80->9999, no need to open 9999 in firewall. Default 3000 if not defined.
-    email: 'christian@transitiverobotics.com',
-    production, // WARNING: Only use this flag when the proxy is verified to work correctly to avoid being banned!
-  },
-  ssl: {
-    http2: true,
-    port: production ? 443 : 8443, // SSL port used to serve registered https routes with LetsEncrypt certificate.
-  }
+console.log({domain, production});
+
+// const proxy = require('redbird')({
+//   port: production ? 80 : 8000,
+//   letsencrypt: {
+//     path: __dirname + '/certs',
+//     port: 9999, // LetsEncrypt minimal web server port for handling challenges. Routed 80->9999, no need to open 9999 in firewall. Default 3000 if not defined.
+//   },
+//   ssl: {
+//     http2: true,
+//     port: production ? 443 : 8443, // SSL port used to serve registered https routes with LetsEncrypt certificate.
+//   }
+// });
+//
+//
+// const options = production ? {
+//   ssl: {
+//     letsencrypt: {
+//       email: 'christian@transitiverobotics.com',
+//       production, // WARNING: Only use this flag when the proxy is verified to work correctly to avoid being banned!
+//     }
+//   }
+// } : {};
+//
+// proxy.register(domain, "http://localhost:3000", options);
+// proxy.register(`install.${domain}`, "http://localhost:3000/install", options);
+
+// ------------------------------------------------------------------
+
+const proxy = require("http-proxy").createProxyServer({ xfwd: true });
+// catches error events during proxying
+proxy.on("error", function(err, req, res) {
+  console.error(err);
+  res.statusCode = 500;
+  res.end();
+  return;
 });
 
 
-const options = {
-  // ssl: {
-  //   letsencrypt: {
-  //     email: 'christian@transitiverobotics.com',
-  //     production, // WARNING: Only use this flag when the proxy is verified to work correctly to avoid being banned!
-  //   }
-  // }
+const handleRequest = (req, res) => {
+  console.log(req.headers, req.url);
+  // TODO: add switch-board logic here, see
+  // https://www.npmjs.com/package/http-proxy#node-http-proxy
+  if (req.headers.host == 'install.localhost:8000') {
+    proxy.web(req, res, { target: "http://localhost:3000/install" });
+
+  } else if (req.headers.host == 'registry.localhost:8000') {
+    proxy.web(req, res, { target: "http://localhost:6000" });
+
+  } else {
+    // default
+    proxy.web(req, res, { target: "http://localhost:3000" });
+  }
 };
 
-proxy.register(domain, "http://localhost:3000", options);
-proxy.register(`install.${domain}`, "http://localhost:3000/install", options);
 
-//
-// LetsEncrypt requires a minimal web server for handling the challenges, this is by default on port 3000
-// it can be configured when initiating the proxy. This web server is only used by Redbird internally so most of the time
-// you  do not need to do anything special other than avoid having other web services in the same host running
-// on the same port.
+if (production) {
+  // in production we use greenlock-express as the server to terminate SSL requests
+
+  require("greenlock-express").init(() => {
+    // Greenlock Config
+    return {
+      packageRoot: __dirname,
+      configDir: "./greenlock.d",
+      maintainerEmail: "christian@transitiverobotics.com",
+      cluster: false,
+      staging: false, // production: get actual certs from Let's Encrypt
+    };
+  }).ready((glx) => {
+      // we need the raw https server
+      const server = glx.httpsServer();
+
+      // We'll proxy websockets too
+      server.on("upgrade", function(req, socket, head) {
+        proxy.ws(req, socket, head, {
+          ws: true,
+          target: "ws://localhost:9000" // cloud app
+        });
+      });
+
+      // servers a node app that proxies requests
+      glx.serveApp(handleRequest);
+    }
+  );
+
+} else {
+
+  // in dev we don't support SSL
+  const http = require('http');
+  const server = http.createServer(handleRequest);
+  server.on('upgrade', function(req, socket, head) {
+    // TODO: may need to replicate switch-board logic here
+    proxy.ws(req, socket, head, { target: "http://localhost:3000" });
+  });
+  console.log("listening on port 8000")
+  server.listen(8000);
+}

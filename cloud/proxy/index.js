@@ -1,10 +1,10 @@
 "use strict";
 
 // set in prod environment
-const domain = process.env.DOMAIN || 'localhost';
+const host = process.env.HOST || 'localhost:8000';
 const production = !!process.env.PRODUCTION;
 
-console.log({domain, production});
+console.log({host, production});
 
 // const proxy = require('redbird')({
 //   port: production ? 80 : 8000,
@@ -47,10 +47,10 @@ const handleRequest = (req, res) => {
   console.log(req.headers, req.url);
   // TODO: add switch-board logic here, see
   // https://www.npmjs.com/package/http-proxy#node-http-proxy
-  if (req.headers.host == 'install.localhost:8000') {
+  if (req.headers.host == `install.${host}`) {
     proxy.web(req, res, { target: "http://localhost:3000/install" });
 
-  } else if (req.headers.host == 'registry.localhost:8000') {
+  } else if (req.headers.host == `registry.${host}`) {
     proxy.web(req, res, { target: "http://localhost:6000" });
 
   } else {
@@ -59,6 +59,7 @@ const handleRequest = (req, res) => {
   }
 };
 
+// -----------------------------------------------------------------------
 
 if (production) {
   // in production we use greenlock-express as the server to terminate SSL requests

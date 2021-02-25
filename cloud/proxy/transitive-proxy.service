@@ -1,0 +1,15 @@
+[Unit]
+Description=Transitive Robotics Proxy Service
+After=network.target
+
+# Cannot use env variables like $USER but systemd provides some very useful
+# specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
+[Service]
+ExecStart=node index.js
+WorkingDirectory=%h/opt/proxy
+# EnvironmentFile=... # keep this option in mind, might come in handy
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

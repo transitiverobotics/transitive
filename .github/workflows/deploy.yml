@@ -27,5 +27,5 @@ jobs:
 
       - name: Run proxy install script
         run: |
-          cd proxy
+          cd cloud/proxy
           /bin/bash install.sh

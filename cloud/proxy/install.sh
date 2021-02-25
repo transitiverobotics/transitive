@@ -7,6 +7,9 @@ echo running proxy install
 
 set -e
 
+# this script executes in the cloud/proxy folder of the checkout
+DIR=$PWD
+
 # make sure config folder exists
 mkdir -p $HOME/etc/greenlock.d
 if [ ! -e $HOME/etc/greenlock.d/config.json ]; then
@@ -33,9 +36,9 @@ loginctl enable-linger $USER
 systemctl --user daemon-reload
 
 # restart services
-for service in *.service; do
-  systemctl --user enable $service
-  systemctl --user restart $service
+for service in $DIR/*.service; do
+  systemctl --user enable $(basename $service)
+  systemctl --user restart $(basename $service)
 done;
 
 echo proxy install done!

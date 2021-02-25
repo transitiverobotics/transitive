@@ -1,0 +1,3 @@
+# EnvironmentFile used by systemd service in production
+HOST=transitiverobotics.com
+PRODUCTION=true

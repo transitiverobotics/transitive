@@ -7,7 +7,7 @@ After=network.target
 [Service]
 ExecStart=node index.js
 WorkingDirectory=%h/opt/proxy
-# EnvironmentFile=... # keep this option in mind, might come in handy
+EnvironmentFile=%h/opt/proxy/env
 Restart=always
 RestartSec=2
 

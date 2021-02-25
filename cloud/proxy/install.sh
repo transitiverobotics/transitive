@@ -23,7 +23,7 @@ cp *.service $HOME/.config/systemd/user/
 
 # copy code in place (note, we are not cleaning anything existing):
 mkdir -p $HOME/opt/proxy
-cp index.js package*.json $HOME/opt/proxy
+cp index.js package*.json env $HOME/opt/proxy
 
 # run npm install
 cd $HOME/opt/proxy

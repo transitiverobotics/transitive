@@ -15,6 +15,22 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  # build the portal (meteor build) on github
+  buildPortal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          curl https://install.meteor.com/ | sh
+      - run: |
+          cd cloud/portal
+          meteor build ${{ runner.temp }}
+      - name: Upload meteor bundle
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ runner.temp }}/portal.tar.gz
+          path: bundle.tar.gz
+
   # This workflow contains a single job called "deploy"
   deploy:
     # The type of runner that the job will run on
@@ -40,3 +56,13 @@ jobs:
         run: |
           cd robot-agent
           /bin/bash republish.sh https://registry.transitiverobotics.com
+
+      - name: Download portal bundle
+        uses: actions/download-artifact@v2
+        with:
+          name: bundle.tar.gz
+
+      - name: Run portal install script
+        run: |
+          cd cloud/portal
+          /bin/bash install.sh

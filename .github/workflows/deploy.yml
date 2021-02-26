@@ -28,11 +28,12 @@ jobs:
       - name: Upload meteor bundle
         uses: actions/upload-artifact@v1
         with:
-          name: ${{ runner.temp }}/portal.tar.gz
-          path: bundle.tar.gz
+          name: bundle
+          path: ${{ runner.temp }}/portal.tar.gz
 
   # This workflow contains a single job called "deploy"
   deploy:
+    needs: buildPortal
     # The type of runner that the job will run on
     runs-on: self-hosted
 
@@ -60,7 +61,7 @@ jobs:
       - name: Download portal bundle
         uses: actions/download-artifact@v2
         with:
-          name: bundle.tar.gz
+          name: bundle
 
       - name: Run portal install script
         run: |

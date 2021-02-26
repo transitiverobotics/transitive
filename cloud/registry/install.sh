@@ -15,7 +15,7 @@ cp *.service $HOME/.config/systemd/user/
 
 # copy code in place (note, we are not cleaning anything existing):
 mkdir -p $HOME/opt/registry
-cp index.js package*.json $HOME/opt/registry
+cp -r index.js package*.json verdaccio-fake2 $HOME/opt/registry
 
 # run npm install
 cd $HOME/opt/registry

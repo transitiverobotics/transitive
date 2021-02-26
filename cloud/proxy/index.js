@@ -81,7 +81,7 @@ if (production) {
       server.on("upgrade", function(req, socket, head) {
         proxy.ws(req, socket, head, {
           ws: true,
-          target: "ws://localhost:9000" // cloud app
+          target: "ws://localhost:3000" // cloud app
         });
       });
 

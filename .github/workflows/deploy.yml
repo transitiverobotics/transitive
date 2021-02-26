@@ -22,8 +22,8 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           curl https://install.meteor.com/ | sh
-      - run: |
           cd cloud/portal
+          meteor npm install
           meteor build ${{ runner.temp }}
       - name: Upload meteor bundle
         uses: actions/upload-artifact@v1

@@ -44,7 +44,7 @@ proxy.on("error", function(err, req, res) {
 
 
 const handleRequest = (req, res) => {
-  console.log(req.headers, req.url);
+  console.log(req.headers.host, req.url);
   // TODO: add switch-board logic here, see
   // https://www.npmjs.com/package/http-proxy#node-http-proxy
   if (req.headers.host == `install.${host}`) {

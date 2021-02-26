@@ -11,7 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "verdaccio": "^4.11.0",
-    "verdaccio-fake": "file:../verdaccio-fake",
-    "verdaccio-fake2": "file:../verdaccio-fake2"
+    "verdaccio-fake2": "file:verdaccio-fake2"
   }
 }

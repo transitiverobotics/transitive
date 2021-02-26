@@ -6,8 +6,9 @@ on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [ master ]
+    # later change this to a specific branch
   pull_request:
-    branches: [ master ]
+    branches: [ ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -28,4 +29,9 @@ jobs:
       - name: Run proxy install script
         run: |
           cd cloud/proxy
+          /bin/bash install.sh
+
+      - name: Run registry install script
+        run: |
+          cd cloud/registry
           /bin/bash install.sh

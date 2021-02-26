@@ -35,3 +35,8 @@ jobs:
         run: |
           cd cloud/registry
           /bin/bash install.sh
+
+      - name: Publish robot-agent if new version
+        run: |
+          cd robot-agent
+          /bin/bash republish.sh https://registry.transitiverobotics.com

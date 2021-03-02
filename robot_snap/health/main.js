@@ -10,7 +10,8 @@ console.log('health!');
 const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');
 
-const client  = mqtt.connect('mqtt://localhost', {
+const MQTT_HOST = 'mqtt://localhost';
+const client  = mqtt.connect(MQTT_HOST, {
   username: 'me',
   password: 'letmein'
 });

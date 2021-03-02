@@ -2,9 +2,7 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 
 const startMQTT = (clients = []) => {
-  const client  = mqtt.connect('mqtt://localhost', {
-    username: 'me-thecloud',
-    password: 'thisiscorrect',
+  const client  = mqtt.connect('mqtts://localhost', {
     key: fs.readFileSync('certs/client.key'),
     cert: fs.readFileSync('certs/client.crt'),
     rejectUnauthorized: false,

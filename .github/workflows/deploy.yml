@@ -1,7 +1,6 @@
-# This is a basic workflow to help you get started with Actions
+# deploy all but the portal, which has it's own (conditional) action
 name: Deploy
 
-# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
@@ -13,39 +12,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # build the portal (meteor build) on github
-  buildPortal:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: trilom/file-changes-action@v1.2.3
-      - id: hasChanged
-        name: check for changes
-        run: |
-          echo '${{ steps.file_changes.outputs.files}}' | grep cloud/portal
-      - if: steps.s2.conclusion == 'success'
-        name: build bundle
-        run: |
-          curl https://install.meteor.com/ | sh
-          cd cloud/portal
-          meteor npm install
-          meteor build ${{ runner.temp }}
-      - if: steps.s2.conclusion == 'success'
-        name: Upload meteor bundle
-        uses: actions/upload-artifact@v1
-        with:
-          name: bundle
-          path: ${{ runner.temp }}/portal.tar.gz
-
-  # This workflow contains a single job called "deploy"
   deploy:
-    needs: buildPortal
-    # The type of runner that the job will run on
     runs-on: self-hosted
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       # see https://github.com/actions/checkout/tree/v2
@@ -65,14 +34,3 @@ jobs:
         run: |
           cd robot-agent
           /bin/bash republish.sh https://registry.transitiverobotics.com
-
-      - name: Download portal bundle
-        uses: actions/download-artifact@v2
-        with:
-          name: bundle
-          path: cloud/portal
-
-      - name: Run portal install script
-        run: |
-          cd cloud/portal
-          /bin/bash install.sh

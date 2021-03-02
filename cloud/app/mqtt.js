@@ -1,7 +1,10 @@
 const mqtt = require('mqtt')
 
 const startMQTT = (clients = []) => {
-  const client  = mqtt.connect('mqtt://localhost');
+  const client  = mqtt.connect('mqtt://localhost', {
+    username: 'me-thecloud',
+    password: 'thisiscorrect'
+  });
 
   console.log('connecting');
   client.on('connect', function () {

@@ -20,12 +20,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: |
+      - uses: trilom/file-changes-action@v1.2.3
+      - id: hasChanged
+        name: check for changes
+        run: |
+          echo '${{ steps.file_changes.outputs.files}}' | grep cloud/portal
+      - if: steps.s2.conclusion == 'success'
+        name: build bundle
+        run: |
           curl https://install.meteor.com/ | sh
           cd cloud/portal
           meteor npm install
           meteor build ${{ runner.temp }}
-      - name: Upload meteor bundle
+      - if: steps.s2.conclusion == 'success'
+        name: Upload meteor bundle
         uses: actions/upload-artifact@v1
         with:
           name: bundle

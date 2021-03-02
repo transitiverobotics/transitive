@@ -10,7 +10,10 @@ console.log('health!');
 const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');
 
-const client  = mqtt.connect('mqtt://localhost');
+const client  = mqtt.connect('mqtt://localhost', {
+  username: 'me',
+  password: 'letmein'
+});
 client.on('connect', function(x) {
   console.log('connected to mqtt broker', x);
   // client.subscribe('/plusone/health/#', function (err) {

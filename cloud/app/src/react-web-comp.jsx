@@ -119,7 +119,7 @@ const Diagnostics = () => {
 
   useEffect(() => {
       console.log('connecting to websocket server')
-      const ws = new WebSocket('ws://localhost2:9000');
+      const ws = new WebSocket('ws://localhost:9000');
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };

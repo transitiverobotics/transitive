@@ -1,9 +1,13 @@
-const mqtt = require('mqtt')
+const mqtt = require('mqtt');
+const fs = require('fs');
 
 const startMQTT = (clients = []) => {
   const client  = mqtt.connect('mqtt://localhost', {
     username: 'me-thecloud',
-    password: 'thisiscorrect'
+    password: 'thisiscorrect',
+    key: fs.readFileSync('certs/client.key'),
+    cert: fs.readFileSync('certs/client.crt'),
+    rejectUnauthorized: false,
   });
 
   console.log('connecting');
@@ -15,6 +19,9 @@ const startMQTT = (clients = []) => {
       }
     })
   });
+
+  client.on('error', console.log);
+  client.on('disconnect', console.log);
 
   client.on('message', function (topic, message) {
     // message is Buffer

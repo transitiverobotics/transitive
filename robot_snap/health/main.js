@@ -9,12 +9,17 @@ console.log('health!');
 
 const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');
+const fs = require('fs');
 
 const MQTT_HOST = 'mqtt://localhost';
 const client  = mqtt.connect(MQTT_HOST, {
   username: 'me',
-  password: 'letmein'
+  password: 'letmein',
+  key: fs.readFileSync('certs/client.key'),
+  cert: fs.readFileSync('certs/client.crt'),
+  rejectUnauthorized: false,
 });
+
 client.on('connect', function(x) {
   console.log('connected to mqtt broker', x);
   // client.subscribe('/plusone/health/#', function (err) {

@@ -42,24 +42,31 @@ proxy.on("error", function(err, req, res) {
   return;
 });
 
+// -----------------------------------------------------------------------
+// Routing logic
+
+const routingTable = {
+  [`install.${host}`]: 'localhost:3000/install',
+  [`registry.${host}`]: 'localhost:6000',
+  [`data.${host}`]: 'localhost:9000',
+  default: 'localhost:3000'
+};
 
 const handleRequest = (req, res) => {
   console.log(req.headers.host, req.url);
-  // TODO: add switch-board logic here, see
-  // https://www.npmjs.com/package/http-proxy#node-http-proxy
-  if (req.headers.host == `install.${host}`) {
-    proxy.web(req, res, { target: "http://localhost:3000/install" });
+  const target = `http://${routingTable[req.headers.host] || routingTable.default}`;
+  proxy.web(req, res, { target });
+};
 
-  } else if (req.headers.host == `registry.${host}`) {
-    proxy.web(req, res, { target: "http://localhost:6000" });
-
-  } else {
-    // default
-    proxy.web(req, res, { target: "http://localhost:3000" });
-  }
+/** handler for web socket upgrade */
+const handleUpgrade = function(req, socket, head) {
+  console.log('ws:', req.headers.host, req.url);
+  const target = `ws://${routingTable[req.headers.host] || routingTable.default}`;
+  proxy.ws(req, socket, head, {ws: true, target});
 };
 
 // -----------------------------------------------------------------------
+
 
 if (production) {
   // in production we use greenlock-express as the server to terminate SSL requests
@@ -78,12 +85,7 @@ if (production) {
       const server = glx.httpsServer();
 
       // We'll proxy websockets too
-      server.on("upgrade", function(req, socket, head) {
-        proxy.ws(req, socket, head, {
-          ws: true,
-          target: "ws://localhost:3000" // cloud app
-        });
-      });
+      server.on("upgrade", handleUpgrade);
 
       // servers a node app that proxies requests
       glx.serveApp(handleRequest);
@@ -95,10 +97,7 @@ if (production) {
   // in dev we don't support SSL
   const http = require('http');
   const server = http.createServer(handleRequest);
-  server.on('upgrade', function(req, socket, head) {
-    // TODO: may need to replicate switch-board logic here
-    proxy.ws(req, socket, head, { target: "http://localhost:3000" });
-  });
-  console.log("listening on port 8000")
+  server.on('upgrade', handleUpgrade);
   server.listen(8000);
+  console.log("listening on port 8000")
 }

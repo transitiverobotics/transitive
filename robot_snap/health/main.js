@@ -12,26 +12,26 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 
 const MQTT_HOST = 'mqtt://localhost';
-const client  = mqtt.connect(MQTT_HOST, {
+const mqttClient  = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
   cert: fs.readFileSync('certs/client.crt'),
   rejectUnauthorized: false,
 });
 
-client.on('connect', function(x) {
+mqttClient.on('connect', function(x) {
   console.log('connected to mqtt broker', x);
-  // client.subscribe('/plusone/health/#', function (err) {
+  // mqttClient.subscribe('/plusone/health/#', function (err) {
   //   if (!err) {
-  //     client.publish('/plusone/health/clients', 'Hi, I am the robot');
+  //     mqttClient.publish('/plusone/health/clients', 'Hi, I am the robot');
   //   }
   // })
 });
 
-client.on('error', console.log);
-client.on('disconnect', console.log);
+mqttClient.on('error', console.log);
+mqttClient.on('disconnect', console.log);
 
 
-client.on('message', function (topic, message) {
+mqttClient.on('message', function (topic, message) {
   // message is Buffer
   console.log(`mqtt, ${topic}: ${message.toString()}`);
 });
@@ -47,7 +47,7 @@ rosnodejs.initNode('/snap_health', {
 
   rosNode.subscribe('/diagnostics_agg', 'diagnostic_msgs/DiagnosticArray',
     (data) => {
-      client.publish('/plusone/health/site1/robot1', JSON.stringify(data));
+      mqttClient.publish('/plusone/health/site1/robot1', JSON.stringify(data));
       // TODO: send binary data instead (more compact)
     });
 

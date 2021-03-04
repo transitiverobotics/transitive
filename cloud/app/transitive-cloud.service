@@ -1,0 +1,15 @@
+[Unit]
+Description=Transitive Robotics Cloud Service
+After=network.target
+
+# Cannot use env variables like $USER but systemd provides some very useful
+# specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
+[Service]
+ExecStart=node server.js
+WorkingDirectory=%h/opt/app
+EnvironmentFile=%h/opt/app/env
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

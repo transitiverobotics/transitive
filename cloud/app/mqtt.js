@@ -14,6 +14,8 @@ const startMQTT = (clients = []) => {
     client.subscribe('/plusone/health/#', function (err) {
       if (!err) {
         client.publish('/plusone/health/clients', 'Hi, I am the cloud back-end');
+      } else {
+        console.log('error subscribing', err);
       }
     })
   });

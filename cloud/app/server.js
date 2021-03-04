@@ -7,7 +7,7 @@ const startMQTT = require('./mqtt.js').startMQTT;
 const app = express();
 
 // app.use(express.static(path.join(__dirname, 'build')));
-app.use(express.static(path.join(__dirname, 'public')));
+// app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // app.get('/', function (req, res) {

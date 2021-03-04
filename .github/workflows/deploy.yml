@@ -30,6 +30,11 @@ jobs:
           cd cloud/registry
           /bin/bash install.sh
 
+      - name: Run cloud app install script
+        run: |
+          cd cloud/app
+          /bin/bash install.sh
+
       - name: Publish robot-agent if new version
         run: |
           cd robot-agent

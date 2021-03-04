@@ -6,9 +6,6 @@
     "@fortawesome/fontawesome-svg-core": "^1.2.34",
     "@fortawesome/free-solid-svg-icons": "^5.15.2",
     "@fortawesome/react-fontawesome": "^0.1.14",
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
     "bootstrap": "^4.6.0",
     "express": "^4.17.1",
     "lodash": "^4.17.20",
@@ -16,22 +13,10 @@
     "react": "^17.0.1",
     "react-bootstrap": "^1.4.3",
     "react-dom": "^17.0.1",
-    "react-scripts": "4.0.1",
-    "react-web-component": "^2.0.1",
-    "web-vitals": "^0.2.4"
+    "react-web-component": "^2.0.1"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
+  "scripts": {},
+  "eslintConfig": {},
   "browserslist": {
     "production": [
       ">0.2%",
@@ -45,7 +30,10 @@
     ]
   },
   "devDependencies": {
+    "@babel/core": "^7.13.8",
+    "@babel/preset-env": "^7.13.9",
     "@babel/preset-react": "^7.12.10",
+    "babel-loader": "^8.2.2",
     "css-loader": "^5.0.1",
     "extract-loader": "^5.1.0",
     "react-web-component-style-loader": "^0.1.4-alpha",

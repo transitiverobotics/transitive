@@ -78,7 +78,7 @@ if (production) {
       configDir: `${process.env.HOME}/etc/greenlock.d`,
       maintainerEmail: "christian@transitiverobotics.com",
       cluster: false,
-      staging: false, // production: get actual certs from Let's Encrypt
+      staging: false, // false == production: get actual certs from Let's Encrypt
     };
   }).ready((glx) => {
       // we need the raw https server

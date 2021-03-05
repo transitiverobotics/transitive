@@ -18,11 +18,12 @@ cp *.service $HOME/.config/systemd/user/
 
 # copy code in place (note, we are not cleaning anything existing):
 mkdir -p $HOME/opt/$MODULE
-cp -r * $HOME/opt/$MODULE
+cp -r . $HOME/opt/$MODULE
 
 # run npm install
 cd $HOME/opt/$MODULE
 npm install
+npx webpack --no-watch # for now, later: separate this out from the app
 
 # create mqtt client ssl certificate, requires CA certs in /etc/mosquitto/certs
 cd $HOME/opt/$MODULE/certs

@@ -11,7 +11,9 @@ const rosnodejs = require('rosnodejs');
 const mqtt = require('mqtt');
 const fs = require('fs');
 
-const MQTT_HOST = 'mqtt://localhost';
+// const MQTT_HOST = 'mqtt://localhost';
+// const MQTT_HOST = 'mqtt://data.transitiverobotics.com';
+const MQTT_HOST = `mqtt://data.${process.env.TR_HOST}`;
 const mqttClient  = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
   cert: fs.readFileSync('certs/client.crt'),

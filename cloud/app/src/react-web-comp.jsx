@@ -119,7 +119,8 @@ const Diagnostics = () => {
 
   useEffect(() => {
       console.log('connecting to websocket server')
-      const ws = new WebSocket('ws://localhost:9000');
+      // const ws = new WebSocket('ws://localhost:9000');
+      const ws = new WebSocket('wss://data.transitiverobotics.com');
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };

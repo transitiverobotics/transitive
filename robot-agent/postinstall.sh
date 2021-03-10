@@ -11,7 +11,9 @@ fi
 
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/
-cp transitive-robot.service $HOME/.config/systemd/user/
+cp *.service $HOME/.config/systemd/user/
+
+mkdir -p ~/.transitive/packages
 
 # allow service to run on boot without user logging in
 loginctl enable-linger $USER

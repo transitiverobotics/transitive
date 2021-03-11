@@ -6,6 +6,7 @@ set -e
 
 if [ $PWD != ~/.transitive/node_modules/@transitive-robotics/robot-agent ]; then
   echo "refusing to run postinstall; not installed in correct directory";
+  echo $PWD;
   exit 1;
 fi
 

@@ -6,9 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "sh postinstall.sh",
-    "preuninstall" : "sh uninstall.sh"
+    "preuninstall": "sh uninstall.sh"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "aedes": "^0.45.0",
+    "mqtt": "^4.2.6"
+  }
 }

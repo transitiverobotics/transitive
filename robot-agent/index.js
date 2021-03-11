@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 /**
   Detect whether we are run out of
   ~/.transitive/node_modules/@transitive-robotics/robot-agent
@@ -6,14 +8,16 @@
   officially installed version in the above directory.
 */
 const TRANSITIVE_DIR = `${process.env.HOME}/.transitive`;
-if (__dirname != `${TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`) {
+if (__dirname != `${TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`
+    && ! fs.existsSync(`${TRANSITIVE_DIR}/DEVMODE`)) {
   console.log(`This package should not be run or used anywhere but in
-    ~/.transitive/node_modules directly. You probably didn't mean to. Exiting.`);
+    ~/.transitive/node_modules directly. You probably didn't mean to. Exiting.`,
+  __dirname);
   process.exit(1);
 }
 
-const fs = require('fs');
 const exec = require('child_process').exec;
+require('./mqtt');
 
 console.log('@transitive-robotics/robot-agent started', new Date());
 
@@ -61,10 +65,6 @@ const update = () => {
     {withFileTypes: true}).filter(f => f.isDirectory());
   packages.forEach(({name}) => updatePackage(name));
 };
-
-/** catch-all for otherwise uncaught exceptions */
-process.on('uncaughtException', (err) =>
-  console.log('uncaughtException:', err.message, err.stack));
 
 setInterval(update, UPDATE_INTERVAL);
 

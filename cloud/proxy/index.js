@@ -48,7 +48,7 @@ proxy.on("error", function(err, req, res) {
 const routingTable = {
   [`install.${host}`]: 'localhost:3000/install',
   [`registry.${host}`]: 'localhost:6000',
-  [`data.${host}`]: 'localhost:9000',
+  [`data.${host}`]: 'localhost:9000', // Note: this is for websocket traffic, not mqtt
   default: 'localhost:3000'
 };
 

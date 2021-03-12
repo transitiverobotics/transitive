@@ -17,6 +17,6 @@ WorkingDirectory=/home/transitive/
 #ExecStart=/usr/bin/bash -c "/home/usr/bin/node /home/usr/bin/npm update && cd node_modules/%i && /home/usr/bin/node /home/usr/bin/npm start"
 # generate a random password for this package to use
 ExecStartPre=/usr/bin/bash -c "node -e \"fs.writeFileSync('password', Math.random().toString(36).substr(2, 9))\""
-ExecStart=/usr/bin/bash -c "PATH=/home/usr/bin:$PATH && npm update && cd node_modules/@transitive-robotics/%i && npm start"
+ExecStart=/usr/bin/bash -c "PATH=/home/usr/bin:$PATH && npm update && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
 # Note: npm update also installs missing packages, see,
 # https://stackoverflow.com/a/19824154/1087119

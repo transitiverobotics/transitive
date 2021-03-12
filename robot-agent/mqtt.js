@@ -27,6 +27,19 @@ aedes.on('publish', (packet, client) => {
   }
 });
 
+aedes.on('subscribe', (subscriptions, client) => {
+  subscriptions.forEach(subscription => {
+    console.log(client && client.id, 'wants', subscription);
+    if (client) {
+      mqttClient.subscribe(subscription.topic); // TODO: also relay QoS
+    }
+  });
+});
+
+
+// ------------------------
+// Security
+
 aedes.authenticate = (client, username, password, callback) => {
   console.log('authenticate', client.id);
   // During ExecStartPre of each package, a random password is written
@@ -51,19 +64,12 @@ aedes.authorizeSubscribe = (client, subscription, callback) => {
   callback(null, subscription);
 }
 
-// setInterval(() =>
-//   aedes.publish({
-//       topic: 'presence',
-//       payload: 'our heart beats for those that joined us'
-//     }, () => {}),
-//   5000);
-
 // ---------------------------------------------------------------------------
 // Upstream
 
 const mqtt = require('mqtt');
 
-const MQTT_HOST = 'mqtt://localhost'; // connect to mqtt server provided by robot-agent
+const MQTT_HOST = 'mqtts://localhost'; // connect to upstream mqtt server
 // const MQTT_HOST = `mqtt://data.${process.env.TR_HOST}`;
 const mqttClient = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
@@ -78,7 +84,8 @@ mqttClient.on('connect', function(x) {
 mqttClient.on('error', console.log);
 mqttClient.on('disconnect', console.log);
 
-mqttClient.on('message', function (topic, message) {
-  // message is Buffer
-  console.log(`upstream mqtt, ${topic}: ${message.toString()}`);
+mqttClient.on('message', (topic, payload) => {
+  console.log(`upstream mqtt, ${topic}: ${payload.toString()}`);
+  // relay the upstream message to local
+  aedes.publish({topic, payload}, () => {});
 });

@@ -24,7 +24,6 @@ if (!process.env.TR_USERID) {
 
 const utils = require('./utils');
 const exec = require('child_process').exec;
-require('./mqtt');
 
 console.log('@transitive-robotics/robot-agent started', new Date());
 
@@ -78,3 +77,7 @@ const update = () => selfUpdate(updateAllPackages);
 setInterval(update, UPDATE_INTERVAL);
 
 update();
+
+// TODO: make this safer against self-destructing updates by only loading this
+// after updates are complete
+require('./mqtt');

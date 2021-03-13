@@ -18,6 +18,7 @@ const PORT = 1883;
 
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
+console.log('PREFIX = ', PREFIX);
 
 server.listen(PORT, () => {
   console.log('mqtt server bound');
@@ -84,8 +85,10 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
 
 mqttClient.on('connect', function(x) {
   console.log('connected to upstream mqtt broker', x);
-  console.log('subscribing to robot-agent commands', x);
-  mqttClient.subscribe(`${PREFIX}/_robot-agent/#`);
+  console.log('subscribing to robot-agent commands');
+  mqttClient.subscribe(`${PREFIX}/_robot-agent/desiredPackages`, console.log);
+
+  setInterval(heartbeat, 10000);
 });
 
 mqttClient.on('error', console.log);
@@ -105,3 +108,9 @@ mqttClient.on('message', (topic, payload) => {
     aedes.publish({topic, payload}, () => {});
   }
 });
+
+const heartbeat = () => {
+  mqttClient.publish(`${PREFIX}/_robot-agent/status`, JSON.stringify({
+    heartbeat: new Date()
+  }));
+};

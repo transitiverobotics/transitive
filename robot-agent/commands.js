@@ -26,7 +26,7 @@ const utils = require('./utils');
 /** this is the list of recognized commands and their implementation */
 const commands = {
   /** set list of should-be-installed packages */
-  setPackages: (desired) => {
+  desiredPackages: (desired) => {
     console.log('Ensure installed packages match', desired);
 
     const packages = utils.getInstalledPackages();

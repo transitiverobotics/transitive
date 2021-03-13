@@ -10,9 +10,14 @@
 
 const aedes = require('aedes')();
 const fs = require('fs');
+const utils = require('./utils');
+const { handleAgentCommand } = require('./commands');
 
 const server = require('net').createServer(aedes.handle);
 const PORT = 1883;
+
+// prefix for all our mqtt topics, i.e., our namespace
+const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 
 server.listen(PORT, () => {
   console.log('mqtt server bound');
@@ -54,13 +59,13 @@ aedes.authenticate = (client, username, password, callback) => {
 
 aedes.authorizePublish = (client, packet, callback) => {
   // overwrite packet: force client to its namespace
-  packet.topic = `${client.id}${packet.topic}`;
+  packet.topic = `${PREFIX}/${client.id}/${packet.topic}`;
   callback(null)
 }
 
 aedes.authorizeSubscribe = (client, subscription, callback) => {
   // overwrite subscription: force client to its namespace
-  subscription.topic = `${client.id}${subscription.topic}`;
+  subscription.topic = `${PREFIX}/${client.id}/${subscription.topic}`;
   callback(null, subscription);
 }
 
@@ -79,6 +84,8 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
 
 mqttClient.on('connect', function(x) {
   console.log('connected to upstream mqtt broker', x);
+  console.log('subscribing to robot-agent commands', x);
+  mqttClient.subscribe(`${PREFIX}/_robot-agent/#`);
 });
 
 mqttClient.on('error', console.log);
@@ -87,5 +94,14 @@ mqttClient.on('disconnect', console.log);
 mqttClient.on('message', (topic, payload) => {
   console.log(`upstream mqtt, ${topic}: ${payload.toString()}`);
   // relay the upstream message to local
-  aedes.publish({topic, payload}, () => {});
+
+  const parsedTopic = utils.parseMQTTTopic(topic);
+  // TODO: ensure no one tries to publish a capability with this name
+  if (parsedTopic.capability == '_robot-agent') {
+    // it's for us, the robot-agent
+    handleAgentCommand(parsedTopic.sub, JSON.parse(payload.toString('ascii')));
+  } else {
+    // not for us, relay it locally
+    aedes.publish({topic, payload}, () => {});
+  }
 });

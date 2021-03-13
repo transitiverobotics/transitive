@@ -5,9 +5,9 @@ Description=Transitive Robotics Robot Agent Service
 # Cannot use env variables like $USER but systemd provides some very useful
 # specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
 [Service]
-ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
+EnvironmentFile=%h/.transitive/.env
 WorkingDirectory=%h/.transitive
-# EnvironmentFile=/home/cfritz/software/env
+ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
 
 Restart=always
 RestartSec=2

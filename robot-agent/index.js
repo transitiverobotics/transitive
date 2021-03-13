@@ -1,5 +1,7 @@
 const fs = require('fs');
 
+const constants = require('./constants');
+
 /**
   Detect whether we are run out of
   ~/.transitive/node_modules/@transitive-robotics/robot-agent
@@ -7,15 +9,20 @@ const fs = require('fs');
   package once more in their respective node_modules and messing with the
   officially installed version in the above directory.
 */
-const TRANSITIVE_DIR = `${process.env.HOME}/.transitive`;
-if (__dirname != `${TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`
-    && ! fs.existsSync(`${TRANSITIVE_DIR}/DEVMODE`)) {
-  console.log(`This package should not be run or used anywhere but in
+if (__dirname != `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`
+    && ! fs.existsSync('DEVMODE')) {
+  console.error(`This package should not be run or used anywhere but in
     ~/.transitive/node_modules directly. You probably didn't mean to. Exiting.`,
   __dirname);
   process.exit(1);
 }
 
+if (!process.env.TR_USERID) {
+  console.error('Missing environment variable: TR_USERID');
+  process.exit(2);
+}
+
+const utils = require('./utils');
 const exec = require('child_process').exec;
 require('./mqtt');
 
@@ -23,26 +30,29 @@ console.log('@transitive-robotics/robot-agent started', new Date());
 
 // note that we here assume that we are run by the systemd user service that is
 // installed by this package during postinstall
-const BINDIR = `${TRANSITIVE_DIR}/usr/bin`;
-const NPM = `${BINDIR}/node ${BINDIR}/npm`;
 const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
 /** self-update this package */
-const selfUpdate = () => {
+const selfUpdate = (cb) => {
   console.log('checking for updates');
-  exec(`${NPM} update`, {
-      cwd: TRANSITIVE_DIR
+  exec(`${constants.NPM} update`, {
+      cwd: constants.TRANSITIVE_DIR
     },
     (err, stdout, stderr) => {
-      console.log('self-update completed', {err, stdout, stderr});
+      if (!err) {
+        console.log('self-update completed:', stdout);
+        cb();
+      } else {
+        console.log('self-update failed', {err, stderr});
+      }
     });
 };
 
 /** update package "name" */
 const updatePackage = (name) => {
   console.log(`checking for updates for package ${name}`);
-  exec(`${NPM} outdated --json`,
-    { cwd: `${TRANSITIVE_DIR}/packages/${name}` },
+  exec(`${constants.NPM} outdated --json`,
+    { cwd: `${constants.TRANSITIVE_DIR}/packages/${name}` },
     (err, stdout, stderr) => {
       const outdated = JSON.parse(stdout);
       console.log('outdated:', outdated);
@@ -57,14 +67,13 @@ const updatePackage = (name) => {
     });
 };
 
-/** update self and all packages */
-const update = () => {
-  selfUpdate(); // Note: this may kill this program and restart it
-
-  const packages = fs.readdirSync(`${TRANSITIVE_DIR}/packages`,
-    {withFileTypes: true}).filter(f => f.isDirectory());
-  packages.forEach(({name}) => updatePackage(name));
+const updateAllPackages = () => {
+  const packages = utils.getInstalledPackages();
+  packages.forEach(name => updatePackage(name));
 };
+
+/** update self and all packages */
+const update = () => selfUpdate(updateAllPackages);
 
 setInterval(update, UPDATE_INTERVAL);
 

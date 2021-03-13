@@ -8,7 +8,6 @@ set -e
 # this script executes in the cloud/app folder of the checkout
 DIR=$PWD
 MODULE=$(basename $PWD)
-CERTDIR=/etc/mosquitto/certs
 
 echo running $MODULE install
 

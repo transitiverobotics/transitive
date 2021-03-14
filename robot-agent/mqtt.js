@@ -10,6 +10,7 @@
 
 const aedes = require('aedes')();
 const fs = require('fs');
+const os = require('os');
 const utils = require('./utils');
 const { handleAgentCommand } = require('./commands');
 
@@ -88,7 +89,16 @@ mqttClient.on('connect', function(x) {
   console.log('subscribing to robot-agent commands');
   mqttClient.subscribe(`${PREFIX}/_robot-agent/desiredPackages`, console.log);
 
-  setInterval(heartbeat, 10000);
+  mqttClient.publish(`${PREFIX}/_robot-agent/info`, JSON.stringify({
+    os: {
+      hostname: os.hostname(),
+      release: os.release(),
+      version: os.version(),
+      networkInterfaces: os.networkInterfaces()
+    }
+  }), {retain: true});
+
+  setInterval(heartbeat, 60 * 1e3);
 });
 
 mqttClient.on('error', console.log);
@@ -111,6 +121,8 @@ mqttClient.on('message', (topic, payload) => {
 
 const heartbeat = () => {
   mqttClient.publish(`${PREFIX}/_robot-agent/status`, JSON.stringify({
-    heartbeat: new Date()
+    heartbeat: new Date(),
+    loadavg: os.loadavg(),
+    freemem: os.freemem()
   }));
 };

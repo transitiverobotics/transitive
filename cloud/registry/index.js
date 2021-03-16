@@ -13,8 +13,8 @@ startServer({
       fake2: {}
     }
   }, 6000, '', '1.0.0', 'verdaccio',
-   (webServer, addr, pkgName, pkgVersion) => {
-       webServer.listen(addr.port || addr.path, addr.host, () => {
-           console.log('verdaccio running');
-       });
- });
+  (webServer, addr, pkgName, pkgVersion) => {
+    webServer.listen(addr.port || addr.path, addr.host, () => {
+      console.log('verdaccio running');
+    });
+  });

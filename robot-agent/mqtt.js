@@ -19,7 +19,7 @@ const PORT = 1883;
 
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
-console.log('PREFIX = ', PREFIX);
+console.log('PREFIX =', PREFIX);
 
 server.listen(PORT, () => {
   console.log('mqtt server bound');
@@ -52,11 +52,13 @@ aedes.authenticate = (client, username, password, callback) => {
   // During ExecStartPre of each package, a random password is written
   // into it's private folder (only readable by that package and us). Using
   // this here for authentication.
-  fs.readFile(`packages/${client.id}/password`, (err, correctPassword) =>
+  fs.readFile(`packages/${client.id}/password`, (err, correctPassword) => {
+    console.log(password.toString('ascii'), correctPassword.toString('ascii'),
+      password.toString('ascii') == correctPassword.toString('ascii'));
     callback(err,
       !err && (password.toString('ascii') == correctPassword.toString('ascii'))
     )
-  );
+  });
 };
 
 aedes.authorizePublish = (client, packet, callback) => {
@@ -76,8 +78,9 @@ aedes.authorizeSubscribe = (client, subscription, callback) => {
 
 const mqtt = require('mqtt');
 
-const MQTT_HOST = 'mqtts://localhost'; // connect to upstream mqtt server
-// const MQTT_HOST = `mqtt://data.${process.env.TR_HOST}`;
+// connect to upstream mqtt server
+// const MQTT_HOST = 'mqtts://localhost';
+const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 const mqttClient = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
   cert: fs.readFileSync('certs/client.crt'),
@@ -98,6 +101,7 @@ mqttClient.on('connect', function(x) {
     }
   }), {retain: true});
 
+  heartbeat();
   setInterval(heartbeat, 60 * 1e3);
 });
 
@@ -124,5 +128,5 @@ const heartbeat = () => {
     heartbeat: new Date(),
     loadavg: os.loadavg(),
     freemem: os.freemem()
-  }));
+  }), {retain: true});
 };

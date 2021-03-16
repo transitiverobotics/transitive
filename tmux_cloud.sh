@@ -21,7 +21,7 @@ sleep 1
 newWindow "ex:express" "node server.js" "examples/express"
 newWindow "journalctl" "journalctl --user -f"
 newWindow "bag" "rosbag play -l diag_only.bag" "tmp"
-newWindow "robot" "node main.js" "robot_snap/health"
+newWindow "robot" "env PASSWORD=1234 node main.js" "../transitive-caps/health-monitoring"
 newWindow "proxy" "node index.js" "cloud/proxy"
 newWindow "verdaccio" "node index.js" "cloud/registry"
 newWindow "cloud:build" "npx webpack" "cloud/app"

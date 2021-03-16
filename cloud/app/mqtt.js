@@ -11,7 +11,7 @@ const startMQTT = (clients = []) => {
   console.log('connecting');
   client.on('connect', function () {
     console.log('connected');
-    client.subscribe('/plusone/health/#', function (err) {
+    client.subscribe('/+/+/health-monitoring/#', function (err) {
       if (!err) {
         client.publish('/plusone/health/clients', 'Hi, I am the cloud back-end');
       } else {

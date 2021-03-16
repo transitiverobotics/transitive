@@ -12,7 +12,6 @@ import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 import Card from 'react-bootstrap/Card';
 import Badge from 'react-bootstrap/Badge';
 
-
 const styles = {
   wrapper: {
     padding: '0.5em',
@@ -118,9 +117,11 @@ const Diagnostics = () => {
   // TODO: also allow partial updates (per robot)
 
   useEffect(() => {
-      console.log('connecting to websocket server')
-      // const ws = new WebSocket('ws://localhost:9000');
-      const ws = new WebSocket('wss://data.transitiverobotics.com');
+      const URL = `ws://data.${TR_HOST}`; // TR_HOST is injected by webpack
+      console.log('connecting to websocket server', URL)
+      // const ws = new WebSocket('ws://data.localhost:8000');
+      // const ws = new WebSocket('wss://data.transitiverobotics.com');
+      const ws = new WebSocket(URL);
       ws.onopen = (event) => {
         ws.send("Hi from client");
       };

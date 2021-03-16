@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
   entry: './src/react-web-comp.jsx',
@@ -35,7 +36,7 @@ module.exports = {
         options: {
           limit: 8192,
         },
-      }]
+      }],
   },
   resolve: {
     extensions: ['*', '.js', '.jsx'],
@@ -44,6 +45,12 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js'
   },
+
+  plugins: [
+    new webpack.DefinePlugin({
+      'TR_HOST': JSON.stringify(process.env.TR_HOST || 'localhost:8000'),
+    })
+  ],
 
   mode: 'development',
   watch: true

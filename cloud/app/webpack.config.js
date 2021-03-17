@@ -49,6 +49,7 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       'TR_HOST': JSON.stringify(process.env.TR_HOST || 'localhost:8000'),
+      'TR_SECURE': process.env.TR_HOST ? 'true' : 'false'
     })
   ],
 

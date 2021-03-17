@@ -117,7 +117,8 @@ const Diagnostics = () => {
   // TODO: also allow partial updates (per robot)
 
   useEffect(() => {
-      const URL = `ws://data.${TR_HOST}`; // TR_HOST is injected by webpack
+      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}`;
+      // TR_* variables are injected by webpack
       console.log('connecting to websocket server', URL)
       // const ws = new WebSocket('ws://data.localhost:8000');
       // const ws = new WebSocket('wss://data.transitiverobotics.com');

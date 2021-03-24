@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
+const jwt = require('jsonwebtoken');
+
 const startMQTT = require('./mqtt.js').startMQTT;
 
 const app = express();
@@ -22,11 +24,12 @@ app.use(express.static(path.join(__dirname, 'dist')));
 const server = http.createServer(app);
 
 //initialize the WebSocket server instance
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true });
 
 const clients = [];
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, permission) => {
+  console.log('client connected', permission);
 
   //connection is up, let's add a simple simple event
   ws.on('message', (message) => {
@@ -38,20 +41,41 @@ wss.on('connection', (ws) => {
   //send immediatly a feedback to the incoming connection
   // ws.send(JSON.stringify({msg: 'Hi there, I am a WebSocket server'}));
 
-  clients.push(ws);
+  clients.push(ws); // TODO: include permission, then in mqtt only relay messages
+  // to relevant and authorized clients (for given topic)
 });
 
-// const update = () => {
-//   const cpu = process.cpuUsage();
-//   clients.forEach(ws => {
-//     ws.send(JSON.stringify(cpu));
-//   });
-// };
+
+/** authenticate the request to connect to our WS server */
+const authenticate = (request, cb) => {
+  const query = new URLSearchParams(request.url.replace(/^\//,''));
+  console.log('authenticate', request.url, query);
+  if (query && query.get('t')) {
+    // TODO
+    jwt.verify(query.get('t'), 'secret', cb);
+  } else {
+    cb('no jwt provided');
+  }
+};
+
+server.on('upgrade', (request, socket, head) => {
+  // This function is not defined on purpose. Implement it with your own logic.
+  authenticate(request, (err, permission) => {
+    if (err || !permission) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, permission);
+    });
+  });
+});
+
 
 server.listen(9000, () => {
   console.log(`Server started on port ${server.address().port} :)`);
-
-  // setInterval(update, 1000);
 });
 
 startMQTT(clients);

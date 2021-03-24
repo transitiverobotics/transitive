@@ -112,29 +112,44 @@ const Fleet = ({obj}) => <div>
 </div>;
 
 
-const Diagnostics = () => {
+const Diagnostics = ({jwt}) => {
+  const [status, setStatus] = useState('connecting');
   const [diag, setDiag] = useState();
   // TODO: also allow partial updates (per robot)
 
   useEffect(() => {
-      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}`;
+      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}`;
       // TR_* variables are injected by webpack
+      // TODO: also allow construction without token, i.e., delay connecting to ws
       console.log('connecting to websocket server', URL)
       // const ws = new WebSocket('ws://data.localhost:8000');
       // const ws = new WebSocket('wss://data.transitiverobotics.com');
       const ws = new WebSocket(URL);
       ws.onopen = (event) => {
         ws.send("Hi from client");
+        setStatus('connected');
       };
 
       ws.onmessage = (event) => {
         setDiag(JSON.parse(event.data));
-      }
+      };
+
+      ws.onerror = (event) => console.error('websocket error', event);
+      ws.onclose = (event) => {
+        setStatus('error');
+        console.log('websocket closed', event);
+      };
+
     }, []);
 
-  if (!diag) {
+  if (status == 'error') {
+    return <div>Unable to connect, are you logged in?</div>;
+  } else if (status == 'connecting') {
+    return <div>connecting..</div>;
+  } else if (!diag) {
     return <div>waiting for data..</div>;
   }
+
   // console.log(diag);
   return <Fleet obj={diag} />;
 };
@@ -143,12 +158,14 @@ const Diagnostics = () => {
 class App extends React.Component {
 
   render() {
-    console.log('rendering web component');
+    console.log('rendering web component', this.props);
+    window.tr_login = (token) => console.log('tr_login with token', token);
+
     return <div style={styles.wrapper}>
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
       </style>
-      <Diagnostics />
+      <Diagnostics jwt={this.props && this.props.jwt} />
     </div>;
   }
 }

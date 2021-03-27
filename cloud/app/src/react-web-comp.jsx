@@ -112,13 +112,13 @@ const Fleet = ({obj}) => <div>
 </div>;
 
 
-const Diagnostics = ({jwt}) => {
+const Diagnostics = ({jwt, id}) => {
   const [status, setStatus] = useState('connecting');
   const [diag, setDiag] = useState();
   // TODO: also allow partial updates (per robot)
 
   useEffect(() => {
-      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}`;
+      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
       // TR_* variables are injected by webpack
       // TODO: also allow construction without token, i.e., delay connecting to ws
       console.log('connecting to websocket server', URL)
@@ -165,7 +165,7 @@ class App extends React.Component {
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
       </style>
-      <Diagnostics jwt={this.props && this.props.jwt} />
+      <Diagnostics {...this.props}/>
     </div>;
   }
 }

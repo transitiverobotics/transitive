@@ -78,7 +78,6 @@ const authenticate = (request, cb) => {
         'no such user, please verify the id provided to the web component')
     } else {
       console.log('from db:', err, doc);
-      // TODO
       if (!doc.jwt_secret) {
         cbWithMessage('user has no jwt secret yet, please visit the portal')
       } else {
@@ -88,8 +87,9 @@ const authenticate = (request, cb) => {
   });
 };
 
+
 server.on('upgrade', (request, socket, head) => {
-  // This function is not defined on purpose. Implement it with your own logic.
+
   authenticate(request, (err, permission) => {
     if (err || !permission) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');

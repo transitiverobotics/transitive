@@ -4,6 +4,9 @@ const WebSocket = require('ws');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 
+// const { db, init, close } = require('./mongo.js');
+const Mongo = require('./mongo.js');
+
 const startMQTT = require('./mqtt.js').startMQTT;
 
 const app = express();
@@ -17,8 +20,8 @@ app.use(express.static(path.join(__dirname, 'dist')));
 // });
 //
 // app.listen(9000);
-
-
+// init();
+Mongo.init();
 
 //initialize a simple http server
 const server = http.createServer(app);
@@ -50,12 +53,39 @@ wss.on('connection', (ws, permission) => {
 const authenticate = (request, cb) => {
   const query = new URLSearchParams(request.url.replace(/^\//,''));
   console.log('authenticate', request.url, query);
-  if (query && query.get('t')) {
-    // TODO
-    jwt.verify(query.get('t'), 'secret', cb);
-  } else {
-    cb('no jwt provided');
+
+  const cbWithMessage = (err, result) => {
+    err && console.log(err);
+    cb(err, result);
+  };
+
+  const token = query.get('t');
+  const transitiveUserId = query.get('id');
+
+  if (!token) {
+    cbWithMessage('no jwt provided');
+    return;
   }
+  if (!transitiveUserId) {
+    cbWithMessage('no id provided');
+    return;
+  }
+
+  const users = Mongo.db.collection('users');
+  users.findOne({_id: transitiveUserId}, (err, doc) => {
+    if (err || !doc) {
+      cbWithMessage(
+        'no such user, please verify the id provided to the web component')
+    } else {
+      console.log('from db:', err, doc);
+      // TODO
+      if (!doc.jwt_secret) {
+        cbWithMessage('user has no jwt secret yet, please visit the portal')
+      } else {
+        jwt.verify(token, doc.jwt_secret, cbWithMessage);
+      }
+    }
+  });
 };
 
 server.on('upgrade', (request, socket, head) => {

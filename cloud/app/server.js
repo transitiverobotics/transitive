@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 // const { db, init, close } = require('./mongo.js');
 const Mongo = require('./mongo.js');
 
-const startMQTT = require('./mqtt.js').startMQTT;
+const { startMQTT, sendRetained } = require('./mqtt.js');
 
 const app = express();
 
@@ -44,8 +44,10 @@ wss.on('connection', (ws, permission) => {
   //send immediatly a feedback to the incoming connection
   // ws.send(JSON.stringify({msg: 'Hi there, I am a WebSocket server'}));
 
-  clients.push(ws); // TODO: include permission, then in mqtt only relay messages
-  // to relevant and authorized clients (for given topic)
+  clients.push({ws, permission});
+
+  // given all relevant retained message to this client
+  sendRetained({ws, permission});  
 });
 
 
@@ -54,13 +56,14 @@ const authenticate = (request, cb) => {
   const query = new URLSearchParams(request.url.replace(/^\//,''));
   console.log('authenticate', request.url, query);
 
-  const cbWithMessage = (err, result) => {
-    err && console.log(err);
-    cb(err, result);
-  };
-
   const token = query.get('t');
   const transitiveUserId = query.get('id');
+
+  const cbWithMessage = (err, result) => {
+    err && console.log(err);
+    result && (result.transitiveUserId = transitiveUserId);
+    cb(err, result);
+  };
 
   if (!token) {
     cbWithMessage('no jwt provided');

@@ -1,6 +1,18 @@
 const mqtt = require('mqtt');
 const fs = require('fs');
 
+const cache = {};
+
+/** check whether `permissions` grant access to `topic` */
+const permitted = (topic, permissions) => {
+  const [_, transitiveUserId, device, capability] = topic.split('/');
+  return (permissions.transitiveUserId == transitiveUserId
+    && permissions.device == device
+    && permissions.capability == capability);
+};
+
+// -----------------------------------------------------------------
+
 const startMQTT = (clients = []) => {
   const client  = mqtt.connect('mqtts://localhost', {
     key: fs.readFileSync('certs/client.key'),
@@ -23,15 +35,28 @@ const startMQTT = (clients = []) => {
   client.on('error', console.log);
   client.on('disconnect', console.log);
 
-  client.on('message', function (topic, message) {
+  client.on('message', (topic, message, packet) => {
     // message is Buffer
     console.log(`${topic}`);
 
-    // specific to health monitoring for now
-    const [site, device] = topic.split('/').slice(3);
-    clients.forEach(ws => ws.send(
-      `{ "${site}": {"${device}": ${message.toString()} } }`));
+    clients.forEach(({ws, permission}) =>
+      permitted(topic, permission) &&
+        ws.send(`{ "${topic}": ${message.toString()} }`)
+    );
+
+    // handle retain flag
+    if (packet.retain) {
+      cache[topic] = message.toString();
+    }
   });
 };
 
-module.exports = {startMQTT};
+/** check cache for any retained messages for this client */
+const sendRetained = ({ws, permission}) => {
+  for (let topic in cache) {
+    const message = cache[topic];
+    permitted(topic, permission) && ws.send(`{ "${topic}": ${message} }`);
+  }
+};
+
+module.exports = {startMQTT, sendRetained};

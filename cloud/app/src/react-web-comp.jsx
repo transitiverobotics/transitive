@@ -65,57 +65,80 @@ const AwareToggle = ({ children, eventKey, callback }) => {
 // <Accordion.Toggle as={Card.Header} variant="link" eventKey={i}>
 //   {levelBadges[level]} {name} ({hardware_id}): {message}
 // </Accordion.Toggle>
-const DiagnosticsStatus = ({level, message, name, hardware_id, values, i}) =>
-  <Card style={level == 3 ? {color: '#aaa'} : {}}>
-    <AwareToggle eventKey={i}>
+const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
+  return  <Card style={level == 3 ? {color: '#aaa'} : {}}>
+    <AwareToggle eventKey={name}>
       {levelBadges[level]} {name}
       {hardware_id && <span> ({hardware_id})</span>}: {message}
     </AwareToggle>
-    <Accordion.Collapse eventKey={i}>
+    <Accordion.Collapse eventKey={name}>
       <Card.Body>
-        {(values?.length > 0 ? _.map(values, ({key, value}, j) =>
+        {values && (Object.keys(values).length > 0 ? _.map(values, (value, key) =>
             /* Note that we cannot use deconstruction here, since key is reserved */
-            <div key={j}>{key}: {value}</div>)
+            <div key={key}>{key}: {value}</div>)
           : <div style={styles.indent}><i>No sub-values</i></div>
         )}
       </Card.Body>
     </Accordion.Collapse>
   </Card>;
+}
 
 /** render a DiagnosticArray message
   TODO: group status by name-prefix (using '/' separators) */
-const DiagnosticsArray = ({header, status}) =>
-  <div>
-    <div>{(new Date(header.stamp.secs * 1000)).toLocaleString()}</div>
+// const DiagnosticsArray = ({header, status}) =>
+//   <div>
+//     <div>{(new Date(header.stamp.secs * 1000)).toLocaleString()}</div>
+//     <Accordion>
+//       {status.map((s, i) => <DiagnosticsStatus {...s} i={i+1} key={i}/>)}
+//     </Accordion>
+//   </div>;
+
+const Device = (status) => {
+  const health = status['health-monitoring'];
+  return <div>
     <Accordion>
-      {status.map((s, i) => <DiagnosticsStatus {...s} i={i+1} key={i}/>)}
+      {_.map(health.diagnostics, (status, name) =>
+          <DiagnosticsStatus {...status} name={name} key={name}/>)
+      }
     </Accordion>
   </div>;
+}
+// <DiagnosticsStatus {...s} i={i+1} key={i}/>)
+// <div key={key}>{key} {JSON.stringify(value)}</div>
 
-/** a site is a list of devices */
-const Site = ({obj}) => <div>
-  {_.map(obj, (device, key) =>
-    <div key={key}>
-      Device, {key}
-      <DiagnosticsArray {...device} />
-    </div>
-  )}
-</div>;
+// /** a site is a list of devices */
+// const Site = ({obj}) => <div>
+//   {_.map(obj, (device, key) =>
+//     <div key={key}>
+//       Device, {key}
+//       <DiagnosticsArray {...device} />
+//     </div>
+//   )}
+// </div>;
 
-/** a fleet is an object of sites */
+/** a fleet is an object of devices */
 const Fleet = ({obj}) => <div>
-  {_.map(obj, (site, siteName) =>
-    <div key={siteName}>{siteName}:
-      <Site obj={site} />
+  {_.map(obj, (device, deviceId) =>
+    <div key={deviceId}>{deviceId}:
+      <Device {...device} />
     </div>
   )}
 </div>;
+
+
+/** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
+  obj.a.b.c = "xyz" */
+const updateObject = (obj, modifier) => {
+  _.forEach( modifier, (value, path) => {
+    _.set(obj, path.slice(1).replace(/\//g, '.'), value);
+  });
+  return obj;
+}
 
 
 const Diagnostics = ({jwt, id}) => {
   const [status, setStatus] = useState('connecting');
-  const [diag, setDiag] = useState();
-  // TODO: also allow partial updates (per robot)
+  const [diag, setDiag] = useState({});
 
   useEffect(() => {
       const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
@@ -131,7 +154,12 @@ const Diagnostics = ({jwt, id}) => {
       };
 
       ws.onmessage = (event) => {
-        setDiag(JSON.parse(event.data));
+        const newData = JSON.parse(event.data);
+        setDiag(diag => {
+          const newDiag = JSON.parse(JSON.stringify(diag));
+          updateObject(newDiag, newData);
+          return newDiag;
+        });
       };
 
       ws.onerror = (event) => console.error('websocket error', event);
@@ -151,7 +179,7 @@ const Diagnostics = ({jwt, id}) => {
   }
 
   // console.log(diag);
-  return <Fleet obj={diag} />;
+  return <Fleet obj={diag[id]} />;
 };
 
 

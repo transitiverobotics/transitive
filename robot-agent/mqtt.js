@@ -30,7 +30,10 @@ aedes.on('publish', (packet, client) => {
   if (client) {
     // relay packet to upstream, note that topic has already been forced into
     // client's namespace by authorizePublish function
-    mqttClient.publish(packet.topic, packet.payload);
+    mqttClient.publish(packet.topic, packet.payload, {
+      retain: packet.retain,
+      qos: packet.qos
+    });
   }
 });
 
@@ -53,10 +56,8 @@ aedes.authenticate = (client, username, password, callback) => {
   // into it's private folder (only readable by that package and us). Using
   // this here for authentication.
   fs.readFile(`packages/${client.id}/password`, (err, correctPassword) => {
-    console.log(password.toString('ascii'), correctPassword.toString('ascii'),
-      password.toString('ascii') == correctPassword.toString('ascii'));
-    callback(err,
-      !err && (password.toString('ascii') == correctPassword.toString('ascii'))
+    callback(err, !err && correctPassword
+        && (password.toString('ascii') == correctPassword.toString('ascii'))
     )
   });
 };

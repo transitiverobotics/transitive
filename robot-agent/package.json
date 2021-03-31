@@ -1,6 +1,6 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "1.1.13",
+  "version": "1.1.14",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aedes": "^0.45.0",
+    "aedes": "chfritz/aedes#add_preunsubscribe_handler",
     "mqtt": "^4.2.6"
   }
 }

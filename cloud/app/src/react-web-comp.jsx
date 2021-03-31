@@ -93,16 +93,46 @@ const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
 //     </Accordion>
 //   </div>;
 
+
+// not in use yet
+// const DeviceComponent = ({statuses, name}) => {
+//   const level = 0; // roll up from sub-statuses
+//
+//   return  <Card style={level == 3 ? {color: '#aaa'} : {}}>
+//     <AwareToggle eventKey={name}>
+//       {levelBadges[level]} {name}
+//     </AwareToggle>
+//     <Accordion.Collapse eventKey={name}>
+//       <Card.Body>
+//         <Accordion>
+//           {_.map(statuses, (status, subname) =>
+//             /* Note that we cannot use deconstruction here, since key is reserved */
+//             <DiagnosticsStatus {...status} name={subname} key={subname}/>
+//           )}
+//         </Accordion>
+//       </Card.Body>
+//     </Accordion.Collapse>
+//   </Card>;
+// }
+
+
 const Device = (status) => {
   const health = status['health-monitoring'];
+
+  // console.log(status);
+
   return <div>
     <Accordion>
       {_.map(health.diagnostics, (status, name) =>
-          <DiagnosticsStatus {...status} name={name} key={name}/>)
+          <DiagnosticsStatus {...status} name={name} key={name}/>
+        )
       }
     </Accordion>
   </div>;
 }
+// : <DeviceComponent statuses={status} name={name} key={name}/>
+
+
 // <DiagnosticsStatus {...s} i={i+1} key={i}/>)
 // <div key={key}>{key} {JSON.stringify(value)}</div>
 
@@ -119,18 +149,33 @@ const Device = (status) => {
 /** a fleet is an object of devices */
 const Fleet = ({obj}) => <div>
   {_.map(obj, (device, deviceId) =>
-    <div key={deviceId}>{deviceId}:
+    <div key={deviceId}>
       <Device {...device} />
     </div>
   )}
 </div>;
 
+/** unset the topic in that obj, and clean up parent if empty, recursively */
+const unset = (obj, path) => {
+  if (!path) return;
+  _.unset(obj, path);
+  const parentPath = path.split('.').slice(0,-1).join('.');
+  const parent = _.get(obj, parentPath);
+  if (_.isEmpty(parent)) {
+    unset(obj, parentPath);
+  }
+};
 
 /** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
   obj.a.b.c = "xyz" */
 const updateObject = (obj, modifier) => {
-  _.forEach( modifier, (value, path) => {
-    _.set(obj, path.slice(1).replace(/\//g, '.'), value);
+  _.forEach( modifier, (value, topic) => {
+    const path = topic.slice(1).replace(/\//g, '.');
+    if (value == null) {
+      unset(obj, path);
+    } else {
+      _.set(obj, path, value);
+    }
   });
   return obj;
 }

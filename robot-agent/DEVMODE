@@ -1,0 +1,2 @@
+the presence of this file allows us to `npm install` in the current folder, by-passing the directory check in postinstall
+

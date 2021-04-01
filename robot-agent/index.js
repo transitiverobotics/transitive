@@ -1,6 +1,6 @@
-const fs = require('fs');
-
 const constants = require('./constants');
+
+process.env.TR_DEVMODE && console.log('*** DEV MODE');
 
 /**
   Detect whether we are run out of
@@ -10,7 +10,7 @@ const constants = require('./constants');
   officially installed version in the above directory.
 */
 if (__dirname != `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`
-    && ! fs.existsSync('DEVMODE')) {
+    && !process.env.TR_DEVMODE) {
   console.error(`This package should not be run or used anywhere but in
     ~/.transitive/node_modules directly. You probably didn't mean to. Exiting.`,
   __dirname);
@@ -72,7 +72,11 @@ const updateAllPackages = () => {
 };
 
 /** update self and all packages */
-const update = () => selfUpdate(updateAllPackages);
+const update = () => {
+  if (!process.env.TR_DEVMODE) {
+    selfUpdate(updateAllPackages);
+  }
+}
 
 setInterval(update, UPDATE_INTERVAL);
 

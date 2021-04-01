@@ -100,12 +100,13 @@ aedes.authorizeSubscribe = (client, subscription, callback) => {
   callback(null, subscription);
 }
 
-aedes.preUnsubscribe = (client, packet) => {
+aedes.preUnsubscribe = (client, packet, callback) => {
   // overwrite unsubscriptions: force client to its namespace
   console.log('preUnsubscribe');
   for (let i in packet.unsubscriptions) {
     packet.unsubscriptions[i] = `${PREFIX}/${client.id}/${packet.unsubscriptions[i]}`;
   }
+  callback(client, packet);
 }
 
 // ---------------------------------------------------------------------------

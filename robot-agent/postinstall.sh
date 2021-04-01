@@ -16,6 +16,8 @@ cp *.service $HOME/.config/systemd/user/
 
 mkdir -p ~/.transitive/packages
 
+cp unshare.sh ~/.transitive
+
 # allow service to run on boot without user logging in
 loginctl enable-linger $USER
 systemctl --user daemon-reload

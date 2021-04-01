@@ -119,7 +119,7 @@ const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
 const Device = (status) => {
   const health = status['health-monitoring'];
 
-  // console.log(status);
+  window.tr_devmode && console.log(status);
 
   return <div>
     <Accordion>

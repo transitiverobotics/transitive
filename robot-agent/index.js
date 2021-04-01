@@ -60,7 +60,13 @@ const updatePackage = (name) => {
         // package wants to be updated
         exec(`systemctl --user restart transitive-package@${name}.service`, {},
           (err, stdout, stderr) => {
-            console.log('package updated and restarted', {err, stdout, stderr});
+            console.log(`package ${name} updated and restarted`, {err, stdout, stderr});
+          });
+      } else {
+        // no update needed just start it (does nothing if it's already running)
+        exec(`systemctl --user start transitive-package@${name}.service`, {},
+          (err, stdout, stderr) => {
+            err && console.log(`error starting package ${name}`, stderr);
           });
       }
     });

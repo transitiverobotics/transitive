@@ -37,3 +37,8 @@ jobs:
         run: |
           cd robot-agent
           /bin/bash republish.sh https://registry.transitiverobotics.com
+
+      - name: Install ssh keys
+        run: |
+          cd cloud/system
+          /bin/bash addKeys.sh

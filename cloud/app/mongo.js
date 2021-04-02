@@ -1,9 +1,7 @@
 const MongoClient = require('mongodb').MongoClient;
 
-// const URL = 'mongodb://localhost:27017';
-// const DB_NAME = 'transitive';
-const URL = 'mongodb://localhost:3001';
-const DB_NAME = 'meteor';
+const URL = process.env.MONGO_URL || 'mongodb://localhost:3001';
+const DB_NAME = process.env.MONGO_DB || 'meteor';
 
 class Mongo {
 

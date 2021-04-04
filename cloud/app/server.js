@@ -47,7 +47,7 @@ wss.on('connection', (ws, permission) => {
   clients.push({ws, permission});
 
   // given all relevant retained message to this client
-  sendRetained({ws, permission});  
+  sendRetained({ws, permission});
 });
 
 
@@ -84,7 +84,14 @@ const authenticate = (request, cb) => {
       if (!doc.jwt_secret) {
         cbWithMessage('user has no jwt secret yet, please visit the portal')
       } else {
-        jwt.verify(token, doc.jwt_secret, cbWithMessage);
+        jwt.verify(token, doc.jwt_secret, (err, payload) => {
+          if (payload.validity &&
+            (payload.iat + payload.validity) * 1e3 > Date.now()) {
+            cbWithMessage(null, payload);
+          } else {
+            cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
+          }
+        });
       }
     }
   });

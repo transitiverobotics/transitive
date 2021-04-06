@@ -2,31 +2,6 @@
 Description=Transitive Robotics Package Update Service
 
 [Service]
-
-# # Mount (i.e., filesystem) sandboxing
-# PrivateUsers=true
-# ProtectSystem=full
-# # Note: "strict" would also make /tmp read-only, which would break some npm installs
-# ProtectHome=tmpfs
-# BindPaths=%h/.transitive/packages/%i:/home/transitive
-# BindReadOnlyPaths=%h/.transitive/usr:/home/usr
-# # to get .npm logs:
-# BindPaths=/tmp:/home/%u
-#
-# # System call sandboxing
-# SystemCallArchitectures=native
-# NoNewPrivileges=true
-#
-# WorkingDirectory=/home/transitive/
-# EnvironmentFile=%h/.transitive/.env
-#
-# # generate a random password for this package to use
-# ExecStartPre=/bin/bash -c "/home/usr/bin/node -e \"fs.writeFileSync('password', Math.random().toString(36).substr(2, 9))\""
-# ExecStart=/bin/bash -c ". /opt/ros/*/setup.bash && PATH=/home/usr/bin:$PATH && npm update && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
-# # Note: npm update also installs missing packages, see,
-# # https://stackoverflow.com/a/19824154/1087119
-
-
 # System call sandboxing
 SystemCallArchitectures=native
 NoNewPrivileges=true
@@ -37,8 +12,8 @@ Environment=TRPACKAGE=%i
 
 # generate a random password for this package to use
 ExecStartPre=%h/.transitive/usr/bin/node -e "fs.writeFileSync('%h/.transitive/packages/%i/password', Math.random().toString(36).substr(2, 9))"
-ExecStart=%h/.transitive/unshare.sh "cd /home/transitive && . /opt/ros/*/setup.bash && PATH=/home/usr/bin:$PATH && npm update && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
-# ExecStart=%h/.transitive/unshare.sh "echo OK"
+
+ExecStart=/bin/bash -c "%h/.transitive/unshare.sh \"cd /home/transitive && . /opt/ros/*/setup.bash && PATH=/home/usr/bin:$PATH && npm update && cd node_modules/@transitive-robotics/%i && env PASSWORD=\$(cat ../../../password) npm start\""
 
 # Note: npm update also installs missing packages, see,
 # https://stackoverflow.com/a/19824154/1087119

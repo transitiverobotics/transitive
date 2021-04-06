@@ -82,7 +82,7 @@ aedes.authenticate = (client, username, password, callback) => {
   // into it's private folder (only readable by that package and us). Using
   // this here for authentication.
   fs.readFile(`packages/${client.id}/password`, (err, correctPassword) => {
-    callback(err, !err && correctPassword
+    callback(err, !err && correctPassword && password
         && (password.toString('ascii') == correctPassword.toString('ascii'))
     )
   });

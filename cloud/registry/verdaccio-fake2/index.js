@@ -1,38 +1,55 @@
+const http = require('http');
+
+const authURL = 'http://localhost:3000/accounts/checkPassword';
+
+/** read result from HTTP get request */
+const readResult = (res, cb) => {
+  res.setEncoding('utf8');
+  let rawData = '';
+  res.on('data', (chunk) => { rawData += chunk; });
+  res.on('end', () => cb(rawData));
+};
+
 /**
  * Custom Verdaccio Authenticate Plugin.
  */
 class AuthCustomPlugin {
+
   constructor(config, options) {
     return this;
   }
-  /**
-   * Authenticate an user.
-   * @param user user to log
-   * @param password provided password
-   * @param cb callback function
-   */
+
+  /** Authenticate an user. Asks our authentication server (currently the portal)
+  to verify username (email address) and password. */
   authenticate(user, password, cb) {
-    // here your code
-    console.log('yep, come in!');
-    cb(null, ['my']);
+    http.get(`${authURL}?username=${user}&password=${password}`, (res) => {
+      const { statusCode } = res;
+      if (statusCode == 200) {
+        console.log('authenticate: welcome', user);
+        cb(null, ['bot']);
+      } else {
+        console.log('authenticate: error', user, statusCode);
+        readResult(res, cb);
+      }
+    });
   }
 
-  /**
-   * check grants for such user.
-   */
+  /** check read-access for such user. */
   allow_access(user, pkg, callback) {
-    // in case of restrict the access
-    console.log('yep, access!');
+    console.log('granting read-access:', user.name, pkg.name);
     callback(null, true);
   }
 
-  /**
-   * check grants to publish
-   */
+  /** check grants to publish */
   allow_publish(user, pkg, callback) {
     // in cass to check if has permission to publish
-    console.log('yep, publish!');
-    callback(null, true);
+    if (user && user.name != 'bot') {
+      console.log('not allowed to publish!', user.name, pkg.name);
+      callback('sorry, you are not allowed to publish!', false);
+    } else {
+      console.log('welcome, bot, you may publish', pkg.name);
+      callback(null, true);
+    }
   }
 }
 

@@ -45,6 +45,8 @@ jobs:
           path: cloud/portal
 
       - name: Run portal install script
+        env:
+          BOT_PASSWORD: ${{ secrets.BOT_PASSWORD }}
         run: |
           cd cloud/portal
           /bin/bash install.sh

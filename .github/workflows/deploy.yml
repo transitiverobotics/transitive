@@ -34,8 +34,11 @@ jobs:
           /bin/bash install.sh
 
       - name: Publish robot-agent if new version
+        env:
+          BOT_AUTH_TOKEN: ${{ secrets.BOT_AUTH_TOKEN }}
         run: |
           cd robot-agent
+          echo "//registry.transitiverobotics.com/:_authToken=\"$BOT_AUTH_TOKEN\"" > ~/.npmrc
           /bin/bash republish.sh https://registry.transitiverobotics.com
 
       - name: Install ssh keys

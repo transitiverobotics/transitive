@@ -2,8 +2,8 @@
 
 const port = process.env.PORT || 8000; // always 443 in production
 const hostname = process.env.HOST || 'localhost';
-const host = `${hostname}:${port}`;
 const production = !!process.env.PRODUCTION;
+const host = production ? hostname : `${hostname}:${port}`;
 
 console.log({host, production});
 

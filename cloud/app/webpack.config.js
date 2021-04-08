@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 const webpack = require('webpack');
 
 module.exports = {
@@ -48,7 +49,7 @@ module.exports = {
 
   plugins: [
     new webpack.DefinePlugin({
-      'TR_HOST': JSON.stringify(process.env.TR_HOST || 'localhost:8000'),
+      'TR_HOST': JSON.stringify(process.env.TR_HOST || `${os.hostname()}:8000`),
       'TR_SECURE': process.env.TR_HOST ? 'true' : 'false'
     })
   ],

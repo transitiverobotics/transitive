@@ -1,35 +1,11 @@
 "use strict";
 
-// set in prod environment
-const host = process.env.HOST || 'localhost:8000';
+const port = process.env.PORT || 8000; // always 443 in production
+const hostname = process.env.HOST || 'localhost';
+const host = `${hostname}:${port}`;
 const production = !!process.env.PRODUCTION;
 
 console.log({host, production});
-
-// const proxy = require('redbird')({
-//   port: production ? 80 : 8000,
-//   letsencrypt: {
-//     path: __dirname + '/certs',
-//     port: 9999, // LetsEncrypt minimal web server port for handling challenges. Routed 80->9999, no need to open 9999 in firewall. Default 3000 if not defined.
-//   },
-//   ssl: {
-//     http2: true,
-//     port: production ? 443 : 8443, // SSL port used to serve registered https routes with LetsEncrypt certificate.
-//   }
-// });
-//
-//
-// const options = production ? {
-//   ssl: {
-//     letsencrypt: {
-//       email: 'christian@transitiverobotics.com',
-//       production, // WARNING: Only use this flag when the proxy is verified to work correctly to avoid being banned!
-//     }
-//   }
-// } : {};
-//
-// proxy.register(domain, "http://localhost:3000", options);
-// proxy.register(`install.${domain}`, "http://localhost:3000/install", options);
 
 // ------------------------------------------------------------------
 
@@ -98,6 +74,6 @@ if (production) {
   const http = require('http');
   const server = http.createServer(handleRequest);
   server.on('upgrade', handleUpgrade);
-  server.listen(8000);
-  console.log("listening on port 8000")
+  server.listen(port);
+  console.log(`listening on port ${port}`)
 }

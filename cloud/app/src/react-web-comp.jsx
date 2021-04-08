@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import ReactWebComponent from 'react-web-component';
 import _ from 'lodash';
-import Button from 'react-bootstrap/Button';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
 
-import Accordion from 'react-bootstrap/Accordion';
-import AccordionContext from 'react-bootstrap/AccordionContext';
+import { Button, Accordion, AccordionContext, Card, Badge }
+from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
-import Card from 'react-bootstrap/Card';
-import Badge from 'react-bootstrap/Badge';
 
 const styles = {
   wrapper: {
@@ -51,9 +48,7 @@ const AwareToggle = ({ children, eventKey, callback }) => {
     () => callback && callback(eventKey),
   );
 
-  // <FontAwesomeIcon icon={isCurrentEventKey ? faChevronDown : faChevronRight}
   return <Card.Header onClick={decoratedOnClick}>
-    {/* TODO: use transform rotation instead to animate this */}
     <FontAwesomeIcon icon={faChevronRight}
       style={_.defaults(isCurrentEventKey ? {transform: 'rotate(90deg)'} : {},
         styles.icon)} /> {children}
@@ -212,7 +207,6 @@ const Diagnostics = ({jwt, id}) => {
         setStatus('error');
         console.log('websocket closed', event);
       };
-
     }, []);
 
   if (status == 'error') {
@@ -223,7 +217,7 @@ const Diagnostics = ({jwt, id}) => {
     return <div>waiting for data..</div>;
   }
 
-  // console.log(diag);
+  console.log(diag);
   return <Fleet obj={diag[id]} />;
 };
 

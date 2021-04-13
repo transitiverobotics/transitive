@@ -23,7 +23,7 @@ cp -r . $HOME/opt/$MODULE
 cd $HOME/opt/$MODULE
 npm install
 # for now, later: separate this out from the app:
-env TR_HOST="transitiverobotics.com" npx webpack --no-watch
+env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
 
 # create mqtt client ssl certificate, requires CA certs in /etc/mosquitto/certs
 cd $HOME/opt/$MODULE/certs

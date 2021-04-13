@@ -24,7 +24,7 @@ newWindow "bag" "rosbag play -l magni_diag.bag" "../tmp"
 newWindow "health-cap" "./rundev.sh" "../../transitive-caps/health-monitoring"
 newWindow "proxy" "npm run dev" "../cloud/proxy"
 newWindow "verdaccio" "node index.js" "../cloud/registry"
-newWindow "cloud:build" "npx webpack" "../cloud/app"
+newWindow "cloud:build" "npx webpack --mode=development" "../cloud/app"
 newWindow "cloud:run" "node server.js" "../cloud/app"
 newWindow "portal" "meteor" "../cloud/portal"
 

@@ -32,6 +32,7 @@ class Capability {
       throw new Error('Invalid capability name',
         'Capability class names need to be camel case');
     }
+    this.name = name;
 
     if (!mqttClient) {
       throw new Error('Capabilities not yet initialized',

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import ReactWebComponent from 'react-web-component';
-import _ from 'lodash';
+const _ = {
+  map: require('lodash/map'),
+  defaults: require('lodash/defaults'),
+};
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
@@ -8,6 +11,8 @@ import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
+
+import { unset, updateObject } from '../utils.js';
 
 const styles = {
   wrapper: {
@@ -150,30 +155,30 @@ const Fleet = ({obj}) => <div>
   )}
 </div>;
 
-/** unset the topic in that obj, and clean up parent if empty, recursively */
-const unset = (obj, path) => {
-  if (!path) return;
-  _.unset(obj, path);
-  const parentPath = path.split('.').slice(0,-1).join('.');
-  const parent = _.get(obj, parentPath);
-  if (_.isEmpty(parent)) {
-    unset(obj, parentPath);
-  }
-};
-
-/** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
-  obj.a.b.c = "xyz" */
-const updateObject = (obj, modifier) => {
-  _.forEach( modifier, (value, topic) => {
-    const path = topic.slice(1).replace(/\//g, '.');
-    if (value == null) {
-      unset(obj, path);
-    } else {
-      _.set(obj, path, value);
-    }
-  });
-  return obj;
-}
+// /** unset the topic in that obj, and clean up parent if empty, recursively */
+// const unset = (obj, path) => {
+//   if (!path) return;
+//   _.unset(obj, path);
+//   const parentPath = path.split('.').slice(0,-1).join('.');
+//   const parent = _.get(obj, parentPath);
+//   if (_.isEmpty(parent)) {
+//     unset(obj, parentPath);
+//   }
+// };
+//
+// /** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
+//   obj.a.b.c = "xyz" */
+// const updateObject = (obj, modifier) => {
+//   _.forEach( modifier, (value, topic) => {
+//     const path = topic.slice(1).replace(/\//g, '.');
+//     if (value == null) {
+//       unset(obj, path);
+//     } else {
+//       _.set(obj, path, value);
+//     }
+//   });
+//   return obj;
+// }
 
 
 const Diagnostics = ({jwt, id}) => {

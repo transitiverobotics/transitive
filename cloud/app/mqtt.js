@@ -2,17 +2,7 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 const _ = require('lodash');
 
-const { randomId } = require('./utils');
-
-const cache = {};
-
-/** check whether `permissions` grant access to `topic` */
-const permitted = (topic, permissions) => {
-  const [_, transitiveUserId, device, capability] = topic.split('/');
-  return (permissions.transitiveUserId == transitiveUserId
-    && permissions.device == device
-    && permissions.capability == capability);
-};
+const { randomId } = require('./server_utils');
 
 /** check whether topic matches the mqtt subscription expression, i.e.,
   a topic with potential wildcards; see https://mosquitto.org/man/mqtt-7.html */
@@ -84,14 +74,13 @@ const mqttTopicMatch = (topic, subscription) => {
 //   });
 // };
 
-/** check cache for any retained messages for this client */
-const sendRetained = ({ws, permission}) => {
-  for (let topic in cache) {
-    console.log('sending cached', topic);
-    permitted(topic, permission) && ws.send(`{ "${topic}": ${cache[topic]} }`);
-  }
-};
-
+// /** check cache for any retained messages for this client */
+// const sendRetained = ({ws, permission}) => {
+//   for (let topic in cache) {
+//     console.log('sending cached', topic);
+//     permitted(topic, permission) && ws.send(`{ "${topic}": ${cache[topic]} }`);
+//   }
+// };
 
 
 /** Our handler of mqtt, used by all capabilities  */
@@ -126,7 +115,7 @@ class MQTTHandler {
 
     client.on('message', (topic, message, packet) => {
       // message is Buffer
-      console.log(`${topic}`, packet.retain);
+      // console.log(`${topic}`, packet.retain);
       // for now we assume all messages are text
       const text = message.toString();
 
@@ -138,18 +127,8 @@ class MQTTHandler {
 
 
       _.each(this.subscriptions, sub =>
-        mqttTopicMatch(topic, sub.topic) && sub.callback(text)
+        mqttTopicMatch(topic, sub.topic) && sub.callback(packet)
       );
-
-      // handle retain flag
-      if (packet.retain) {
-        if (!text) {
-          // empty message: clear cache
-          delete cache[topic];
-        } else {
-          cache[topic] = text;
-        }
-      }
     });
   }
 
@@ -158,6 +137,7 @@ class MQTTHandler {
   */
   subscribe(topic, callback) {
     const key = randomId();
+
     this.client.subscribe(topic, {rap: true}, (err) => {
       if (!err) {
         console.log('adding subscription');
@@ -178,4 +158,4 @@ class MQTTHandler {
   }
 };
 
-module.exports = {sendRetained, mqttTopicMatch, MQTTHandler};
+module.exports = {mqttTopicMatch, MQTTHandler};

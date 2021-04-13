@@ -14,40 +14,32 @@ const HealthMonitoring = require('./caps/health_monitoring');
 
 // ----------------------------------------------------------------------
 
-
 const app = express();
-
 // app.use(express.static(path.join(__dirname, 'build')));
 // app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 
-
-
-//initialize a simple http server
 const server = http.createServer(app);
-
-//initialize the WebSocket server instance
-const wss = new WebSocket.Server({ noServer: true });
 
 const clients = [];
 
+const wss = new WebSocket.Server({ noServer: true });
+
 wss.on('connection', (ws, permission) => {
   console.log('client connected', permission);
-
-  //connection is up, let's add a simple simple event
   ws.on('message', (message) => {
-    //log the received message and send it back to the client
     console.log('received: %s', message);
-    // ws.send(`Hello, you sent -> ${message}`);
   });
 
   //send immediatly a feedback to the incoming connection
   // ws.send(JSON.stringify({msg: 'Hi there, I am a WebSocket server'}));
 
-  clients.push({ws, permission});
+  const cap = Capability.lookup(permission.capability);
+  // clients.push({ws, permission});
+  cap.addClient({ws, permission});
 
   // given all relevant retained message to this client
-  sendRetained({ws, permission});
+  // sendRetained({ws, permission});
 });
 
 
@@ -99,17 +91,14 @@ const authenticate = (request, cb) => {
 
 
 server.on('upgrade', (request, socket, head) => {
-
   authenticate(request, (err, permission) => {
     if (err || !permission) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
-      return;
+    } else {
+      wss.handleUpgrade(request, socket, head,
+        ws => wss.emit('connection', ws, permission));
     }
-
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, permission);
-    });
   });
 });
 

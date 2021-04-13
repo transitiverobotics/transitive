@@ -5,9 +5,15 @@ const http = require('http');
 const jwt = require('jsonwebtoken');
 
 // const { db, init, close } = require('./mongo.js');
-const Mongo = require('./mongo.js');
+const Mongo = require('./mongo');
+const { MQTTHandler } = require('./mqtt');
+// TODO: move sendRetained to Capabilities or subscribe
+const Capability = require('./caps/capability');
+const HealthMonitoring = require('./caps/health_monitoring');
 
-const { startMQTT, sendRetained } = require('./mqtt.js');
+
+// ----------------------------------------------------------------------
+
 
 const app = express();
 
@@ -15,13 +21,7 @@ const app = express();
 // app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// app.get('/', function (req, res) {
-//   res.sendFile(path.join(__dirname, 'build', 'my.html'));
-// });
-//
-// app.listen(9000);
-// init();
-Mongo.init();
+
 
 //initialize a simple http server
 const server = http.createServer(app);
@@ -114,8 +114,16 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 
-server.listen(9000, () => {
-  console.log(`Server started on port ${server.address().port} :)`);
-});
 
-startMQTT(clients);
+Mongo.init(() => {
+  new MQTTHandler(mqtt => {
+    Capability.init(mqtt);
+    // everything is ready, start listening for clients
+    server.listen(9000, () => {
+      console.log(`Server started on port ${server.address().port} :)`);
+      // Here: start capabilities ...
+
+      const hm = new HealthMonitoring();
+    });
+  });
+});

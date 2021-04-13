@@ -17,7 +17,9 @@
     "react-dom": "^17.0.1",
     "react-web-component": "^2.0.1"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "mocha -w *.test.js"
+  },
   "eslintConfig": {},
   "browserslist": {
     "production": [
@@ -40,6 +42,7 @@
     "extract-loader": "^5.1.0",
     "react-web-component-style-loader": "^0.1.4-alpha",
     "webpack": "^5.19.0",
-    "webpack-cli": "^4.4.0"
+    "webpack-cli": "^4.4.0",
+    "mocha": "^8.3.2"
   }
 }

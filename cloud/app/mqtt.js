@@ -115,7 +115,7 @@ class MQTTHandler {
 
     client.on('message', (topic, message, packet) => {
       // message is Buffer
-      // console.log(`${topic}`, packet.retain);
+      console.log(`${topic}`, packet.retain);
       // for now we assume all messages are text
       const text = message.toString();
 
@@ -126,9 +126,10 @@ class MQTTHandler {
       // ^^ MOVE THIS TO capability or WS handler
 
 
-      _.each(this.subscriptions, sub =>
+      _.each(this.subscriptions, sub => {
+        // don't remove braces, otherwise loop may terminate early
         mqttTopicMatch(topic, sub.topic) && sub.callback(packet)
-      );
+      });
     });
   }
 
@@ -140,7 +141,7 @@ class MQTTHandler {
 
     this.client.subscribe(topic, {rap: true}, (err) => {
       if (!err) {
-        console.log('adding subscription');
+        console.log('adding subscription for', topic);
         this.subscriptions[key] = {topic, callback};
       } else {
         console.log('error subscribing', err);

@@ -6,15 +6,15 @@ let mqttClient;
 
 /** check whether `permissions` grant access to `topic` */
 const permitted = (topic, permissions) => {
-  const [_, transitiveUserId, device, capability] = topic.split('/');
+  const [_ignore, transitiveUserId, device, capability] = topic.split('/');
   return (permissions.transitiveUserId == transitiveUserId
-    && permissions.device == device
+    && (permissions.device == '+' || permissions.device == device)
     && permissions.capability == capability);
 };
 
 /** get capability name from provided class constructor name */
 const getCapName = (name) => {
-  const parts = name.match(/[A-Z][^A-Z]*/g);
+  const parts = name.match(/[A-Z_][^A-Z]*/g);
   return parts && parts.join('-').toLowerCase();
 };
 
@@ -33,6 +33,7 @@ class Capability {
         'Capability class names need to be camel case');
     }
     this.name = name;
+    console.log('registered capability', name);
 
     if (!mqttClient) {
       throw new Error('Capabilities not yet initialized',
@@ -79,6 +80,12 @@ class Capability {
     }
   }
 
+  /** get a cached value: TODO, this needs to be secured against abuse by
+  third-party caps */
+  getFromCache(topic) {
+    return this.#cache[topic];
+  }
+
   /** return from the cache all those retained messages that the given permission
   grants access to */
   getPermittedCached(permission) {
@@ -98,9 +105,11 @@ class Capability {
 
   /** send topic + text to permitted clients */
   sendToPermitted(topic, text) {
+    // console.log('Capability: sendToPermitted', topic);
     _.each(this.#clients, ({ws, permission}) =>
       permitted(topic, permission) && ws.send(`{ "${topic}": ${text} }`));
   }
-}
+};
+
 
 module.exports = Capability;

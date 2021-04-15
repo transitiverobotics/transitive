@@ -31,15 +31,14 @@ wss.on('connection', (ws, permission) => {
     console.log('received: %s', message);
   });
 
-  //send immediatly a feedback to the incoming connection
-  // ws.send(JSON.stringify({msg: 'Hi there, I am a WebSocket server'}));
-
   const cap = Capability.lookup(permission.capability);
   // clients.push({ws, permission});
-  cap.addClient({ws, permission});
-
-  // given all relevant retained message to this client
-  // sendRetained({ws, permission});
+  if (cap) {
+    cap.addClient({ws, permission});
+  } else {
+    console.warn(`A ws client connected for an unknown capability
+      ${permission.capability}`);
+  }
 });
 
 
@@ -102,7 +101,12 @@ server.on('upgrade', (request, socket, head) => {
   });
 });
 
-
+/** dummy capability just to forward general info about devices */
+class _robotAgent extends Capability {
+  onMessage(packet) {
+    console.log('_robotAgent', packet.topic);
+  }
+};
 
 Mongo.init(() => {
   new MQTTHandler(mqtt => {
@@ -113,6 +117,13 @@ Mongo.init(() => {
       // Here: start capabilities ...
 
       const hm = new HealthMonitoring();
+      const robotAgent = new _robotAgent();
     });
   });
+});
+
+
+/** catch-all to be safe */
+process.on('uncaughtException', (err) => {
+  console.error(`**** Caught exception: ${err}:`, err.stack);
 });

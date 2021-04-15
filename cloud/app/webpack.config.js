@@ -1,9 +1,18 @@
 const path = require('path');
 const os = require('os');
 const webpack = require('webpack');
+const fs = require('fs');
+
+// get all web omponents from directory, compile each one separately
+const entry = {};
+fs.readdirSync('./web_components').forEach(name =>
+  entry[name] = {
+    import: `./web_components/${name}`,
+    filename: name.replace(/jsx$/, 'js')
+  });
 
 module.exports = {
-  entry: './src/react-web-comp.jsx',
+  entry, // see above
   module: {
     rules: [{
         test: /\.(js|jsx)$/,
@@ -44,15 +53,12 @@ module.exports = {
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js'
   },
-
   plugins: [
     new webpack.DefinePlugin({
       'TR_HOST': JSON.stringify(process.env.TR_HOST || `${os.hostname()}:8000`),
       'TR_SECURE': process.env.TR_HOST ? 'true' : 'false'
     })
   ],
-
   watch: true
 };

@@ -31,5 +31,4 @@ const updateObject = (obj, modifier) => {
   return obj;
 }
 
-
 module.exports = { unset, updateObject };

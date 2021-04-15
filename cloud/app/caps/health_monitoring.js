@@ -38,15 +38,21 @@ class HealthMonitoring extends Capability {
 
 
   onMessage(packet) {
-    console.log('class', packet.topic);
+    // console.log('class', packet.topic);
 
     const modifier = {[packet.topic]: packet.payload.toString('utf-8')};
     updateObject(this.store, modifier);
 
     const {organization} = parseMQTTTopic(packet.topic);
     this.updateAggregate(organization);
-    this.sendToPermitted(`/${organization}/*/${this.name}`,
-      this.aggregate[organization]);
+    const aggTopic = `/${organization}/_fleet/${this.name}`;
+    const json = JSON.stringify(this.aggregate[organization]);
+    this.sendToPermitted(aggTopic, json);
+    this.cache({
+      retain: true,
+      topic: aggTopic,
+      payload: Buffer.from(json)
+    });
   }
 
   /** Update the aggregate information (per device/customer, later also groups).
@@ -60,6 +66,12 @@ class HealthMonitoring extends Capability {
     _.each(this.store[organization], (data, deviceId) => {
       const max = getMaxLevel(data[this.name].diagnostics);
       max && _.set(this.aggregate, `${organization}.devices.${deviceId}`, max);
+
+      const infoBuffer = Capability.lookup('_robot-agent')
+          .getFromCache(`/${organization}/${deviceId}/_robot-agent/info`);
+      const info = infoBuffer && JSON.parse(infoBuffer.toString('utf-8'));
+      this.aggregate[organization].devices[deviceId].hostname =
+        info && info.os && info.os.hostname;
     });
 
     // roll up devices to user ID

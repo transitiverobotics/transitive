@@ -13,6 +13,8 @@ from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
 import { unset, updateObject } from '../utils.js';
+import { useWebSocket } from './hooks.js';
+
 
 const styles = {
   wrapper: {
@@ -155,75 +157,26 @@ const Fleet = ({obj}) => <div>
   )}
 </div>;
 
-// /** unset the topic in that obj, and clean up parent if empty, recursively */
-// const unset = (obj, path) => {
-//   if (!path) return;
-//   _.unset(obj, path);
-//   const parentPath = path.split('.').slice(0,-1).join('.');
-//   const parent = _.get(obj, parentPath);
-//   if (_.isEmpty(parent)) {
-//     unset(obj, parentPath);
-//   }
-// };
-//
-// /** given a modifier {"a/b/c": "xyz"} update the object `obj` such that
-//   obj.a.b.c = "xyz" */
-// const updateObject = (obj, modifier) => {
-//   _.forEach( modifier, (value, topic) => {
-//     const path = topic.slice(1).replace(/\//g, '.');
-//     if (value == null) {
-//       unset(obj, path);
-//     } else {
-//       _.set(obj, path, value);
-//     }
-//   });
-//   return obj;
-// }
-
 
 const Diagnostics = ({jwt, id}) => {
-  const [status, setStatus] = useState('connecting');
   const [diag, setDiag] = useState({});
 
-  useEffect(() => {
-      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
-      // TR_* variables are injected by webpack
-      // TODO: also allow construction without token, i.e., delay connecting to ws
-      console.log('connecting to websocket server', URL)
-      // const ws = new WebSocket('ws://data.localhost:8000');
-      // const ws = new WebSocket('wss://data.transitiverobotics.com');
-      const ws = new WebSocket(URL);
-      ws.onopen = (event) => {
-        ws.send("Hi from client");
-        setStatus('connected');
-      };
+  const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
+    onMessage: (data) => {
+      const newData = JSON.parse(data);
+      setDiag(diag => {
+        const newDiag = JSON.parse(JSON.stringify(diag));
+        updateObject(newDiag, newData);
+        return newDiag;
+      });
+    }
+  });
 
-      ws.onmessage = (event) => {
-        const newData = JSON.parse(event.data);
-        setDiag(diag => {
-          const newDiag = JSON.parse(JSON.stringify(diag));
-          updateObject(newDiag, newData);
-          return newDiag;
-        });
-      };
-
-      ws.onerror = (event) => console.error('websocket error', event);
-      ws.onclose = (event) => {
-        setStatus('error');
-        console.log('websocket closed', event);
-      };
-    }, []);
-
-  if (status == 'error') {
-    return <div>Unable to connect, are you logged in?</div>;
-  } else if (status == 'connecting') {
-    return <div>connecting..</div>;
-  } else if (!diag) {
-    return <div>waiting for data..</div>;
+  if (!ready) {
+    return <StatusComponent />;
+  } else {
+    return <Fleet obj={diag[id]} />;
   }
-
-  console.log(diag);
-  return <Fleet obj={diag[id]} />;
 };
 
 
@@ -231,7 +184,6 @@ class App extends React.Component {
 
   render() {
     console.log('rendering web component', this.props);
-    window.tr_login = (token) => console.log('tr_login with token', token);
 
     return <div style={styles.wrapper}>
       <style>
@@ -242,7 +194,7 @@ class App extends React.Component {
   }
 }
 
-ReactWebComponent.create(<App />, 'react-web-component');
+ReactWebComponent.create(<App />, 'health-monitoring-device');
 // ReactWebComponent.create(<App />, 'react-web-component', false);
 
 // @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css");

@@ -38,12 +38,21 @@ class HealthMonitoring extends Capability {
 
 
   onMessage(packet) {
-    // console.log('class', packet.topic);
+    // console.log('class', packet);
 
     const modifier = {[packet.topic]: packet.payload.toString('utf-8')};
     updateObject(this.store, modifier);
 
-    const {organization} = parseMQTTTopic(packet.topic);
+    const {organization, device} = parseMQTTTopic(packet.topic);
+    const reportingTopic = `/${organization}/${device}/${this.name}/reporting`;
+    const reporting = {
+      level: 0, // TODO: use threshold
+      msg: 'ok',
+      values: [{key: 'lastUpdate', value: new Date()}]
+    };
+    updateObject(this.store, {[reportingTopic]: reporting});
+    this.sendToPermitted(reportingTopic, JSON.stringify(reporting));
+
     this.updateAggregate(organization);
     const aggTopic = `/${organization}/_fleet/${this.name}`;
     const json = JSON.stringify(this.aggregate[organization]);
@@ -74,21 +83,21 @@ class HealthMonitoring extends Capability {
         info && info.os && info.os.hostname;
       // might be better to use _robot-agent heartbeat in the future,
       // but getting that updated here in the code is not straightforward right now
-      this.aggregate[organization].devices[deviceId].lastUpdate = new Date();
+      this.aggregate[organization].devices[deviceId].reporting =
+        data[this.name].reporting;
     });
 
     // roll up devices to user ID
     this.aggregate[organization].level = 0;
     this.aggregate[organization].msgs = [];
-    _.each(this.aggregate[organization].devices,
-      ({level, msgs}, deviceId) => {
-        if (level > this.aggregate[organization].level) {
-          this.aggregate[organization].level = level;
-        }
-        if (level > 0) {
-          this.aggregate[organization].msgs.push(`${deviceId}: ${msgs.join(', ')}`);
-        }
-      });
+    _.each(this.aggregate[organization].devices, ({level, msgs}, deviceId) => {
+      if (level > this.aggregate[organization].level) {
+        this.aggregate[organization].level = level;
+      }
+      if (level > 0) {
+        this.aggregate[organization].msgs.push(`${deviceId}: ${msgs.join(', ')}`);
+      }
+    });
   }
 };
 

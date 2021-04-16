@@ -72,6 +72,9 @@ class HealthMonitoring extends Capability {
       const info = infoBuffer && JSON.parse(infoBuffer.toString('utf-8'));
       this.aggregate[organization].devices[deviceId].hostname =
         info && info.os && info.os.hostname;
+      // might be better to use _robot-agent heartbeat in the future,
+      // but getting that updated here in the code is not straightforward right now
+      this.aggregate[organization].devices[deviceId].lastUpdate = new Date();
     });
 
     // roll up devices to user ID

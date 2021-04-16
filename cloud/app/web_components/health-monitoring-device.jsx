@@ -153,6 +153,7 @@ const Diagnostics = ({jwt, id}) => {
   const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
       const newData = JSON.parse(data);
+      window.tr_devmode && console.log(data);
       setDiag(diag => {
         const newDiag = JSON.parse(JSON.stringify(diag));
         updateObject(newDiag, newData);

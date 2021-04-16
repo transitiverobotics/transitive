@@ -99,15 +99,17 @@ class Capability {
 
     // send any messages that we already have in cache for these permissions
     // (device)
-    _.each(this.getPermittedCached(permission),
-      (payload, topic) => ws.send(`{ "${topic}": ${payload.toString('utf-8')} }`));
+    _.each(this.getPermittedCached(permission), (payload, topic) => {
+      ws.send(`{ "${topic}": ${payload.toString('utf-8')} }`)
+    });
   }
 
   /** send topic + text to permitted clients */
   sendToPermitted(topic, text) {
     // console.log('Capability: sendToPermitted', topic);
-    _.each(this.#clients, ({ws, permission}) =>
-      permitted(topic, permission) && ws.send(`{ "${topic}": ${text} }`));
+    _.each(this.#clients, ({ws, permission}) => {
+      permitted(topic, permission) && ws.send(`{ "${topic}": ${text} }`)
+    });
   }
 };
 

@@ -39,7 +39,6 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
 
   const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
-      console.log(data);
       const newData = JSON.parse(data);
       setData(newData);
     }
@@ -58,7 +57,7 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
       <b style={styles.title}>Fleet Health</b>
       <LevelBadge level={fleet && fleet.level}/>
       <ListGroup variant="flush" style={styles.list}>
-        {_.map(fleet.devices, ({hostname, level, msgs, lastUpdate}, id) =>
+        {_.map(fleet.devices, ({hostname, level, msgs, reporting}, id) =>
             <ListGroup.Item key={id}>
               <LevelBadge level={level}/> <span style={styles.hostname}>
                 { deviceurl ?
@@ -66,8 +65,8 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
                   : hostname }
               </span>
 
-              <div style={styles.date(lastUpdate)}>
-                updated: {new Date(lastUpdate).toLocaleString()}
+              <div style={styles.date(reporting?.values[0]?.value)}>
+                updated: {new Date(reporting?.values[0]?.value).toLocaleString()}
               </div>
 
               <br/>

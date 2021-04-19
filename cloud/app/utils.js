@@ -10,7 +10,7 @@ const _ = {
 const unset = (obj, path) => {
   if (!path) return;
   _.unset(obj, path);
-  const parentPath = path.split('.').slice(0,-1).join('.');
+  const parentPath = path.slice(0,-1);
   const parent = _.get(obj, parentPath);
   if (_.isEmpty(parent)) {
     unset(obj, parentPath);
@@ -21,7 +21,7 @@ const unset = (obj, path) => {
   obj.a.b.c = "xyz" */
 const updateObject = (obj, modifier) => {
   _.forEach( modifier, (value, topic) => {
-    const path = topic.slice(1).replace(/\//g, '.');
+    const path = topic.split('/').slice(1);
     if (value == null) {
       unset(obj, path);
     } else {
@@ -31,4 +31,4 @@ const updateObject = (obj, modifier) => {
   return obj;
 }
 
-module.exports = { unset, updateObject };
+module.exports = { updateObject };

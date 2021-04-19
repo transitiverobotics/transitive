@@ -12,7 +12,7 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
-import { unset, updateObject } from '../utils.js';
+import { updateObject } from '../utils.js';
 import { useWebSocket } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 

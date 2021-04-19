@@ -52,24 +52,11 @@ aedes.on('unsubscribe', (subscriptions, client) => {
     // Need to put subscription into namespace, because unsubscribe doesn't run
     // through authorizeSubscribe or some such, where the topic gets modified
     // for ubscribe and publish.
-    // adjSubscription = `${PREFIX}/${client.id}/${subscription}`;
     console.log(client && client.id, 'is unsubscribing from', subscription);
     if (client && mqttClient) {
       mqttClient.unsubscribe(subscription, console.log); // TODO: also relay QoS
     }
   });
-
-  // we need to manually send a system message to unsubscribe from modified namespace
-  // $SYS/bf3d2769-a2c3-44f9-a091-bd2732730c76/new/unsubscribes \
-  // {"clientId":"health-monitoring","subs":["/58Hwr3rZceBPwbYAc/98f52d3c67588c9e9afcff4f02df8485/health-monitoring/#"]}
-  // DOESN'T WORK AS INTENDED, need to find another way
-  // aedes.publish({
-  //     topic: `$SYS/${aedes.id}/new/ubsubscribes`,
-  //     payload: JSON.stringify({clientId: client.id, subs: [adjSubscription]})
-  //   }, () => {});
-
-  // #HERE: maybe just patch aedes to add something akin to authorizeUnsubscribe
-  // i.e., allow changing topic on unsubscribe
 });
 
 
@@ -100,8 +87,9 @@ aedes.authorizeSubscribe = (client, subscription, callback) => {
   callback(null, subscription);
 }
 
+/** using the special function we patched into aedes to also
+  overwrite topic on unsubscribe, forcing client to its namespace */
 aedes.preUnsubscribe = (client, packet, callback) => {
-  // overwrite unsubscriptions: force client to its namespace
   console.log('preUnsubscribe');
   for (let i in packet.unsubscriptions) {
     packet.unsubscriptions[i] = `${PREFIX}/${client.id}/${packet.unsubscriptions[i]}`;

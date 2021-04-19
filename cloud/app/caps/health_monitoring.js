@@ -1,5 +1,5 @@
 const Capability = require('./capability');
-const { unset, updateObject, parseMQTTTopic } = require('../server_utils');
+const { updateObject, parseMQTTTopic } = require('../server_utils');
 const _ = require('lodash');
 
 
@@ -54,6 +54,7 @@ class HealthMonitoring extends Capability {
     this.sendToPermitted(reportingTopic, JSON.stringify(reporting));
 
     this.updateAggregate(organization);
+    // publish aggregate
     const aggTopic = `/${organization}/_fleet/${this.name}`;
     const json = JSON.stringify(this.aggregate[organization]);
     this.sendToPermitted(aggTopic, json);

@@ -1,5 +1,5 @@
 const Capability = require('./capability');
-const { updateObject, parseMQTTTopic } = require('../server_utils');
+const { updateObject, parseMQTTTopic } = require('@transitive-robotics/utils/server');
 const _ = require('lodash');
 
 

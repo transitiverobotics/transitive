@@ -1,6 +1,6 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "1.1.27",
+  "version": "1.2.7",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,9 +9,10 @@
     "preuninstall": "sh preuninstall.sh"
   },
   "keywords": [],
-  "author": "",
+  "author": "Christian Fritz",
   "license": "ISC",
   "dependencies": {
+    "@transitive-robotics/utils": "0.0.x",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
     "mqtt": "^4.2.6"
   }

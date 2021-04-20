@@ -50,9 +50,7 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
     return <div>No devices found. Make sure you have connected devices to
       your account and installed the Health Monitoring capability.</div>
   } else {
-    // return <Fleet obj={diag[id]} />;
     const fleet = Object.values(data)[0];
-    // <pre>{JSON.stringify(fleet, true, 2)}</pre>
     return <div>
       <b style={styles.title}>Fleet Health</b>
       <LevelBadge level={fleet && fleet.level}/>

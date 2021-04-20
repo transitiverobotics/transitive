@@ -2,7 +2,7 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 const _ = require('lodash');
 
-const { randomId } = require('./server_utils');
+const { randomId } = require('@transitive-robotics/utils/server');
 
 /** check whether topic matches the mqtt subscription expression, i.e.,
   a topic with potential wildcards; see https://mosquitto.org/man/mqtt-7.html */

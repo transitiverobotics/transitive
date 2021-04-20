@@ -14,14 +14,14 @@ echo running $MODULE install
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/
 cp *.service $HOME/.config/systemd/user/
+# run npm install still in repo folder, so repo-relative dependencies are resolved
+npm install
 
 # copy code in place (note, we are not cleaning anything existing):
 mkdir -p $HOME/opt/$MODULE
-cp -r . $HOME/opt/$MODULE
+cp -rL . $HOME/opt/$MODULE # the L resolves the symlinks (repo-relative deps)
 
-# run npm install
 cd $HOME/opt/$MODULE
-npm install
 # for now, later: separate this out from the app:
 env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
 

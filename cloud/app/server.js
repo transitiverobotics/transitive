@@ -4,13 +4,10 @@ const WebSocket = require('ws');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 
-// const { db, init, close } = require('./mongo.js');
 const Mongo = require('./mongo');
 const { MQTTHandler } = require('./mqtt');
-// TODO: move sendRetained to Capabilities or subscribe
 const Capability = require('./caps/capability');
 const HealthMonitoring = require('./caps/health_monitoring');
-
 
 // ----------------------------------------------------------------------
 
@@ -32,7 +29,6 @@ wss.on('connection', (ws, permission) => {
   });
 
   const cap = Capability.lookup(permission.capability);
-  // clients.push({ws, permission});
   if (cap) {
     cap.addClient({ws, permission});
   } else {

@@ -6,6 +6,7 @@
     "@fortawesome/fontawesome-svg-core": "^1.2.34",
     "@fortawesome/free-solid-svg-icons": "^5.15.2",
     "@fortawesome/react-fontawesome": "^0.1.14",
+    "@transitive-robotics/utils": "file:../../utils",
     "bootstrap": "^4.6.0",
     "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",

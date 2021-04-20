@@ -11,7 +11,7 @@
 const aedes = require('aedes')();
 const fs = require('fs');
 const os = require('os');
-const utils = require('./utils');
+const { parseMQTTTopic } = require('@transitive-robotics/utils/server');
 const { handleAgentCommand } = require('./commands');
 
 const server = require('net').createServer(aedes.handle);
@@ -136,7 +136,7 @@ mqttClient.on('message', (topic, payload) => {
   console.log(`upstream mqtt, ${topic}: ${payload.toString()}`);
   // relay the upstream message to local
 
-  const parsedTopic = utils.parseMQTTTopic(topic);
+  const parsedTopic = parseMQTTTopic(topic);
   // TODO: ensure no one tries to publish a capability with this name
   if (parsedTopic.capability == '_robot-agent') {
     // it's for us, the robot-agent

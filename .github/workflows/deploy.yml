@@ -18,6 +18,17 @@ jobs:
       # see https://github.com/actions/checkout/tree/v2
       - uses: actions/checkout@v2
 
+      - name: Set auth-token for npm
+        env:
+          BOT_AUTH_TOKEN: ${{ secrets.BOT_AUTH_TOKEN }}
+        run: |
+          echo "//registry.transitiverobotics.com/:_authToken=\"$BOT_AUTH_TOKEN\"" > ~/.npmrc
+
+      - name: Publish transitive-robotics/utils if new version
+        run: |
+          cd utils
+          /bin/bash republish.sh https://registry.transitiverobotics.com
+
       - name: Run proxy install script
         run: |
           cd cloud/proxy
@@ -34,11 +45,8 @@ jobs:
           /bin/bash install.sh
 
       - name: Publish robot-agent if new version
-        env:
-          BOT_AUTH_TOKEN: ${{ secrets.BOT_AUTH_TOKEN }}
         run: |
           cd robot-agent
-          echo "//registry.transitiverobotics.com/:_authToken=\"$BOT_AUTH_TOKEN\"" > ~/.npmrc
           /bin/bash republish.sh https://registry.transitiverobotics.com
 
       - name: Install ssh keys

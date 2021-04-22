@@ -12,7 +12,7 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
-import { updateObject } from '@transitive-robotics/utils/client';
+import { updateObject, DataCache } from '@transitive-robotics/utils/client';
 import { useWebSocket } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 
@@ -110,7 +110,7 @@ const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
 const Device = (status) => {
   const health = status['health-monitoring'];
 
-  window.tr_devmode && console.log(status);
+  window.tr_devmode && console.log({status});
 
   return <div>
     <Accordion>
@@ -146,19 +146,16 @@ const Fleet = ({obj}) => <div>
   )}
 </div>;
 
-
+const dataCache= new DataCache();
 const Diagnostics = ({jwt, id}) => {
   const [diag, setDiag] = useState({});
 
   const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
-      const newData = JSON.parse(data);
       window.tr_devmode && console.log(data);
-      setDiag(diag => {
-        const newDiag = JSON.parse(JSON.stringify(diag));
-        updateObject(newDiag, newData);
-        return newDiag;
-      });
+      const newData = JSON.parse(data);
+      dataCache.updateFromModifier(newData);
+      setDiag(JSON.parse(JSON.stringify(dataCache.get())));
     }
   });
 

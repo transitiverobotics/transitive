@@ -22,7 +22,7 @@ const getMaxLevel = (obj) => {
 
 class HealthMonitoring extends Capability {
 
-  store = {};
+  // store = {};
   aggregate = {};
   // Example:
   // {
@@ -38,31 +38,28 @@ class HealthMonitoring extends Capability {
 
 
   onMessage(packet) {
-    // console.log('class', packet);
+    console.log('class', packet);
+    // #HERE: reimplement using the new DataCache
 
-    const modifier = {[packet.topic]: packet.payload.toString('utf-8')};
-    updateObject(this.store, modifier);
-
-    const {organization, device} = parseMQTTTopic(packet.topic);
-    const reportingTopic = `/${organization}/${device}/${this.name}/reporting`;
-    const reporting = {
-      level: 0, // TODO: use threshold
-      msg: 'ok',
-      values: [{key: 'lastUpdate', value: new Date()}]
-    };
-    updateObject(this.store, {[reportingTopic]: reporting});
-    this.sendToPermitted(reportingTopic, JSON.stringify(reporting));
-
-    this.updateAggregate(organization);
-    // publish aggregate
-    const aggTopic = `/${organization}/_fleet/${this.name}`;
-    const json = JSON.stringify(this.aggregate[organization]);
-    this.sendToPermitted(aggTopic, json);
-    this.cache({
-      retain: true,
-      topic: aggTopic,
-      payload: Buffer.from(json)
-    });
+    // const modifier = {[packet.topic]: packet.payload.toString('utf-8')};
+    // updateObject(this.store, modifier);
+    //
+    // const {organization, device} = parseMQTTTopic(packet.topic);
+    // const reportingTopic = `/${organization}/${device}/${this.name}/reporting`;
+    // const reporting = {
+    //   level: 0, // TODO: use threshold
+    //   msg: 'ok',
+    //   values: [{key: 'lastUpdate', value: new Date()}]
+    // };
+    // updateObject(this.store, {[reportingTopic]: reporting});
+    // this.sendToPermitted(reportingTopic, JSON.stringify(reporting));
+    //
+    // this.updateAggregate(organization);
+    // // publish aggregate
+    // const aggTopic = `/${organization}/_fleet/${this.name}`;
+    // const json = JSON.stringify(this.aggregate[organization]);
+    // this.sendToPermitted(aggTopic, json);
+    // this.store(aggTopic, this.aggregate[organization]);
   }
 
   /** Update the aggregate information (per device/customer, later also groups).
@@ -71,6 +68,7 @@ class HealthMonitoring extends Capability {
   not just increase).
   */
   updateAggregate(organization) {
+    // #HERE: reimplement using the new DataCache
 
     // for each device: roll up into diagnostics level
     _.each(this.store[organization], (data, deviceId) => {

@@ -58,7 +58,12 @@ class Capability {
 
       // subscribe to all messages for this capability
       this.subscription = this.mqtt.subscribe(`/+/+/${name}/#`, (packet) => {
-        this.store(packet.topic, JSON.parse(packet.payload.toString('utf-8')));
+        if (packet.payload.length == 0) {
+          this.store(packet.topic, null);
+        } else {
+          const json = JSON.parse(packet.payload.toString('utf-8'));
+          this.store(packet.topic, json);
+        }
         // if sub-class has a special handler, call it; this is common
         this.onMessage && this.onMessage(packet);
       });
@@ -111,7 +116,7 @@ class Capability {
     // send any messages that we already have in cache for these permissions
     // (device)
     const cached = this.getPermittedCached(permission);
-    console.log('send permitted cached', cached);
+    // console.log('send permitted cached', cached);
     const flat = toFlatObject(cached);
     _.forEach(flat, (value, path) => {
       ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(value)} }`)
@@ -120,7 +125,7 @@ class Capability {
 
   /** send topic + text to permitted clients */
   sendToPermitted(path, text) {
-    console.log('Capability: sendToPermitted', path);
+    // console.log('Capability: sendToPermitted', path);
     _.forEach(this.#clients, ({ws, permission}) => {
       permitted(path, permission) &&
         ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(text)} }`)

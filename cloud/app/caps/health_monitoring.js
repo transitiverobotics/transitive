@@ -22,52 +22,36 @@ const getMaxLevel = (obj) => {
 
 class HealthMonitoring extends Capability {
 
-  // store = {};
-  aggregate = {};
-  // Example:
-  // {
-  //   userid: {
-  //     level: 1,
-  //     msgs: ['deviceID1: warning asdf']
-  //     devices: {
-  //       deviceID1: {level: 1, msg: 'warning asdf'},
-  //       deviceID2: {level: 0, msg: 'ok sdfg'}
-  //     }
-  //   }
-  // }
-
-
-  onMessage(packet) {
-    // console.log('class', packet);
-    const {organization, device} = parseMQTTTopic(packet.topic);
-    this.updateAggregate(organization);
-  }
-
   /** Update the aggregate information (per device/customer, later also groups).
     For now this is "dumb", does a full aggregate each time. Later: only
     bubble up from the modified records (with some logic to be able to reduce levels,
   not just increase).
   */
-  updateAggregate(organization) {
+  onMessage(packet) {
+    // console.log('class', packet);
+    const {organization, device} = parseMQTTTopic(packet.topic);
+
+    const robotAgent = Capability.lookup('_robot-agent');
+
     const devices = {};
     _.forEach(this.getFromCache([organization]), (data, deviceId) => {
       if (deviceId == '_fleet') return;
 
       const { level, msgs } = getMaxLevel(data[this.name].diagnostics);
-      const hostname = Capability.lookup('_robot-agent').getFromCache(
-        [organization, deviceId, '_robot-agent', 'info', 'os', 'hostname']) || null;
 
-      const heartbeat = Capability.lookup('_robot-agent').getFromCache(
+      const hostname = robotAgent.getFromCache(
+        [organization, deviceId, '_robot-agent', 'info', 'os', 'hostname']) || null;
+      const heartbeat = robotAgent.getFromCache(
         [organization, deviceId, '_robot-agent', 'status', 'heartbeat']) || null;
 
       devices[deviceId] = {level, msgs, hostname, heartbeat};
     });
 
     // roll up devices to user ID
-    let max = 0;
-    _.each(devices, ({level}, deviceId) => level > max && (max = level));
-    this.store([organization, '_fleet', this.name], {level: max, devices});
+    const max = _.maxBy(Object.values(devices), ({level}) => level);
+    this.store([organization, '_fleet', this.name], {level: max.level, devices});
   }
+
 };
 
 

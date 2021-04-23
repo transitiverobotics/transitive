@@ -23,7 +23,7 @@ const clients = [];
 const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws, permission) => {
-  console.log('client connected', permission);
+  // console.log('client connected', permission);
   ws.on('message', (message) => {
     console.log('received: %s', message);
   });

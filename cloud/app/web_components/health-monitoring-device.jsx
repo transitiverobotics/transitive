@@ -5,8 +5,7 @@ const _ = {
   defaults: require('lodash/defaults'),
 };
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { FaChevronRight } from 'react-icons/fa';
 
 import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
@@ -39,23 +38,19 @@ const AwareToggle = ({ children, eventKey, callback }) => {
   const currentEventKey = useContext(AccordionContext);
   const isCurrentEventKey = currentEventKey === eventKey;
 
-  const decoratedOnClick = useAccordionToggle(
-    eventKey,
-    () => callback && callback(eventKey),
+  const decoratedOnClick = useAccordionToggle(eventKey,
+    () => callback && callback(eventKey)
   );
 
   return <Card.Header onClick={decoratedOnClick}>
-    <FontAwesomeIcon icon={faChevronRight}
+    <FaChevronRight
       style={_.defaults(isCurrentEventKey ? {transform: 'rotate(90deg)'} : {},
         styles.icon)} /> {children}
   </Card.Header>;
-}
+};
 
 /** render a DiagnosticStatus message
 */
-// <Accordion.Toggle as={Card.Header} variant="link" eventKey={i}>
-//   {levelBadges[level]} {name} ({hardware_id}): {message}
-// </Accordion.Toggle>
 const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
   return  <Card style={level == 3 ? {color: '#aaa'} : {}}>
     <AwareToggle eventKey={name}>
@@ -72,70 +67,22 @@ const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
       </Card.Body>
     </Accordion.Collapse>
   </Card>;
-}
-
-/** render a DiagnosticArray message
-  TODO: group status by name-prefix (using '/' separators) */
-// const DiagnosticsArray = ({header, status}) =>
-//   <div>
-//     <div>{(new Date(header.stamp.secs * 1000)).toLocaleString()}</div>
-//     <Accordion>
-//       {status.map((s, i) => <DiagnosticsStatus {...s} i={i+1} key={i}/>)}
-//     </Accordion>
-//   </div>;
-
-
-// not in use yet
-// const DeviceComponent = ({statuses, name}) => {
-//   const level = 0; // roll up from sub-statuses
-//
-//   return  <Card style={level == 3 ? {color: '#aaa'} : {}}>
-//     <AwareToggle eventKey={name}>
-//       {levelBadges[level]} {name}
-//     </AwareToggle>
-//     <Accordion.Collapse eventKey={name}>
-//       <Card.Body>
-//         <Accordion>
-//           {_.map(statuses, (status, subname) =>
-//             /* Note that we cannot use deconstruction here, since key is reserved */
-//             <DiagnosticsStatus {...status} name={subname} key={subname}/>
-//           )}
-//         </Accordion>
-//       </Card.Body>
-//     </Accordion.Collapse>
-//   </Card>;
-// }
+};
 
 
 const Device = (status) => {
-  const health = status['health-monitoring'];
-
   window.tr_devmode && console.log({status});
+  const diagnostics = status['health-monitoring'].diagnostics;
 
   return <div>
-    <Accordion>
-      {_.map(health.diagnostics, (status, name) =>
-          <DiagnosticsStatus {...status} name={name} key={name}/>
+    <Accordion>{
+        Object.keys(diagnostics).sort().map(name =>
+          <DiagnosticsStatus {...diagnostics[name]} name={name} key={name}/>
         )
-      }
-    </Accordion>
+      }</Accordion>
   </div>;
-}
-// : <DeviceComponent statuses={status} name={name} key={name}/>
+};
 
-
-// <DiagnosticsStatus {...s} i={i+1} key={i}/>)
-// <div key={key}>{key} {JSON.stringify(value)}</div>
-
-// /** a site is a list of devices */
-// const Site = ({obj}) => <div>
-//   {_.map(obj, (device, key) =>
-//     <div key={key}>
-//       Device, {key}
-//       <DiagnosticsArray {...device} />
-//     </div>
-//   )}
-// </div>;
 
 /** a fleet is an object of devices */
 const Fleet = ({obj}) => <div>
@@ -146,7 +93,9 @@ const Fleet = ({obj}) => <div>
   )}
 </div>;
 
-const dataCache= new DataCache();
+
+const dataCache = new DataCache();
+
 const Diagnostics = ({jwt, id}) => {
   const [diag, setDiag] = useState({});
 
@@ -155,7 +104,8 @@ const Diagnostics = ({jwt, id}) => {
       window.tr_devmode && console.log(data);
       const newData = JSON.parse(data);
       dataCache.updateFromModifier(newData);
-      setDiag(JSON.parse(JSON.stringify(dataCache.get())));
+      // setDiag(JSON.parse(JSON.stringify(dataCache.get())));
+      setDiag(d => ({ ...d, ...(dataCache.get())}) );
     }
   });
 
@@ -179,7 +129,7 @@ class App extends React.Component {
       <Diagnostics {...this.props}/>
     </div>;
   }
-}
+};
 
 ReactWebComponent.create(<App />, 'health-monitoring-device');
 // ReactWebComponent.create(<App />, 'react-web-component', false);

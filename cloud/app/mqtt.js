@@ -2,32 +2,7 @@ const mqtt = require('mqtt');
 const fs = require('fs');
 const _ = require('lodash');
 
-const { randomId } = require('@transitive-robotics/utils/server');
-
-/** check whether topic matches the mqtt subscription expression, i.e.,
-  a topic with potential wildcards; see https://mosquitto.org/man/mqtt-7.html */
-const mqttTopicMatch = (topic, subscription) => {
-  const partsMatch = (topicParts, subParts) => {
-    if (subParts.length == 0 && topicParts.length == 0) {
-      return true;
-    } else if (subParts.length == 0 && topicParts.length > 0) {
-      // subscription is for a (specific) parent topic
-      return false;
-    } else if (subParts[0] == '#') {
-      return true;
-    } else if (subParts.length > 0 && topicParts.length == 0) {
-      // subscription is more specific than topic
-      return false;
-    } else {
-      return (subParts[0] == '+' || subParts[0] == topicParts[0])
-        && partsMatch(topicParts.slice(1), subParts.slice(1));
-    }
-  };
-
-  return partsMatch(topic.split('/'), subscription.split('/'));
-}
-
-// -----------------------------------------------------------------
+const { randomId, mqttTopicMatch } = require('@transitive-robotics/utils/server');
 
 
 /** Our handler of mqtt, used by all capabilities  */

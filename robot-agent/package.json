@@ -12,7 +12,7 @@
   "author": "Christian Fritz",
   "license": "ISC",
   "dependencies": {
-    "@transitive-robotics/utils": "^0.0.5",
+    "@transitive-robotics/utils": "^0.0.7",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
     "mqtt": "^4.2.6"
   }

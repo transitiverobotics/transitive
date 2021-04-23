@@ -8,8 +8,8 @@ const registry = {};
 let mqttClient;
 
 /** check whether `permissions` grant access to `topic` */
-const permitted = (topic, permissions) => {
-  const [_ignore, transitiveUserId, device, capability] = topic.split('/');
+const permitted = (path, permissions) => {
+  const [transitiveUserId, device, capability] = path.split('.');
   return (permissions.transitiveUserId == transitiveUserId
     && (permissions.device == '+' || permissions.device == device)
     && permissions.capability == capability);
@@ -50,16 +50,15 @@ class Capability {
       registry[name] = this;
 
       this.#data.subscribe(changes => {
+        // share changes to out DataCache with subscribers
         for (let path in changes) {
-          this.sendToPermitted(pathToTopic(path), changes[path]);
+          this.sendToPermitted(path, changes[path]);
         }
       });
 
       // subscribe to all messages for this capability
       this.subscription = this.mqtt.subscribe(`/+/+/${name}/#`, (packet) => {
-        // this.cache(packet);
         this.store(packet.topic, JSON.parse(packet.payload.toString('utf-8')));
-        // this.sendToPermitted(packet.topic, packet.payload.toString('utf-8'));
         // if sub-class has a special handler, call it; this is common
         this.onMessage && this.onMessage(packet);
       });
@@ -79,28 +78,23 @@ class Capability {
     return mqttClient;
   }
 
-  // /** cache the package if retain flag is set; or clear cache if empty */
-  // cache({retain, topic, payload}) {
-  //   if (retain) {
-  //     // if (!payload.length) {
-  //     //   // empty message: clear cache
-  //     //   delete this.#cache[topic];
-  //     // } else {
-  //     //   this.#cache[topic] = payload;
-  //     // }
-  //     this.#data.updateFromTopic(topic, JSON.parse(payload.toString('utf-8')));
-  //   }
-  // }
-
-  store(topic, obj) {
-    this.#data.updateFromTopic(topic, obj);
+  /** update the data-cache, this also triggers any subscribers to its changes */
+  store(topicOrPath, obj) {
+    if (topicOrPath instanceof Array) {
+      this.#data.update(topicOrPath, obj);
+    } else {
+      this.#data.updateFromTopic(topicOrPath, obj);
+    }
   }
 
   /** get a cached value: TODO, this needs to be secured against abuse by
   third-party caps */
-  getFromCache(topic) {
-    // return this.#cache[topic];
-    return this.#data.getByTopic(topic);
+  getFromCache(topicOrPath) {
+    if (topicOrPath instanceof Array) {
+      return this.#data.get(topicOrPath);
+    } else {
+      return this.#data.getByTopic(topicOrPath);
+    }
   }
 
   /** return from the cache all those retained messages that the given permission
@@ -118,21 +112,18 @@ class Capability {
     // (device)
     const cached = this.getPermittedCached(permission);
     console.log('send permitted cached', cached);
-    // #HERE
-    // _.each(this.getPermittedCached(permission), (payload, topic) => {
-    //   ws.send(`{ "${topic}": ${payload.toString('utf-8')} }`)
-    // });
     const flat = toFlatObject(cached);
     _.forEach(flat, (value, path) => {
-      ws.send(`{ "${path.replace(/\./g, '/')}": ${JSON.stringify(value)} }`)
+      ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(value)} }`)
     });
   }
 
   /** send topic + text to permitted clients */
-  sendToPermitted(topic, text) {
-    console.log('Capability: sendToPermitted', topic);
-    _.each(this.#clients, ({ws, permission}) => {
-      permitted(topic, permission) && ws.send(`{ "${topic}": ${text} }`)
+  sendToPermitted(path, text) {
+    console.log('Capability: sendToPermitted', path);
+    _.forEach(this.#clients, ({ws, permission}) => {
+      permitted(path, permission) &&
+        ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(text)} }`)
     });
   }
 };

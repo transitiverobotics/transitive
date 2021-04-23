@@ -12,7 +12,7 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
-import { updateObject, DataCache } from '@transitive-robotics/utils/client';
+import { DataCache } from '@transitive-robotics/utils/client';
 import { useWebSocket } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 

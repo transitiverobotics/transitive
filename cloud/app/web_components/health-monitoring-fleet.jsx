@@ -6,6 +6,8 @@ const _ = {
 
 import { ListGroup } from 'react-bootstrap';
 
+import { DataCache } from '@transitive-robotics/utils/client';
+
 import { useWebSocket } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 
@@ -26,7 +28,7 @@ const styles = {
   date: (date) => ({
     float: 'right',
     // mark the date in red if it's too old
-    color: Date() - (new Date(date)) > STALE_THRESHOLD ? '#f77' : '#777',
+    color: Date.now() - (new Date(date)) > STALE_THRESHOLD ? '#f77' : '#777',
     fontSize: 'smaller',
   }),
   hostname: {
@@ -34,13 +36,17 @@ const styles = {
   }
 };
 
+const dataCache= new DataCache();
 const FleetHealth = ({jwt, id, deviceurl}) => {
   const [data, setData] = useState({});
 
   const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
+      window.tr_devmode && console.log(data);
       const newData = JSON.parse(data);
-      setData(newData);
+      dataCache.updateFromModifier(newData);
+      setData(JSON.parse(JSON.stringify(
+        dataCache.get([id, '_fleet', 'health-monitoring']))));
     }
   });
 
@@ -50,12 +56,11 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
     return <div>No devices found. Make sure you have connected devices to
       your account and installed the Health Monitoring capability.</div>
   } else {
-    const fleet = Object.values(data)[0];
     return <div>
       <b style={styles.title}>Fleet Health</b>
-      <LevelBadge level={fleet && fleet.level}/>
+      <LevelBadge level={data && data.level}/>
       <ListGroup variant="flush" style={styles.list}>
-        {_.map(fleet.devices, ({hostname, level, msgs, reporting}, id) =>
+        {_.map(data.devices, ({hostname, level, msgs, heartbeat}, id) =>
             <ListGroup.Item key={id}>
               <LevelBadge level={level}/> <span style={styles.hostname}>
                 { deviceurl ?
@@ -63,8 +68,8 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
                   : hostname }
               </span>
 
-              <div style={styles.date(reporting?.values[0]?.value)}>
-                updated: {new Date(reporting?.values[0]?.value).toLocaleString()}
+              <div style={styles.date(heartbeat)}>
+                updated: {new Date(heartbeat).toLocaleString()}
               </div>
 
               <br/>

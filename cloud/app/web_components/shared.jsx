@@ -17,4 +17,4 @@ const levelBadges = [
 ];
 
 /** The right badge for the level */
-export const LevelBadge = ({level}) => levelBadges[level];
+export const LevelBadge = ({level}) => levelBadges[level] || <span>{level}</span>;

@@ -1,8 +1,13 @@
 const fs = require('fs');
 const assert = require('assert');
 const exec = require('child_process').exec;
+
+const _ = require('lodash');
+
 const constants = require('./constants');
 const utils = require('./utils');
+
+const { DataCache } = require('@transitive-robotics/utils/server');
 
 // const diff = (a, b) => {
 //   const allkeys = _.uniq(_.keys(a).concat(_.keys(b)));
@@ -51,15 +56,11 @@ const commands = {
     // what remains in `desired` is added new, install and start
     Object.keys(desired).forEach(addedPkg => {
       console.log(`adding package ${addedPkg}`);
-
-      fs.mkdirSync(`${constants.TRANSITIVE_DIR}/packages/${addedPkg}`);
-      fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`,
-        `${constants.TRANSITIVE_DIR}/packages/${addedPkg}/.npmrc`);
-      fs.writeFileSync(`${constants.TRANSITIVE_DIR}/packages/${addedPkg}/package.json`,
-        JSON.stringify({dependencies: {
-            [`@transitive-robotics/${addedPkg}`]: "*"
-          }
-        }, true, 2));
+      const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
+      fs.mkdirSync(dir);
+      fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
+      fs.writeFileSync(`${dir}/package.json`,
+        `{ "dependencies": {"@transitive-robotics/${addedPkg}": "*"} }`);
 
       exec(`systemctl --user start transitive-package@${addedPkg}.service`, {},
         (err, stdout, stderr) => {
@@ -70,15 +71,31 @@ const commands = {
 };
 
 
-module.exports = {
-  /** handle, i.e., parse and execute a command sent to the agent via mqtt */
-  handleAgentCommand: (command, payload) => {
-    // command is an array
+
+const dataCache = new DataCache();
+dataCache.subscribe(change => {
+  _.forEach(change, (value, key) => {
+    const command = key.split('.')[0];
     const cmdFunction = commands[command];
     if (cmdFunction) {
-      cmdFunction(payload);
+      cmdFunction(dataCache.get(command));
     } else {
       console.error('Received unknown command', command);
     }
+  });
+});
+
+module.exports = {
+  /** handle, i.e., parse and execute a command sent to the agent via mqtt */
+  handleAgentCommand: (subPath, value) => {
+    // command is an array
+    // const cmdFunction = commands[command];
+    // if (cmdFunction) {
+    //   cmdFunction(payload);
+    // } else {
+    //   console.error('Received unknown command', command);
+    // }
+
+    dataCache.update(subPath, value);
   }
 };

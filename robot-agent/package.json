@@ -12,8 +12,9 @@
   "author": "Christian Fritz",
   "license": "ISC",
   "dependencies": {
-    "@transitive-robotics/utils": "^0.0.7",
+    "@transitive-robotics/utils": "^0.0.8",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
+    "lodash": "^4.17.21",
     "mqtt": "^4.2.6"
   }
 }

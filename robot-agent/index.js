@@ -89,3 +89,9 @@ update();
 // TODO: make this safer against self-destructing updates by only loading this
 // after updates are complete
 require('./mqtt');
+
+
+/** catch-all to be safe */
+process.on('uncaughtException', (err) => {
+  console.error(`**** Caught exception: ${err}:`, err.stack);
+});

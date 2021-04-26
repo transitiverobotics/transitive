@@ -34,7 +34,7 @@ const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 /** self-update this package */
 const selfUpdate = (cb) => {
   console.log('checking for updates');
-  exec(`${constants.NPM} update`, {cwd: constants.TRANSITIVE_DIR},
+  exec(`${constants.NPM} update --no-save`, {cwd: constants.TRANSITIVE_DIR},
     (err, stdout, stderr) => {
       if (!err) {
         console.log('self-update completed:', stdout);

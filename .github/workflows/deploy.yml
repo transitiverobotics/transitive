@@ -42,6 +42,7 @@ jobs:
       - name: Publish robot-agent if new version
         run: |
           cd robot-agent
+          rm .npmrc
           /bin/bash republish.sh https://registry.transitiverobotics.com
 
       - name: Install ssh keys

@@ -14,14 +14,13 @@ echo running $MODULE install
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/
 cp *.service $HOME/.config/systemd/user/
-# run npm install still in repo folder, so repo-relative dependencies are resolved
-npm install
-# for now, later: separate this out from the app:
-env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
 
-# copy code in place (note, we are not cleaning anything existing):
+# copy code in place (note, we are not cleaning anything existing, in particular
+# we need to ensure the certs stay in place):
 mkdir -p $HOME/opt/$MODULE
-cp -rL . $HOME/opt/$MODULE # the L resolves the symlinks (repo-relative deps)
+cd $HOME/opt/$MODULE
+# unpack the tarball we downloaded from the previous github action step (see deploy_cloud_app.yaml)
+tar xf $DIR/app.tgz
 
 # create mqtt client ssl certificate, requires CA certs in /etc/mosquitto/certs
 cd $HOME/opt/$MODULE/certs

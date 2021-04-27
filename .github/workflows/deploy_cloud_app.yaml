@@ -1,0 +1,55 @@
+# build and deploy the cloud app
+name: DeployCloudApp
+
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+    paths:
+    - 'cloud/app/**'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  # build the cloud app (webpack) on github
+  buildApp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '12.x'
+      - name: run webpack
+        run: |
+          cd cloud/app
+          npm install
+          env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
+          mkdir -p ${{ runner.temp }}/app
+          cp -rL . ${{ runner.temp }}/app
+          cd ${{ runner.temp }}
+          tar czf app.tgz app/
+      - name: Upload tarball
+        uses: actions/upload-artifact@v1
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/app.tgz
+
+  deploy:
+    needs: buildApp
+    runs-on: self-hosted
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # see https://github.com/actions/checkout/tree/v2
+      - uses: actions/checkout@v2
+
+      - name: Download app tarball
+        uses: actions/download-artifact@v2
+        with:
+          name: tarball
+          path: cloud/app
+
+      - name: Run cloud app install script
+        run: |
+          cd cloud/app
+          /bin/bash install.sh

@@ -16,14 +16,12 @@ mkdir -p $HOME/.config/systemd/user/
 cp *.service $HOME/.config/systemd/user/
 # run npm install still in repo folder, so repo-relative dependencies are resolved
 npm install
+# for now, later: separate this out from the app:
+env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
 
 # copy code in place (note, we are not cleaning anything existing):
 mkdir -p $HOME/opt/$MODULE
 cp -rL . $HOME/opt/$MODULE # the L resolves the symlinks (repo-relative deps)
-
-cd $HOME/opt/$MODULE
-# for now, later: separate this out from the app:
-env TR_HOST="transitiverobotics.com" npx webpack --no-watch --mode=production
 
 # create mqtt client ssl certificate, requires CA certs in /etc/mosquitto/certs
 cd $HOME/opt/$MODULE/certs

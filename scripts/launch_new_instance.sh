@@ -19,6 +19,7 @@ lxc exec $1 -- /bin/bash /tmp/instance_init.sh
 sleep 0.2
 # restart instance for machine-id to take effect (otherwise journal logs will be empty)
 lxc restart $1
+sleep 1
 
 
 # push tmux file

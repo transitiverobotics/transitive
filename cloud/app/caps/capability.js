@@ -24,10 +24,7 @@ const getCapName = (name) => {
 /** super class for all capabilities */
 class Capability {
 
-  /** cache of retained messages, see `cache` method */
-  #cache = {};
   #data = new DataCache();
-
   #clients = [];
 
   constructor() {
@@ -90,6 +87,10 @@ class Capability {
     } else {
       this.#data.updateFromTopic(topicOrPath, obj);
     }
+  }
+
+  clearFromStore(path) {
+    this.#data.update(path, null);
   }
 
   /** get a cached value: TODO, this needs to be secured against abuse by

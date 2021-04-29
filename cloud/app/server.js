@@ -100,7 +100,7 @@ server.on('upgrade', (request, socket, head) => {
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
   onMessage(packet) {
-    console.log('_robotAgent', packet.topic);
+    // console.log('_robotAgent', packet.topic);
   }
 };
 

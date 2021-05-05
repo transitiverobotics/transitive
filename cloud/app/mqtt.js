@@ -61,6 +61,10 @@ class MQTTHandler {
       callback,
     };
   }
+
+  publish(topic, payload, options) {
+    this.client.publish(topic, payload, options);
+  }
 };
 
 module.exports = {mqttTopicMatch, MQTTHandler};

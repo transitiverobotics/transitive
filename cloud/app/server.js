@@ -8,6 +8,7 @@ const Mongo = require('./mongo');
 const { MQTTHandler } = require('./mqtt');
 const Capability = require('./caps/capability');
 const HealthMonitoring = require('./caps/health_monitoring');
+const RemoteAccess = require('./caps/remote_access');
 
 // ----------------------------------------------------------------------
 
@@ -112,8 +113,11 @@ Mongo.init(() => {
       console.log(`Server started on port ${server.address().port} :)`);
       // Here: start capabilities ...
 
-      const hm = new HealthMonitoring();
       const robotAgent = new _robotAgent();
+      const hm = new HealthMonitoring();
+      const remoteAccess = new RemoteAccess({
+          dbCollection: Mongo.db.collection('devices')
+        });
     });
   });
 });

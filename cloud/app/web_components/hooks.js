@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { DataCache } from '@transitive-robotics/utils/client';
 
 export const useWebSocket = ({jwt, id, onMessage}) => {
   const [status, setStatus] = useState('connecting');
@@ -34,4 +35,23 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
         : (status == 'connecting' ? 'connecting..' : 'connected')
       }</div>
   };
+};
+
+
+/** connect to server via useWebSocket, collect data updates into DataCache */
+export const useDataSync = ({jwt, id}) => {
+
+  const [data, setData] = useState({});
+  const dataCache = useMemo(() => new DataCache(), [jwt, id]);
+
+  const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
+    onMessage: (data) => {
+      window.tr_devmode && console.log('useDataSync', data);
+      const newData = JSON.parse(data);
+      dataCache.updateFromModifier(newData);
+      setData(JSON.parse(JSON.stringify(dataCache.get())));
+    }
+  });
+
+  return { status, ready, StatusComponent, data };
 };

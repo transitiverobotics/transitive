@@ -11,8 +11,7 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
-import { DataCache } from '@transitive-robotics/utils/client';
-import { useWebSocket } from './hooks.js';
+import { useDataSync } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 
 const styles = {
@@ -94,26 +93,9 @@ const Fleet = ({obj}) => <div>
 </div>;
 
 
-const dataCache = new DataCache();
-
 const Diagnostics = ({jwt, id}) => {
-  const [diag, setDiag] = useState({});
-
-  const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
-    onMessage: (data) => {
-      window.tr_devmode && console.log(data);
-      const newData = JSON.parse(data);
-      dataCache.updateFromModifier(newData);
-      // setDiag(JSON.parse(JSON.stringify(dataCache.get())));
-      setDiag(d => ({ ...d, ...(dataCache.get())}) );
-    }
-  });
-
-  if (!ready) {
-    return <StatusComponent />;
-  } else {
-    return <Fleet obj={diag[id]} />;
-  }
+  const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
+  return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };
 
 

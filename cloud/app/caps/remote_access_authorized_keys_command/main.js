@@ -1,4 +1,10 @@
-#!/usr/bin/env -S node -r dotenv/config
+#!/usr/bin/env node
+
+/* This would be nice but doesn't work when called from outside of directory:
+#!/usr/bin/env -S node -r dotenv/config 
+*/
+
+require('dotenv').config({path: `${__dirname}/.env`});
 
 const MongoClient = require('mongodb').MongoClient;
 

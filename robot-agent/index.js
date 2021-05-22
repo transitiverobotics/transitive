@@ -24,6 +24,7 @@ if (!process.env.TR_USERID) {
 
 const utils = require('./utils');
 const exec = require('child_process').exec;
+const localApi = require('./localApi');
 
 console.log('@transitive-robotics/robot-agent started', new Date());
 
@@ -90,6 +91,7 @@ update();
 // after updates are complete
 require('./mqtt');
 
+localApi.startServer();
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {

@@ -19,10 +19,10 @@ if [[ $(ls $DIR | wc -l) > 0 ]]; then
 fi;
 
 IFS='' # don't ignore spaces at the beginning of the line
-dpkg -s | while read line; do
+# dpkg -s ## only works in 20.04
+cat /var/lib/dpkg/status | while read line; do
   if [[ $line =~ $PATTERN ]]; then
     fileName="$DIR/${line:9}" # package name only
-    # echo $fileName
   fi
   if [[ ! -z $fileName ]]; then
     echo "$line" >> "$fileName"

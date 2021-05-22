@@ -9,6 +9,7 @@ const { MQTTHandler } = require('./mqtt');
 const Capability = require('./caps/capability');
 const HealthMonitoring = require('./caps/health_monitoring');
 const RemoteAccess = require('./caps/remote_access');
+const VideoStreaming = require('./caps/video_streaming');
 
 // ----------------------------------------------------------------------
 
@@ -73,11 +74,15 @@ const authenticate = (request, cb) => {
         cbWithMessage('user has no jwt secret yet, please visit the portal')
       } else {
         jwt.verify(token, doc.jwt_secret, (err, payload) => {
-          if (payload.validity &&
-            (payload.iat + payload.validity) * 1e3 > Date.now()) {
-            cbWithMessage(null, payload);
+          if (err) {
+            cbWithMessage('Unable to verify JWT token');
           } else {
-            cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
+            if (payload.validity &&
+              (payload.iat + payload.validity) * 1e3 > Date.now()) {
+              cbWithMessage(null, payload);
+            } else {
+              cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
+            }
           }
         });
       }
@@ -111,13 +116,16 @@ Mongo.init(() => {
     // everything is ready, start listening for clients
     server.listen(9000, () => {
       console.log(`Server started on port ${server.address().port} :)`);
-      // Here: start capabilities ...
 
+      // Start capabilities
       const robotAgent = new _robotAgent();
       const hm = new HealthMonitoring();
       const remoteAccess = new RemoteAccess({
           dbCollection: Mongo.db.collection('devices')
         });
+      const videoStreaming = new VideoStreaming({
+        dbCollection: Mongo.db.collection('devices')
+      });
     });
   });
 });

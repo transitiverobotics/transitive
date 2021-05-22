@@ -9,14 +9,20 @@ mkdir -p $RODIR
 # hide some folders by bind-mounting an empty read-only folder on top of them
 mount -o bind,ro $RODIR /var
 
-mkdir -p $TRHOME/transitive
-mkdir -p $TRHOME/usr
 mkdir -p $TRHOME/$USER
-
+mkdir -p $TRHOME/transitive
 mount --bind $HOME/.transitive/packages/$TRPACKAGE $TRHOME/transitive
-mount --bind $HOME/.transitive/usr $TRHOME/usr
+
+for folder in usr bin sbin opt lib etc var run; do
+  if [[ -e $HOME/.transitive/$folder ]]; then
+    mkdir -p $TRHOME/$folder
+    mount -o bind,ro $HOME/.transitive/$folder $TRHOME/$folder
+  fi
+done
 
 mount --rbind $TRHOME /home
+rm -f $TRHOME/$USER/.transitive
+ln -s /home $TRHOME/$USER/.transitive
 
 # Shed fake root. This will make us nobody. If we need to be the original user
 # instead we can try revertuid (see tmp/experiments/revertuid)

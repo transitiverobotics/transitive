@@ -12,6 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "greenlock-express": "^4.0.3",
-    "http-proxy": "^1.18.1"
+    "http-proxy": "^1.18.1",
+    "mongodb": "^3.6.5",
+    "jsonwebtoken": "^8.5.1"
   }
 }

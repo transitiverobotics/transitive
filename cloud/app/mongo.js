@@ -6,7 +6,7 @@ const DB_NAME = process.env.MONGO_DB || 'meteor';
 class Mongo {
 
   init(onConnect) {
-    this.client = new MongoClient(URL);
+    this.client = new MongoClient(URL, {useUnifiedTopology: true});
 
     // Use connect method to connect to the server
     this.client.connect((err) => {

@@ -8,7 +8,7 @@ const styles = {
 };
 
 
-const Device = ({jwt, id}) => {
+const Device = (props) => {
   // const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
   // const device = data && data[id] && (Object.values(data[id])[0])['remote-access'];
   window.tr_devmode && console.log('video-stream');
@@ -18,15 +18,16 @@ const Device = ({jwt, id}) => {
   // params.set('jwt', jwt);
   // params.set('userid', id);
 
-  const params = Object.entries({
+  // props must include jwt and id
+
+  const params = Object.assign({}, {
       topic: '/usb_cam/image_raw',
-      jwt: jwt,
-      userid: id,
-      quality: 20,      
-  }).map(x => x.join('=')).join('&');
+      quality: 20,
+    }, props);
+  const urlParams = Object.entries(params).map(x => x.join('=')).join('&');
 
   return <div>
-    <img src={`http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${params}`} />
+    <img src={`http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`} />
   </div>
 };
 

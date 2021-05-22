@@ -38,7 +38,7 @@ const handleRequest = (req, res) => {
 
   } else if (req.headers.host == `video.${host}`) {
     const params = new URLSearchParams(req.url.slice(req.url.indexOf('?')));
-    const userId = params.get('userid');
+    const userId = params.get('id');
 
     if (params.get('jwt') && userId) {
       // Verify the provided JWT using secret from the user DB

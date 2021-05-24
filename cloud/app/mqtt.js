@@ -29,7 +29,7 @@ class MQTTHandler {
     client.on('disconnect', console.log);
 
     client.on('message', (topic, message, packet) => {
-      console.log(`${topic}`, packet.retain);
+      console.log(`${topic}`, message, packet.retain);
       _.each(this.subscriptions, sub => {
         // don't remove braces, otherwise loop may terminate early
         mqttTopicMatch(topic, sub.topic) && sub.callback(packet)

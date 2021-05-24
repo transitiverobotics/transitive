@@ -26,10 +26,6 @@ const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws, permission) => {
   // console.log('client connected', permission);
-  ws.on('message', (message) => {
-    console.log('received: %s', message);
-  });
-
   const cap = Capability.lookup(permission.capability);
   if (cap) {
     cap.addClient({ws, permission});

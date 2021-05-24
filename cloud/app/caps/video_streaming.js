@@ -8,10 +8,17 @@ class VideoStreaming extends Capability {
   constructor({dbCollection}) {
     super();
     this.dbCollection = dbCollection;
+
+    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.video_source`,
+      (value, key) => {
+        console.log('publish config to device', key, value);
+        this.mqtt.publish('/' + key.replace(/\./g, '/'),
+          value == null ? value : JSON.stringify(value));
+      });
   }
 
   onMessage(packet) {
-    console.log(this.name, packet.payload.toString());
+    // console.log(this.name, packet.payload.toString());
     const parsed = parseMQTTTopic(packet.topic);
     if (parsed.sub[0] == 'ssh_key') {
       // receive ssh key, write to database

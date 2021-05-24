@@ -80,6 +80,10 @@ class Capability {
     return mqttClient;
   }
 
+  get dataCache() {
+    return this.#data;
+  }
+
   /** update the data-cache, this also triggers any subscribers to its changes */
   store(topicOrPath, obj) {
     if (topicOrPath instanceof Array) {
@@ -121,6 +125,18 @@ class Capability {
     const flat = toFlatObject(cached);
     _.forEach(flat, (value, path) => {
       ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(value)} }`)
+    });
+
+    ws.on('message', (message) => {
+      // message received from this specific client (with specific permissions)
+      const changes = JSON.parse(message);
+      console.log(this.name, permission, 'received', changes);
+      const {transitiveUserId, device, capability} = permission;
+      for (let path in changes) {
+        console.log('updating cache', `${transitiveUserId}.${device}.${capability}.${path}`, changes[path]);
+        this.store(`${transitiveUserId}.${device}.${capability}.${path}`,
+          changes[path]);
+      }
     });
   }
 

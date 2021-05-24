@@ -3,6 +3,7 @@ import { DataCache } from '@transitive-robotics/utils/client';
 
 export const useWebSocket = ({jwt, id, onMessage}) => {
   const [status, setStatus] = useState('connecting');
+  const [ws, setWS] = useState();
 
   useEffect(() => {
       const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
@@ -12,8 +13,9 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
 
       const ws = new WebSocket(URL);
       ws.onopen = (event) => {
-        ws.send("Hi from client");
+        // ws.send("Hi from client");
         setStatus('connected');
+        setWS(ws);
       };
 
       ws.onmessage = (event) => onMessage && onMessage(event.data);
@@ -28,6 +30,7 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
     }, [jwt, id]);
 
   return {
+    ws,
     status,
     ready: status == 'connected',
     StatusComponent: () => <div>{
@@ -43,8 +46,9 @@ export const useDataSync = ({jwt, id}) => {
 
   const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
+  const writeCache = useMemo(() => new DataCache(), [jwt, id]);
 
-  const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
+  const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
       window.tr_devmode && console.log('useDataSync', data);
       const newData = JSON.parse(data);
@@ -53,5 +57,8 @@ export const useDataSync = ({jwt, id}) => {
     }
   });
 
-  return { status, ready, StatusComponent, data };
+  useEffect(() => {
+      ws && writeCache.subscribe(changes => ws.send(JSON.stringify(changes)));
+    }, [ws]);
+  return { status, ready, StatusComponent, data, writeCache };
 };

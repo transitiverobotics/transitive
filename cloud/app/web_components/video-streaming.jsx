@@ -9,16 +9,8 @@ const styles = {
 
 
 const Device = (props) => {
-  // const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
-  // const device = data && data[id] && (Object.values(data[id])[0])['remote-access'];
+  // note: props must include jwt and id
   window.tr_devmode && console.log('video-stream');
-
-  // const params = new URLSearchParams();
-  // params.set('topic', '/usb_cam/image_raw'); // escapes '/' and we don't want that
-  // params.set('jwt', jwt);
-  // params.set('userid', id);
-
-  // props must include jwt and id
 
   const params = Object.assign({}, {
       topic: '/usb_cam/image_raw',

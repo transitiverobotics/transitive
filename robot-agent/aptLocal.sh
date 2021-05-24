@@ -80,7 +80,7 @@ for PACKAGE in $*; do
     FILENAME=$DIR/var/cache/apt/archives/${NAME}.deb
     if [[ $PACKAGE == http* ]]; then
       # it's a remote .deb file, fetch it
-      echo "fetching from remote" | indent
+      echo "fetching from remote: $PACKAGE" | indent
       curl -L -s -o "$FILENAME" "$PACKAGE" | indent
     else
       # it's a .deb file, copy it

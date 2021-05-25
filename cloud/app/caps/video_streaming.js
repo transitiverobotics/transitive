@@ -13,7 +13,7 @@ class VideoStreaming extends Capability {
       (value, key) => {
         console.log('publish config to device', key, value);
         this.mqtt.publish('/' + key.replace(/\./g, '/'),
-          value == null ? value : JSON.stringify(value));
+          value == null ? value : JSON.stringify(value), {retain: true});
       });
   }
 

@@ -137,7 +137,7 @@ class Capability {
         // verify permission for the changed path
         const [changeUserId, changeDevice, changeCapability] = path.split('.');
         if (changeUserId == transitiveUserId && changeDevice == device
-          && changeCapability = capability) {
+          && changeCapability == capability) {
 
           console.log('updating cache', path, changes[path]);
           this.store(path, changes[path]);

@@ -153,8 +153,8 @@ mqttClient.on('connect', function(connackPacket) {
     heartbeat();
     setInterval(heartbeat, 60 * 1e3);
 
-    mqttClient.on('message', (topic, payload) => {
-      console.log(`upstream mqtt, ${topic}: ${payload.toString()}`);
+    mqttClient.on('message', (topic, payload, packet) => {
+      console.log(`upstream mqtt, ${topic}: ${payload.toString()}, ${packet.retain}`);
       // relay the upstream message to local
 
       const parsedTopic = parseMQTTTopic(topic);
@@ -164,7 +164,8 @@ mqttClient.on('connect', function(connackPacket) {
         handleAgentCommand(parsedTopic.sub, JSON.parse(payload.toString('utf-8')));
       } else {
         // not for us, relay it locally
-        aedes.publish({topic, payload}, () => {});
+        // aedes.publish({topic, payload}, () => {});
+        aedes.publish(packet, () => {});
       }
     });
   });

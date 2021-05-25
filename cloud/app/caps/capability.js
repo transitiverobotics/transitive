@@ -127,15 +127,24 @@ class Capability {
       ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(value)} }`)
     });
 
+    const {transitiveUserId, device, capability} = permission;
     ws.on('message', (message) => {
       // message received from this specific client (with specific permissions)
       const changes = JSON.parse(message);
-      console.log(this.name, permission, 'received', changes);
-      const {transitiveUserId, device, capability} = permission;
+      // console.log(this.name, permission, 'received', changes);
+
       for (let path in changes) {
-        console.log('updating cache', `${transitiveUserId}.${device}.${capability}.${path}`, changes[path]);
-        this.store(`${transitiveUserId}.${device}.${capability}.${path}`,
-          changes[path]);
+        // verify permission for the changed path
+        const [changeUserId, changeDevice, changeCapability] = path.split('.');
+        if (changeUserId == transitiveUserId && changeDevice == device
+          && changeCapability = capability) {
+
+          console.log('updating cache', path, changes[path]);
+          this.store(path, changes[path]);
+        } else {
+          console.log('denied ws client with permission', permission,
+            'to change', path);
+        }
       }
     });
   }

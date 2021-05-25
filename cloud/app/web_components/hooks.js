@@ -42,11 +42,10 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
 
 
 /** connect to server via useWebSocket, collect data updates into DataCache */
-export const useDataSync = ({jwt, id}) => {
+export const useDataSync = ({jwt, id, publishPath}) => {
 
   const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
-  const writeCache = useMemo(() => new DataCache(), [jwt, id]);
 
   const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
@@ -57,8 +56,14 @@ export const useDataSync = ({jwt, id}) => {
     }
   });
 
-  useEffect(() => {
-      ws && writeCache.subscribe(changes => ws.send(JSON.stringify(changes)));
+  publishPath && useEffect(() => {
+      ws && dataCache.subscribePath(publishPath,
+        (value, key, matched) => {
+          const changes = {};
+          changes[key] = value;
+          console.log('sending data update to server', changes);
+          ws.send(JSON.stringify(changes));
+        })
     }, [ws]);
-  return { status, ready, StatusComponent, data, writeCache };
+  return { status, ready, StatusComponent, data, dataCache };
 };

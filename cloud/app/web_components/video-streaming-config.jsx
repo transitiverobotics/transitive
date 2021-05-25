@@ -8,16 +8,25 @@ import { useDataSync } from './hooks.js';
 const styles = {
 };
 
+const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
+
 const Device = ({jwt, id}) => {
-  const { status, ready, StatusComponent, data, writeCache } = useDataSync({ jwt, id });
+  const { status, ready, StatusComponent, data, dataCache } =
+    useDataSync({ jwt, id, publishPath: '+.+.+.video_source'});
   const device = data && data[id] && (Object.values(data[id])[0])['video-streaming'];
   window.tr_devmode && console.log('video-streaming-config', data, device);
 
-  const onDeviceToggle = (device, checked) => {
-    console.log(device, checked);
-    writeCache.updateFromArray(['video_source', device, 'device'],
-      checked ? device : null);
+  const onDeviceToggle = (videoDevice, checked) => {
+    console.log(videoDevice, checked, data, dataCache.get());
+
+    // #HERE: this data and dataCache don't match!!!
+
+    const {device} = decodeJWT(jwt);
+    dataCache.updateFromArray([id, device, 'video-streaming',
+        'video_source', videoDevice, 'device'], checked ? videoDevice : null);
   };
+
+  console.log(device);
 
   return (!ready ? <StatusComponent /> :
     ( !(device && device.video_devices)
@@ -25,16 +34,30 @@ const Device = ({jwt, id}) => {
       : <div>
         Available video devices:
         <ListGroup>
-          { device.video_devices && device.video_devices.map((dev, i) =>
-            <ListGroup.Item key={i}>
-              <Form.Check
-                custom
-                type='checkbox'
-                id={`check-${dev}`}
-                label={dev}
-                onChange={e => onDeviceToggle(dev, e.target.checked)}
-                />
-            </ListGroup.Item>
+          { device.video_devices && device.video_devices.map((dev, i) => {
+              const active = !!(device.video_source &&
+                device.video_source[dev] &&
+                device.video_source[dev].device == dev)
+              return <ListGroup.Item key={i}>
+                <Form.Check
+                  custom
+                  type='checkbox'
+                  id={`check-${dev}`}
+                  label={dev}
+                  checked={active}
+                  onChange={e => onDeviceToggle(dev, !active)}
+                  />
+              </ListGroup.Item>;
+              // return <ListGroup.Item key={i}>
+              //   <Form.Check
+              //     custom
+              //     type='checkbox'
+              //     id={`check-${dev}`}
+              //     label={dev}
+              //     onChange={e => onDeviceToggle(dev, e.target.checked)}
+              //     />
+              // </ListGroup.Item>;
+            }
           )}
         </ListGroup>
       </div>

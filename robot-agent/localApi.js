@@ -44,7 +44,6 @@ const handlers = {
         }
       });
   }
-
 };
 
 const handleRequest = ({command, ...args}, res) => {

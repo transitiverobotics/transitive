@@ -12,10 +12,12 @@ DIR=$PWD
 
 # make sure config folder exists
 mkdir -p $HOME/etc/greenlock.d
-if [ ! -e $HOME/etc/greenlock.d/config.json ]; then
-  echo "config doesn't exist, creating it"
-  cp greenlock.d/config.json $HOME/etc/greenlock.d
+if [ -e $HOME/etc/greenlock.d/config.json ]; then
+  echo "greenlock config exists, backing up"
+  DATE=$(date +%s)
+  cp $HOME/etc/greenlock.d/config.json $HOME/etc/greenlock.d/config_${DATE}.json
 fi
+cp greenlock.d/config.json $HOME/etc/greenlock.d
 
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/

@@ -15,7 +15,7 @@ Environment=TRPACKAGE=%i
 # generate a random password for this package to use
 ExecStartPre=%h/.transitive/usr/bin/node -e "fs.writeFileSync('%h/.transitive/packages/%i/password', Math.random().toString(36).substr(2, 9))"
 
-ExecStart=%h/.transitive/unshare.sh "cd /home/transitive && . /opt/ros/*/setup.bash && PATH=/home/usr/bin:$PATH && npm update --no-save && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
+ExecStart=%h/.transitive/unshare.sh "cd /home/transitive && . /opt/ros/*/setup.bash && PATH=/home/usr/bin:$PATH && . /home/etc/env_local && npm update --no-save && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
 
 # Note: npm update also installs missing packages, see,
 # https://stackoverflow.com/a/19824154/1087119

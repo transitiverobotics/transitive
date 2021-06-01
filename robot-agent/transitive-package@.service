@@ -1,5 +1,5 @@
 [Unit]
-Description=Transitive Robotics Package Update Service
+Description=Transitive Robotics Package Service: %i
 
 [Service]
 # System call sandboxing

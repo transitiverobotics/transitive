@@ -29,7 +29,7 @@ const { DataCache } = require('@transitive-robotics/utils/server');
 // };
 
 /** this is the list of recognized commands and their implementation */
-const commands = {
+const dataHandlers = {
   /** set list of should-be-installed packages */
   desiredPackages: (desired) => {
     console.log('Ensure installed packages match', desired);
@@ -71,31 +71,41 @@ const commands = {
 };
 
 
+const commands = {
+  _restart: () => {
+    console.log("Received restart command.");
+    process.exit(0);
+  }
+};
+
 
 const dataCache = new DataCache();
 dataCache.subscribe(change => {
   _.forEach(change, (value, key) => {
     const command = key.split('.')[0];
-    const cmdFunction = commands[command];
+    const cmdFunction = dataHandlers[command];
     if (cmdFunction) {
       cmdFunction(dataCache.get(command));
     } else {
-      console.error('Received unknown command', command);
+      console.error('Received unknown data command', command);
     }
   });
 });
 
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */
+  handleAgentData: (subPath, value) => {
+    if (subPath[0][0] != '_') {
+      dataCache.update(subPath, value);
+    }
+  },
   handleAgentCommand: (subPath, value) => {
-    // command is an array
-    // const cmdFunction = commands[command];
-    // if (cmdFunction) {
-    //   cmdFunction(payload);
-    // } else {
-    //   console.error('Received unknown command', command);
-    // }
-
-    dataCache.update(subPath, value);
+    const cmd = commands[subPath[0]];
+    if (cmd) {
+      console.error('Executing command', subPath[0]);
+      cmd(subPath.slice(1));
+    } else {
+      console.error('Received unknown command', command);
+    }
   }
 };

@@ -1,7 +1,7 @@
 /**
   Create a MQTT bridge
-  - connect to upstream mqtt broker (using private certificates)
-  - run a local mqtt broker, for packages
+    - connect to upstream mqtt broker (using private certificates)
+    - run a local mqtt broker, for packages
   - relay messages between the two in a package-aware way
 */
 
@@ -13,7 +13,7 @@ const fs = require('fs');
 const os = require('os');
 const { parseMQTTTopic, DataCache, pathToTopic, mqttClearRetained } =
   require('@transitive-robotics/utils/server');
-const { handleAgentCommand } = require('./commands');
+const { handleAgentCommand, handleAgentData } = require('./commands');
 
 const server = require('net').createServer(aedes.handle);
 const PORT = 1883;
@@ -133,42 +133,50 @@ mqttClient.on('connect', function(connackPacket) {
   mqttClearRetained(mqttClient,
     [`${AGENT_PREFIX}/info`, `${AGENT_PREFIX}/status`], () => {
 
-    console.log('subscribing to robot-agent commands');
-    mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, console.log);
+      console.log('subscribing to robot-agent commands');
+      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
 
-    data.subscribe(flatChanges => {
-      for (let key in flatChanges) {
-        mqttClient.publish(`${AGENT_PREFIX}/${key.replace(/\./g, '/')}`,
-          JSON.stringify(flatChanges[key]), {retain: true});
-      }
+      data.subscribe(flatChanges => {
+        for (let key in flatChanges) {
+          mqttClient.publish(`${AGENT_PREFIX}/${key.replace(/\./g, '/')}`,
+            JSON.stringify(flatChanges[key]), {retain: true});
+        }
+      });
+
+      data.update(['info'], { os: {
+        hostname: os.hostname(),
+        release: os.release(),
+        version: os.version(),
+        networkInterfaces: os.networkInterfaces()
+      }});
+
+      heartbeat();
+      setInterval(heartbeat, 60 * 1e3);
+
+      mqttClient.on('message', (topic, payload, packet) => {
+        console.log(`upstream mqtt, ${topic}: ${payload.toString()}, ${packet.retain}`);
+        // relay the upstream message to local
+
+        const parsedTopic = parseMQTTTopic(topic);
+        // TODO: ensure no one tries to publish a capability with this name
+        if (parsedTopic.capability == '_robot-agent') {
+          // it's for us, the robot-agent
+          const json = JSON.parse(payload.toString('utf-8'));
+          if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
+            // commands start with `_`
+            handleAgentCommand(parsedTopic.sub, json);
+          } else {
+            // everything else is data
+            handleAgentData(parsedTopic.sub, json);
+          }
+        } else {
+          // not for us, relay it locally
+          // aedes.publish({topic, payload}, () => {});
+          aedes.publish(packet, () => {});
+        }
+      });
     });
-
-    data.update(['info'], { os: {
-      hostname: os.hostname(),
-      release: os.release(),
-      version: os.version(),
-      networkInterfaces: os.networkInterfaces()
-    }});
-
-    heartbeat();
-    setInterval(heartbeat, 60 * 1e3);
-
-    mqttClient.on('message', (topic, payload, packet) => {
-      console.log(`upstream mqtt, ${topic}: ${payload.toString()}, ${packet.retain}`);
-      // relay the upstream message to local
-
-      const parsedTopic = parseMQTTTopic(topic);
-      // TODO: ensure no one tries to publish a capability with this name
-      if (parsedTopic.capability == '_robot-agent') {
-        // it's for us, the robot-agent
-        handleAgentCommand(parsedTopic.sub, JSON.parse(payload.toString('utf-8')));
-      } else {
-        // not for us, relay it locally
-        // aedes.publish({topic, payload}, () => {});
-        aedes.publish(packet, () => {});
-      }
-    });
-  });
 });
 
 

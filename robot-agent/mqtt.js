@@ -11,9 +11,10 @@
 const aedes = require('aedes')();
 const fs = require('fs');
 const os = require('os');
-const { parseMQTTTopic, DataCache, pathToTopic, mqttClearRetained } =
-  require('@transitive-robotics/utils/server');
-const { handleAgentCommand, handleAgentData } = require('./commands');
+const { parseMQTTTopic, DataCache, pathToTopic, mqttClearRetained }
+  = require('@transitive-robotics/utils/server');
+const { handleAgentCommand, handleAgentData, ensureDesiredPackages }
+  = require('./commands');
 
 const server = require('net').createServer(aedes.handle);
 const PORT = 1883;
@@ -134,7 +135,10 @@ mqttClient.on('connect', function(connackPacket) {
     [`${AGENT_PREFIX}/info`, `${AGENT_PREFIX}/status`], () => {
 
       console.log('subscribing to robot-agent commands');
-      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, () => {
+        // 2 seconds after start: check that desired packages are installed
+        setTimeout(ensureDesiredPackages, 5000);
+      });
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
 
       data.subscribe(flatChanges => {

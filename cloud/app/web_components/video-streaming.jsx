@@ -15,20 +15,21 @@ const Timer = ({duration, onTimeout, onStart}) => {
   if (!interval && timer > 0) {
     interval = setInterval(() =>
       setTimer(t => {
-        if (t > 0) {
-          return --t;
+        if (--t > 0) {
+          return t;
         } else {
-          onTimeout && onTimeout();
+          onTimeout && setTimeout(onTimeout, 1);
           clearInterval(interval);
           interval = null;
         }
       }), 1000);
-    onStart && onStart();
+    onStart && setTimeout(onStart, 1);
   }
 
   return timer > 0 ? <div>Timeout in: {timer} seconds</div>
-  : <div>Timed out.
-    <button onClick={() => setTimer(duration)}>Restart</button>
+  : <div>Timed out. <button onClick={() => setTimer(duration)}>
+      Resume
+    </button>
   </div>;
 };
 
@@ -47,8 +48,9 @@ const Device = (props) => {
     {running &&
         <img src={`http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`} />
     }
-    <Timer onTimeout={() => setRunning(false)} duration={4}
-      onStart={() => setRunning(true)}/>
+    <Timer duration={60}
+      onTimeout={() => setRunning(false)}
+      onStart={() => setRunning(true)} />
   </div>
 };
 

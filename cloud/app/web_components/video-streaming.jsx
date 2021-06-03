@@ -7,8 +7,11 @@ import { InlineCode } from './shared.jsx';
 const styles = {
 };
 
-let interval;
+// a gray pixel to use when video-stream is inactive (will be scaled)
+const PIXEL_4x3 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAQAAAAe/WZNAAAAEElEQVR42mOcXM8ABowYDAA1agM6T/cHjQAAAABJRU5ErkJggg==";
 
+
+let interval;
 const Timer = ({duration, onTimeout, onStart}) => {
   const [timer, setTimer] = useState(duration || 60);
 
@@ -45,9 +48,10 @@ const Device = (props) => {
   const urlParams = Object.entries(params).map(x => x.join('=')).join('&');
 
   return <div>
-    {running &&
-        <img src={`http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`} />
-    }
+    <img src={running ?
+        `http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`
+        : PIXEL_4x3 // we need this to surely stop the video stream
+      } style={running ? {} : {width: '640px'}} />
     <Timer duration={60}
       onTimeout={() => setRunning(false)}
       onStart={() => setRunning(true)} />

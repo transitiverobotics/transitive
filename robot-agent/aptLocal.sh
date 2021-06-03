@@ -61,12 +61,12 @@ cp {,$DIR}/etc/apt/sources.list
 echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc/apt/sources.list.d/ros-latest.list
 
 
-cp {,$DIR}/etc/apt/trusted.gpg
+cp {,$DIR}/etc/apt/trusted.gpg || true
 cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d
 # For now, always get latest ROS repo keys, to mitigate stuff like:
 # https://discourse.ros.org/t/ros-gpg-key-expiration-incident/20669
 printStep "Import ROS repo keys"
-apt-key --keyring $DIR/etc/apt/trusted.gpg.d/ros.gpg adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 | indent
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | unshare -rm apt-key --keyring $DIR/etc/apt/trusted.gpg.d/ros.gpg add -
 
 printStep "Running apt-get update"
 apt-get update | indent

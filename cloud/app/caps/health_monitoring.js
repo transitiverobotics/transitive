@@ -51,7 +51,7 @@ class HealthMonitoring extends Capability {
     // console.log(`updating aggregate for /${organization}`, devices);
     const max = _.maxBy(Object.values(devices), ({level}) => level);
     this.clearFromStore([organization, '_fleet', this.name]);
-    this.store([organization, '_fleet', this.name], {level: max.level, devices});
+    max && this.store([organization, '_fleet', this.name], {level: max.level, devices});
   }
 
 };

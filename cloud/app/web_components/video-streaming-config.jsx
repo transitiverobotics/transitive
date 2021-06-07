@@ -18,9 +18,6 @@ const Device = ({jwt, id}) => {
 
   const onDeviceToggle = (videoDevice, checked) => {
     console.log(videoDevice, checked, data, dataCache.get());
-
-    // #HERE: this data and dataCache don't match!!!
-
     const {device} = decodeJWT(jwt);
     dataCache.updateFromArray([id, device, 'video-streaming',
         'video_source', videoDevice, 'device'], checked ? videoDevice : null);
@@ -48,15 +45,6 @@ const Device = ({jwt, id}) => {
                   onChange={e => onDeviceToggle(dev, !active)}
                   />
               </ListGroup.Item>;
-              // return <ListGroup.Item key={i}>
-              //   <Form.Check
-              //     custom
-              //     type='checkbox'
-              //     id={`check-${dev}`}
-              //     label={dev}
-              //     onChange={e => onDeviceToggle(dev, e.target.checked)}
-              //     />
-              // </ListGroup.Item>;
             }
           )}
         </ListGroup>

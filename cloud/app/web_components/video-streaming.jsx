@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import ReactWebComponent from 'react-web-component';
 
+import { Form, Dropdown, DropdownButton, Button } from 'react-bootstrap';
+
 import { useDataSync } from './hooks.js';
 import { InlineCode } from './shared.jsx';
 
 const styles = {
+  selector: {
+    label: {
+      marginRight: '0.5em'
+    }
+  },
+  image: {
+    width: '100%',
+    margin: '0.25em 0 0.25em 0',
+  }
 };
 
 // a gray pixel to use when video-stream is inactive (will be scaled)
@@ -30,11 +41,25 @@ const Timer = ({duration, onTimeout, onStart}) => {
   }
 
   return timer > 0 ? <div>Timeout in: {timer} seconds</div>
-  : <div>Timed out. <button onClick={() => setTimer(duration)}>
+  : <div>Timed out. <Button onClick={() => setTimer(duration)}>
       Resume
-    </button>
+    </Button>
   </div>;
 };
+
+
+/** show list where user can select topic to display */
+const TopicSelector = ({topics, topic, setTopic}) => <Form inline>
+  <Form.Label htmlFor='topicSelector' style={styles.selector.label}>
+    Video Stream
+  </Form.Label>
+  <DropdownButton id='topicSelector' title={topic} variant='outline-secondary'>
+    { topics.map(t => <Dropdown.Item key={t} onClick={() => setTopic(t)}>
+        {t}
+      </Dropdown.Item>)}
+  </DropdownButton>
+</Form>;
+
 
 const Device = (props) => {
   const [running, setRunning] = useState(false);
@@ -57,7 +82,7 @@ const Device = (props) => {
   // note: props must include jwt and id
   window.tr_devmode && console.log('video-stream');
 
-  const params = Object.assign({}, { topic, quality: 20 }, props);
+  const params = Object.assign({}, {topic, quality: 20}, props);
   const urlParams = Object.entries(params).map(x => x.join('=')).join('&');
 
   console.log({data});
@@ -69,11 +94,15 @@ const Device = (props) => {
   }
 
   console.log({topic, topics});
+
   return <div>
+    {topics.length > 1 &&
+        <TopicSelector topics={topics} topic={topic} setTopic={setTopic} />}
+    {/* TODO: handle the case where the props already specify a topic to use */}
     <img src={running ?
         `http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`
         : PIXEL_4x3 // we need this to surely stop the video stream
-      } style={running ? {} : {width: '640px'}} />
+      } style={styles.image} />
     {<Timer duration={60}
       onTimeout={() => setRunning(false)}
       onStart={() => setRunning(true)} />}
@@ -83,6 +112,9 @@ const Device = (props) => {
 class App extends React.Component {
   render() {
     return <div>
+      <style>
+        @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
+      </style>
       <Device {...this.props}/>
     </div>;
   }

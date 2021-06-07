@@ -15,6 +15,12 @@ class VideoStreaming extends Capability {
         this.mqtt.publish('/' + key.replace(/\./g, '/'),
           value == null ? value : JSON.stringify(value), {retain: true});
       });
+
+    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.imageTopics`,
+      (value, key) => {
+        console.log('forwarding image topics to ws clients', key, value);
+        this.sendToPermitted(key, value);
+      });
   }
 
   onMessage(packet) {

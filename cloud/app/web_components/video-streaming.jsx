@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactWebComponent from 'react-web-component';
 
 import { useDataSync } from './hooks.js';
@@ -38,23 +38,45 @@ const Timer = ({duration, onTimeout, onStart}) => {
 
 const Device = (props) => {
   const [running, setRunning] = useState(false);
+  const { status, ready, StatusComponent, data, dataCache }
+    = useDataSync({ jwt: props.jwt, id: props.id });
+  const [topic, setTopic] = useState();
+  const [topics, setTopics] = useState([]);
+
+  useEffect(() => {
+      dataCache.subscribePath(`+org.+deviceId.video-streaming.imageTopics`,
+        (value, key, matched) => {
+          const parentKey = key.split('.').slice(0,-1).join('.');
+          const list = dataCache.get(parentKey);
+          console.log({parentKey, list});
+          setTopics(list);
+          !topic && list.length > 0 && setTopic(list[0]);
+        });
+    }, []);
+
   // note: props must include jwt and id
   window.tr_devmode && console.log('video-stream');
 
-  const params = Object.assign({}, {
-      topic: '/usb_cam/image_raw',
-      quality: 20,
-    }, props);
+  const params = Object.assign({}, { topic, quality: 20 }, props);
   const urlParams = Object.entries(params).map(x => x.join('=')).join('&');
 
+  console.log({data});
+
+  if (!topic) {
+    return <div>
+      Waiting for streams to become available.
+    </div>;
+  }
+
+  console.log({topic, topics});
   return <div>
     <img src={running ?
         `http${TR_SECURE ? 's' : ''}://video.${TR_HOST}/stream?${urlParams}`
         : PIXEL_4x3 // we need this to surely stop the video stream
       } style={running ? {} : {width: '640px'}} />
-    <Timer duration={60}
+    {<Timer duration={60}
       onTimeout={() => setRunning(false)}
-      onStart={() => setRunning(true)} />
+      onStart={() => setRunning(true)} />}
   </div>
 };
 

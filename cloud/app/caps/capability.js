@@ -149,7 +149,7 @@ class Capability {
     });
   }
 
-  /** send topic + text to permitted clients */
+  /** send path + text to permitted clients */
   sendToPermitted(path, text) {
     // console.log('Capability: sendToPermitted', path);
     _.forEach(this.#clients, ({ws, permission}) => {

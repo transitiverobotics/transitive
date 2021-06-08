@@ -25,6 +25,7 @@ if (!process.env.TR_USERID) {
 const utils = require('./utils');
 const exec = require('child_process').exec;
 const localApi = require('./localApi');
+const ensureROS = require('./ensureROS');
 
 console.log('@transitive-robotics/robot-agent started', new Date());
 
@@ -79,7 +80,7 @@ const updateAllPackages = () => {
 /** update self and all packages */
 const update = () => {
   if (!process.env.TR_DEVMODE) {
-    selfUpdate(updateAllPackages);
+    selfUpdate(() => ensureROS(updateAllPackages));
   }
 }
 

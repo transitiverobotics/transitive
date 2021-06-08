@@ -108,6 +108,15 @@ for DEB in $(find $DIR/var/cache/apt/archives/ -name "*deb"); do
 done
 
 
+# Replace `/usr/bin/python` with `/usr/bin/env python` in locally installed packages
+for n in $(grep -Rl "/usr/bin/python" $DIR/opt/ros | xargs); do
+  sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
+done
+for n in $(find $DIR/usr/bin -name 'ros*'); do
+  sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
+done
+
+
 # Generate env file for using these locally installed packages
 
 # ROS_RELEASE=$(ls -1 --color=never ~/.transitive/opt/ros | head -n 1)
@@ -117,11 +126,14 @@ cat > $DIR/etc/env_local << EOF
 # environment variables for using debian packages installed via aptLocal.sh
 # i.e., locally in ~/.transitive
 
-LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/usr/lib/x86_64-linux-gnu/:$DIR/usr/lib/:$DIR/opt/ros/$ROS_RELEASE/lib/
+export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/usr/lib/x86_64-linux-gnu/:$DIR/usr/lib/:$DIR/opt/ros/$ROS_RELEASE/lib/
 
-ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:$DIR/opt/ros/$ROS_RELEASE/share
+export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:$DIR/opt/ros/$ROS_RELEASE/share
 
-CMAKE_PREFIX_PATH=\$CMAKE_PREFIX_PATH:$DIR/opt/ros/$ROS_RELEASE
+export CMAKE_PREFIX_PATH=\$CMAKE_PREFIX_PATH:$DIR/opt/ros/$ROS_RELEASE
 
-PATH=\$PATH:$DIR/usr/sbin:$DIR/usr/bin:$DIR/sbin:$DIR/bin
+export PATH=\$PATH:$DIR/usr/sbin:$DIR/usr/bin:$DIR/sbin:$DIR/bin
 EOF
+
+
+                 #HERE: added the exports, now test on u4

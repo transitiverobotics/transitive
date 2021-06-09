@@ -81,6 +81,8 @@ const updateAllPackages = () => {
 const update = () => {
   if (!process.env.TR_DEVMODE) {
     selfUpdate(() => ensureROS(updateAllPackages));
+  } else {
+    ensureROS();
   }
 }
 

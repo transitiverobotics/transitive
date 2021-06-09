@@ -103,6 +103,11 @@ const commands = {
         `ls ${process.env.HOME}/.transitive/packages/${sub[0]}`,
         `tail -n 1000 /var/log/syslog | grep unshare`
       ], cb);
+  },
+  _getLog: (sub, value, cb) => {
+    execAll([
+        `grep ${process.pid} /var/log/syslog | tail -n 1000`,
+      ], cb);
   }
 };
 

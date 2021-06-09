@@ -21,6 +21,7 @@
 const fs = require('fs');
 const os = require('os');
 const mqtt = require('mqtt');
+const exec = require('child_process').exec;
 
 const { parseMQTTTopic, DataCache, mqttClearRetained }
   = require('@transitive-robotics/utils/server');
@@ -68,12 +69,7 @@ mqttClient.on('connect', function(connackPacket) {
         }
       });
 
-      data.update(['info'], { os: {
-        hostname: os.hostname(),
-        release: os.release(),
-        version: os.version(),
-        networkInterfaces: os.networkInterfaces()
-      }});
+      staticInfo();
 
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
@@ -89,7 +85,9 @@ mqttClient.on('connect', function(connackPacket) {
           const json = JSON.parse(payload.toString('utf-8'));
           if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
             // commands start with `_`
-            handleAgentCommand(parsedTopic.sub, json);
+            handleAgentCommand(parsedTopic.sub, json, (response) => response &&
+              mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
+                JSON.stringify(response)));
           } else {
             // everything else is data
             handleAgentData(parsedTopic.sub, json);
@@ -108,9 +106,24 @@ mqttClient.on('connect', function(connackPacket) {
         setTimeout(ensureDesiredPackages, 5000);
       });
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, console.log);
     });
 });
 
+/** publish static info about this machine */
+const staticInfo = () => {
+  data.update(['info'], { os: {
+    hostname: os.hostname(),
+    release: os.release(),
+    version: os.version(),
+    networkInterfaces: os.networkInterfaces()
+  }});
+
+  exec('lsb_release -a', (err, stdout, stderr) =>
+    !err && data.update(['info', 'os'], { lsb_release: stdout.trim() }));
+  exec('dpkg --print-architecture', (err, stdout, stderr) =>
+    !err && data.update(['info', 'os'], { dpkgArch: stdout.trim() }));
+};
 
 const heartbeat = () => {
   data.update(['status'], {

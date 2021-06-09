@@ -77,11 +77,32 @@ const ensureDesiredPackages = () => {
   Object.keys(desired).forEach(addPackage);
 };
 
+/** execute a sequence of commands and report corresponding results in cb */
+const execAll = ([head, ...tail], cb) => {
+  if (head) {
+    exec(head, (err, stdout, stderr) => {
+      const result = {[head]: {err, stdout, stderr}};
+      execAll(tail, (subResult) => cb(Object.assign({}, subResult, result)));
+    });
+  } else {
+    cb({});
+  }
+};
 
 const commands = {
   _restart: () => {
     console.log("Received restart command.");
     process.exit(0);
+  },
+  // _exec: (sub, value, cb) => {
+  //   exec(value, (err, stdout, stderr) => cb({err, stdout, stderr}));
+  // }
+  _getStatus: (sub, value, cb) => {
+    execAll([
+        `systemctl --user status transitive-package@${sub[0]}`,
+        `ls ${process.env.HOME}/.transitive/packages/${sub[0]}`,
+        `tail -n 1000 /var/log/syslog | grep unshare`
+      ], cb);
   }
 };
 
@@ -114,11 +135,11 @@ module.exports = {
       dataCache.update(subPath, value);
     }
   },
-  handleAgentCommand: (subPath, value) => {
+  handleAgentCommand: (subPath, value, cb) => {
     const cmd = commands[subPath[0]];
     if (cmd) {
-      console.error('Executing command', subPath[0]);
-      cmd(subPath.slice(1));
+      console.error('Executing command', subPath);
+      cmd(subPath.slice(1), value, cb);
     } else {
       console.error('Received unknown command', command);
     }

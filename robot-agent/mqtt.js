@@ -107,6 +107,7 @@ mqttClient.on('connect', function(connackPacket) {
       });
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, console.log);
     });
 });
 

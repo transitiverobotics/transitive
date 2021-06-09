@@ -57,15 +57,16 @@ const findRoscore = () => {
 /** start roscore process, detached and unref'd so it can keep running after
 current process (robot-agent) stops */
 const startCore = (path) => {
-  const roscore = spawn('/bin/bash', [ '-c',
-      [ `. ${process.env.HOME}/.transitive/etc/env_local`,
-        `. ${process.env.HOME}/.transitive/opt/ros/${rosDistro}/setup.bash`,
-        path
-      ].join(' ; ')
-    ], {
-      detached: true,
-      stdio: 'ignore'
-    });
+  const cmd = [ `. ${process.env.HOME}/.transitive/etc/env_local`,
+      `. ${process.env.HOME}/.transitive/opt/ros/${rosDistro}/setup.bash`,
+      `. /opt/ros/${rosDistro}/setup.bash`,
+      path
+    ].join(' ; ');
+  console.log('starting core:', cmd);
+  const roscore = spawn('/bin/bash', ['-c', cmd], {
+    detached: true,
+    stdio: 'ignore'
+  });
   roscore.unref();
 };
 
@@ -88,11 +89,11 @@ module.exports = (callback) => {
 
       if (!roscorePath) {
         console.warn('failed to install roscore');
-        callback('failed to install roscore');
+        callback && callback('failed to install roscore');
       } else {
         console.log(`starting roscore: ${roscorePath}`);
         startCore(roscorePath);
-        callback();
+        callback && callback();
       }
     }
   });

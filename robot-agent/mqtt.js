@@ -106,6 +106,7 @@ mqttClient.on('connect', function(connackPacket) {
         setTimeout(ensureDesiredPackages, 5000);
       });
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, console.log);
     });

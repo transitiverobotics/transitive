@@ -94,6 +94,10 @@ const commands = {
     console.log("Received restart command.");
     process.exit(0);
   },
+  _restartPackage: (sub) => {
+    console.log(`Restarting ${sub[0]}.`);
+    exec(`systemctl --user restart transitive-package@${sub[0]}`, console.log);
+  },
   // _exec: (sub, value, cb) => {
   //   exec(value, (err, stdout, stderr) => cb({err, stdout, stderr}));
   // }

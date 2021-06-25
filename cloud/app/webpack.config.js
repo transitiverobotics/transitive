@@ -3,7 +3,7 @@ const os = require('os');
 const webpack = require('webpack');
 const fs = require('fs');
 
-// get all web omponents from directory, compile each one separately
+// get all web components from directory, compile each one separately
 const entry = {};
 fs.readdirSync('./web_components').forEach(name =>
   entry[name] = {

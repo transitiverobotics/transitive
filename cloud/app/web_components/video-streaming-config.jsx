@@ -56,6 +56,9 @@ const Device = ({jwt, id}) => {
 class App extends React.Component {
   render() {
     return <div>
+      <style>
+        @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
+      </style>
       <Device {...this.props}/>
     </div>;
   }

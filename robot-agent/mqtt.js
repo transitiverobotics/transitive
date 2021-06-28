@@ -47,8 +47,9 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
 mqttClient.on('error', console.log);
 mqttClient.on('disconnect', console.log);
 
+let initialized = false;
 mqttClient.on('connect', function(connackPacket) {
-  console.log('connected to upstream mqtt broker');
+  console.log(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
 
   // TODO: this should not execute more than once, but it does if:
   //  the portal is not running, and
@@ -57,7 +58,7 @@ mqttClient.on('connect', function(connackPacket) {
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
   // "publication", of which this may be a "clear on start" functionality
-  mqttClearRetained(mqttClient,
+  !initialized && mqttClearRetained(mqttClient,
     [`${AGENT_PREFIX}/info`, `${AGENT_PREFIX}/status`], () => {
 
       console.log('subscribing to robot-agent commands');
@@ -109,6 +110,8 @@ mqttClient.on('connect', function(connackPacket) {
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, console.log);
+
+      initialized = true;
     });
 });
 

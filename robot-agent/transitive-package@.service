@@ -11,14 +11,6 @@ EnvironmentFile=%h/.transitive/.env
 # Env file for user to add other things, this file will not be overwritten
 EnvironmentFile=-%h/.transitive/.env_user
 Environment=TRPACKAGE=%i
-
-# generate a random password for this package to use
-ExecStartPre=%h/.transitive/usr/bin/node -e "fs.writeFileSync('%h/.transitive/packages/%i/password', Math.random().toString(36).substr(2, 9))"
-
-# ExecStart=%h/.transitive/unshare.sh "cd /home/transitive && if stat --printf='' /opt/ros/*/setup.bash 2>/dev/null; then . /opt/ros/*/setup.bash; fi && env && PATH=/home/usr/bin:$PATH && . /home/etc/env_local && npm update --no-save && cd node_modules/@transitive-robotics/%i && env PASSWORD=$(cat ../../../password) npm start"
-# Note: npm update also installs missing packages, see,
-# https://stackoverflow.com/a/19824154/1087119
-
 ExecStart=%h/.transitive/unshare.sh "/home/usr/bin/startPackage.sh %i"
 
 Restart=always

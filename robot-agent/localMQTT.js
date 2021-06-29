@@ -5,11 +5,19 @@
 const fs = require('fs');
 
 const persistence = require('aedes-persistence')();
+// var NedbPersistence = require('aedes-persistence-nedb');
+// var persistence = new NedbPersistence({
+//   path: './db',     // defaults to './data',
+//   prefix: 'mqtt'    // defaults to ''
+// });
 const Aedes = require('aedes');
 const { DataCache } = require('@transitive-robotics/utils/server');
 
 const PORT = 1883;
 
+
+// subscription options for upstream client: required to see the retain flag
+const subOptions = {rap: true};
 
 /** Start the local mqtt broker. upstreamClient is the upstream mqtt client */
 const startLocalMQTTBroker = (upstreamClient, prefix) => {
@@ -40,15 +48,15 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
     subscriptions.forEach(subscription => {
       console.log(client && client.id, 'wants', subscription);
       if (client && upstreamClient) {
-        upstreamClient.subscribe(subscription.topic); // TODO: also relay QoS
+        upstreamClient.subscribe(subscription.topic, subOptions); // TODO: also relay QoS
       }
 
       // Do we(?) also need to somehow publish back to client any retained messages
       // we already have (e.g., from that client connecting and subscribing earlier!)
       // use DataCache for all retained messages? Test with video-streaming/video_source.
       // const retained = persistence.createRetainedStreamCombi(subscription.topic);
-      // // NOTE: retained is a https://www.npmjs.com/package/from2 stream
-      // retained.on('data', (data) => console.log({data}));
+      // // // NOTE: retained is a https://www.npmjs.com/package/from2 stream
+      // retained.on('retained data', (data) => console.log({data}));
       // retained.resume();
       // I think we don't. This was a rabbit hole when debugging wrong order of
       // connecting upstream, subscribing (by packages), clearing, and starting
@@ -63,6 +71,13 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
       if (client && upstreamClient) {
         upstreamClient.unsubscribe(subscription, console.log);
       }
+
+      // #HERE we also need to somehow delete the retained messages for this
+      // topic in the aedes cache; This is because while we are unsubscribed
+      // a "clear" (null) message may be sent that we won't receive and hence
+      // won't clear our retained message
+      persistence.cleanSubscriptions(client.id, console.log);
+      // this doesn't seem sufficient
     });
   });
 
@@ -83,6 +98,7 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
   };
 
   aedes.authorizePublish = (client, packet, callback) => {
+    // console.log('authorizePublish', client.id, packet.topic);
     // overwrite packet: force client to its namespace
     packet.topic = `${prefix}/${client.id}/${packet.topic}`;
     callback(null)
@@ -97,11 +113,17 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
   /** using the special function we patched into aedes to also
   overwrite topic on unsubscribe, forcing client to its namespace */
   aedes.preUnsubscribe = (client, packet, callback) => {
-    console.log('preUnsubscribe');
     for (let i in packet.unsubscriptions) {
-      packet.unsubscriptions[i] = `${prefix}/${client.id}/${packet.unsubscriptions[i]}`;
+      // console.log('preUnsubscribe', client.id);
+      !packet.unsubscriptions[i].startsWith(`${prefix}/${client.id}`) &&
+        (packet.unsubscriptions[i] = `${prefix}/${client.id}/${packet.unsubscriptions[i]}`);
     }
     callback(client, packet);
+  }
+
+  aedes.authorizeForward = function (client, packet) {
+    console.log('authorizeForward', packet.topic, packet.retain);
+    return packet;
   }
 
   return aedes;

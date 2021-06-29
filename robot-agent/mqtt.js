@@ -37,11 +37,14 @@ const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const AGENT_PREFIX = `${PREFIX}/_robot-agent`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 
+const subOptions = {rap: true};
+
 // connect to upstream mqtt server
 const mqttClient = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
   cert: fs.readFileSync('certs/client.crt'),
   rejectUnauthorized: false,
+  protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
 mqttClient.on('error', console.log);
@@ -76,7 +79,7 @@ mqttClient.on('connect', function(connackPacket) {
       setInterval(heartbeat, 60 * 1e3);
 
       mqttClient.on('message', (topic, payload, packet) => {
-        console.log(`upstream mqtt, ${topic}: ${payload.toString()}, ${packet.retain}`);
+        console.log(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
         // relay the upstream message to local
 
         const parsedTopic = parseMQTTTopic(topic);
@@ -102,14 +105,15 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX);
 
-      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, () => {
-        // 5 seconds after start: check that desired packages are installed
-        setTimeout(ensureDesiredPackages, 5000);
-      });
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions,
+        () => {
+          // 5 seconds after start: check that desired packages are installed
+          setTimeout(ensureDesiredPackages, 5000);
+        });
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, console.log);
 
       initialized = true;
     });

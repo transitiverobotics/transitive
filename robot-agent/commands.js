@@ -38,10 +38,11 @@ const addPackage = (addedPkg) => {
   fs.writeFileSync(`${dir}/package.json`,
     `{ "dependencies": {"@transitive-robotics/${addedPkg}": "*"} }`);
 
-  exec(`systemctl --user start transitive-package@${addedPkg}.service`, {},
-    (err, stdout, stderr) => {
-      console.log('package installed and started', {err, stdout, stderr});
-    });
+  !process.env.TR_DEVMODE &&
+    exec(`systemctl --user start transitive-package@${addedPkg}.service`, {},
+      (err, stdout, stderr) => {
+        console.log('package installed and started', {err, stdout, stderr});
+      });
 };
 
 /** stop and uninstall named package */

@@ -1,6 +1,6 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "1.3.16",
+  "version": "1.3.18",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "Christian Fritz",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "dependencies": {
     "@transitive-robotics/utils": ">=0.0.13",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",

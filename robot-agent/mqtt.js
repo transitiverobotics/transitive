@@ -97,8 +97,13 @@ mqttClient.on('connect', function(connackPacket) {
             handleAgentData(parsedTopic.sub, json);
           }
         } else {
-          // not for us, relay it locally
-          // aedes.publish({topic, payload}, () => {});
+          // Not for us, relay it locally.
+          /* We do NOT want to retain package-specific messages because we do not
+            subscribe to them all the time and could be missing "clear" messages,
+            which would cause discrepancies between the master data (in the cloud)
+            and our local copy. Instead, we just un-subscribe and resubscribe to
+          upstream and get retained messages from there when we connect. */
+          packet.retain = false;
           localBroker && localBroker.publish(packet, () => {});
         }
       });

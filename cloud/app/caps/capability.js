@@ -1,6 +1,6 @@
 const _ = require('lodash');
 
-const { DataCache, toFlatObject, pathToTopic }
+const { DataCache, toFlatObject, pathToTopic, topicToPath, mqttParsePayload }
   = require('@transitive-robotics/utils/server');
 
 const registry = {};
@@ -9,7 +9,8 @@ let mqttClient;
 
 /** check whether `permissions` grant access to `topic` */
 const permitted = (path, permissions) => {
-  const [transitiveUserId, device, capability] = path.split('.');
+  const [transitiveUserId, device, capability] =
+    (path instanceof Array ? path : path.split('.'));
   return (permissions.transitiveUserId == transitiveUserId
     && (permissions.device == '+' || permissions.device == device)
     && permissions.capability == capability);
@@ -55,11 +56,14 @@ class Capability {
 
       // subscribe to all messages for this capability
       this.subscription = this.mqtt.subscribe(`/+/+/${name}/#`, (packet) => {
-        if (packet.payload.length == 0) {
-          this.store(packet.topic, null);
+        const parsedPayload = mqttParsePayload(packet.payload);
+        if (packet.retain) {
+          // store this packet in cache if retain is true
+          this.store(packet.topic, parsedPayload);
         } else {
-          const json = JSON.parse(packet.payload.toString('utf-8'));
-          this.store(packet.topic, json);
+          // else, just forward to clients
+          console.log('forwarding', packet.topic);
+          this.sendToPermitted(topicToPath(packet.topic), parsedPayload);
         }
         // if sub-class has a special handler, call it; this is common
         this.onMessage && this.onMessage(packet);

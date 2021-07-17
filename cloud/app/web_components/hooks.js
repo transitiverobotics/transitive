@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DataCache } from '@transitive-robotics/utils/client';
+import { DataCache, pathMatch } from '@transitive-robotics/utils/client';
 
 export const useWebSocket = ({jwt, id, onMessage}) => {
   const [status, setStatus] = useState('connecting');
@@ -49,8 +49,16 @@ export const useDataSync = ({jwt, id, publishPath}) => {
 
   const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,
     onMessage: (data) => {
-      window.tr_devmode && console.log('useDataSync', data);
       const newData = JSON.parse(data);
+      window.tr_devmode && console.log('useDataSync', newData);
+      // do not update paths we publish ourselves, to avoid loops:
+      publishPath && Object.keys(newData).forEach(key => {
+        const keyPath = key.replace(/\//g, '.').slice(1);
+        if (pathMatch(publishPath, keyPath)) {
+          delete newData[key]
+        }
+      });
+      window.tr_devmode && console.log('useDataSync, filtered keys', newData);
       dataCache.updateFromModifier(newData);
       setData(JSON.parse(JSON.stringify(dataCache.get())));
     }

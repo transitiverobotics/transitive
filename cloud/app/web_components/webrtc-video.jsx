@@ -12,95 +12,72 @@ const styles = {
 const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
 let channel;
+let connection;
+let connected = false;
+
 const Device = (props) => {
 
   const { status, ready, StatusComponent, data, dataCache }
     = useDataSync({ jwt: props.jwt, id: props.id,
-      publishPath: '+.+.+.connection' });
+      publishPath: '+.+.+.clientSpec' });
   const {device} = decodeJWT(props.jwt);
   const video = useRef(null);
 
   useEffect(() => {
-      const connection = new RTCPeerConnection({
-        // Account needed: http://numb.viagenie.ca/
-        iceServers: [
-          {
-            // urls: "stun:numb.viagenie.ca:3478",
-            urls: "stun:stun.l.google.com:19302"
-          },
-          // {
-          //   urls: "turn:numb.viagenie.ca:3478",
-          //   username: TURN_USERNAME,
-          //   credential: TURN_CREDENTIAL,
-          // }
-        ]
-      });
-
-      channel = connection.createDataChannel("sendChannel", {
-        ordered: false,
-        maxRetransmits: 0,
-      });
-
-      // channel.onopen = handleSendChannelStatusChange;
-      // channel.onclose = handleSendChannelStatusChange;
-      // channel.onmessage = handleReceiveMessage;
-
-      connection.onconnectionstatechange =
-        event => console.log(connection.connectionState, event);
-
-      connection.addTransceiver('video');
-      connection.getTransceivers().forEach(t => t.direction = 'recvonly');
-      // connection.createOffer({offerToReceiveVideo: true}).then((description) => {
-      connection.createOffer().then((description) => {
-        console.log({description});
-        return connection.setLocalDescription(description);
-      });
-
-      connection.addEventListener("icecandidate", (event) => {
-        if (event.candidate) {
-          const c = event.candidate.toJSON();
-          console.log('candidate', c, event);
-          dataCache.updateFromArray(
-            [props.id, device, 'webrtc-video', 'connection'],
-            JSON.stringify({
-              icecandidate: c,
-              offer: connection.localDescription.toJSON()
-            }));
+      dataCache.subscribePath('+.+.+.serverSpec', (serverSpec) => {
+        if (connected) {
+          console.log('already connected, sort of');
+          return;
         }
+        const {offer, candidate} = JSON.parse(serverSpec);
+        console.log({offer, candidate});
+
+        connection = new RTCPeerConnection({
+          // Account needed: http://numb.viagenie.ca/
+          iceServers: [
+            {
+              // urls: "stun:numb.viagenie.ca:3478",
+              urls: "stun:stun.l.google.com:19302"
+            },
+            // {
+            //   urls: "turn:numb.viagenie.ca:3478",
+            //   username: TURN_USERNAME,
+            //   credential: TURN_CREDENTIAL,
+            // }
+          ]
+        });
+
+        connection.onconnectionstatechange =
+          event => console.log(connection.connectionState, event);
+
+        connection.ontrack = (event) => {
+          console.log('received track', event);
+          // video.current.srcObject = event.streams[0];
+          video.current.srcObject = new MediaStream([event.track]);
+        };
+
+        !connected && connection.setRemoteDescription(offer).then(() => {
+            console.log('description set!');
+            connected = true;
+            return connection.addIceCandidate(candidate);
+          }).then(() => {
+            console.log('ice set!');
+            return connection.createAnswer();
+          }).then((answer) => {
+            console.log({answer});
+            return connection.setLocalDescription(answer);
+          }).then(() => {
+            console.log('sending answer to server');
+            dataCache.updateFromArray(
+              [props.id, device, 'webrtc-video', 'clientSpec'],
+              JSON.stringify({
+                answer: connection.localDescription.toJSON()
+              })
+            );
+          }).catch((err) => {
+            console.log('error in establishing connection from spec', err);
+          });
       });
-
-      connection.onnegotiationneeded = (event) => {
-        console.log('negotiation needed', event);
-      };
-
-      // this is never called, why not?
-      connection.ontrack = (event) => {
-        console.log('received track', event);
-        document.getElementById("received_video").srcObject = event.streams[0];
-      };
-
-      connection.onconnectionstatechange = event => {
-        console.log(connection.connectionState);
-
-        const remoteStream = new MediaStream(
-          connection.getReceivers().map(receiver => receiver.track));
-        console.log(connection.getTransceivers());
-        console.log('adding stream', remoteStream, 'to', video.current);
-        video.current.srcObject = remoteStream;
-      };
-
-
-      let connected = false;
-      dataCache.subscribePath('+.+.+.serverLocalDescription', (answerString) => {
-        if (!connected) {
-          // to avoid "Failed to set remote answer sdp: Called in wrong state: stable"
-          const answer = JSON.parse(answerString);
-          console.log('got server answer', answer);
-          connection.setRemoteDescription(answer);
-          connected = true;
-        }
-      });
-
     }, []);
 
   // note: props must include jwt and id
@@ -109,8 +86,9 @@ const Device = (props) => {
   return <div>
     webrtc-video
     <button onClick={() => {
-      console.log('click');
-      channel && channel.send('hello from client!');
+      console.log('does nothing right now');
+      // channel && channel.send('hello from client!');
+      // console.log(connection.getTransceivers());
     }}>test</button>
     <video ref={video} autoPlay />
   </div>

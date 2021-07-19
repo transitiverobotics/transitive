@@ -7,7 +7,7 @@ class WebrtcVideo extends Capability {
     super();
 
     console.log('webrtc-video started');
-    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.connection`,
+    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.clientSpec`,
       (value, key) => {
         console.log('publish connection data to device', key, value);
         this.mqtt.publish('/' + key.replace(/\./g, '/'),

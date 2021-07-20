@@ -24,6 +24,16 @@ const Device = (props) => {
   const video = useRef(null);
 
   useEffect(() => {
+      // const sessionId = Math.random().toString(36).slice(2);
+      //
+      // // request an audience (webrtc connection) with the device
+      // dataCache.updateFromArray(
+      //   [props.id, device, 'webrtc-video', 'clientSpec'],
+      //   JSON.stringify({
+      //     answer: connection.localDescription.toJSON()
+      //   })
+      // );
+
       dataCache.subscribePath('+.+.+.serverSpec', (serverSpec) => {
         if (connected) {
           console.log('already connected, sort of');
@@ -64,6 +74,10 @@ const Device = (props) => {
             console.log('ice set!');
             return connection.createAnswer();
           }).then((answer) => {
+            // set bitrate:
+            const kbitPerSeconds = 500;
+            answer.sdp = answer.sdp.replace(/(c=.*\r\n)/,
+              `$1b=AS:${kbitPerSeconds}\r\n`);
             console.log({answer});
             return connection.setLocalDescription(answer);
           }).then(() => {
@@ -89,8 +103,9 @@ const Device = (props) => {
       console.log('does nothing right now');
       // channel && channel.send('hello from client!');
       // console.log(connection.getTransceivers());
+      // video.current.play();
     }}>test</button>
-    <video ref={video} autoPlay />
+    <video ref={video} autoPlay muted/>
   </div>
 };
 

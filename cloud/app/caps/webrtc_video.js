@@ -5,13 +5,16 @@ class WebrtcVideo extends Capability {
 
   constructor() {
     super();
-
     console.log('webrtc-video started');
-    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.clientSpec`,
+
+    // TODO: create a utility function in Capability for this? (publishUp?
+    // with retain flag parameter)
+    this.dataCache.subscribePath(`+org.+deviceId.${this.name}.+sessionId.client`,
       (value, key) => {
-        console.log('publish connection data to device', key, value);
+        console.log('publish client data to device', key, value);
         this.mqtt.publish('/' + key.replace(/\./g, '/'),
-          value == null ? value : JSON.stringify(value), {retain: false});
+          value == null ? value : JSON.stringify(value),
+          {retain: false});
       });
   }
 

@@ -14,8 +14,8 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
       const ws = new WebSocket(URL);
       ws.onopen = (event) => {
         // ws.send("Hi from client");
-        setStatus('connected');
         setWS(ws);
+        setStatus('connected');
       };
 
       ws.onmessage = (event) => onMessage && onMessage(event.data);
@@ -43,8 +43,7 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
 
 /** connect to server via useWebSocket, collect data updates into DataCache */
 export const useDataSync = ({jwt, id, publishPath}) => {
-
-  const [data, setData] = useState({});
+    const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
 
   const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,

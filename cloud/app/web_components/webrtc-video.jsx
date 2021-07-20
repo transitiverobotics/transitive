@@ -15,26 +15,27 @@ let channel;
 let connection;
 let connected = false;
 
+const sessionId = Math.random().toString(36).slice(2);
+
 const Device = (props) => {
 
   const { status, ready, StatusComponent, data, dataCache }
     = useDataSync({ jwt: props.jwt, id: props.id,
-      publishPath: '+.+.+.clientSpec' });
+      publishPath: `+.+.+.${sessionId}.client` });
   const {device} = decodeJWT(props.jwt);
   const video = useRef(null);
 
   useEffect(() => {
-      // const sessionId = Math.random().toString(36).slice(2);
-      //
-      // // request an audience (webrtc connection) with the device
-      // dataCache.updateFromArray(
-      //   [props.id, device, 'webrtc-video', 'clientSpec'],
-      //   JSON.stringify({
-      //     answer: connection.localDescription.toJSON()
-      //   })
-      // );
+      if (!ready) {
+        return;
+      }
 
-      dataCache.subscribePath('+.+.+.serverSpec', (serverSpec) => {
+      // request an audience (webrtc connection) with the device
+      dataCache.updateFromArray(
+        [props.id, device, 'webrtc-video', sessionId, 'client', 'request'], new Date()
+      );
+
+      dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec) => {
         if (connected) {
           console.log('already connected, sort of');
           return;
@@ -83,7 +84,7 @@ const Device = (props) => {
           }).then(() => {
             console.log('sending answer to server');
             dataCache.updateFromArray(
-              [props.id, device, 'webrtc-video', 'clientSpec'],
+              [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'],
               JSON.stringify({
                 answer: connection.localDescription.toJSON()
               })
@@ -92,7 +93,12 @@ const Device = (props) => {
             console.log('error in establishing connection from spec', err);
           });
       });
-    }, []);
+
+      return () => {
+        console.log('disconnecting');
+        connection.close();
+      };
+    }, [ready]);
 
   // note: props must include jwt and id
   window.tr_devmode && console.log('webrtc-video');
@@ -104,12 +110,19 @@ const Device = (props) => {
       // channel && channel.send('hello from client!');
       // console.log(connection.getTransceivers());
       // video.current.play();
+      connection.close();
     }}>test</button>
     <video ref={video} autoPlay muted/>
   </div>
 };
 
 class App extends React.Component {
+
+  // webComponentDisconnected() {
+  //   console.log('let us clean up');
+  //   connection.close();
+  // }
+
   render() {
     return <div>
       <style>

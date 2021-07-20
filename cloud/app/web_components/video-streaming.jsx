@@ -85,7 +85,7 @@ const Device = (props) => {
   const params = Object.assign({}, {topic, quality: 20}, props);
   const urlParams = Object.entries(params).map(x => x.join('=')).join('&');
 
-  console.log({data});
+  // console.log({data});
 
   if (!topic) {
     return <div>
@@ -93,7 +93,7 @@ const Device = (props) => {
     </div>;
   }
 
-  console.log({topic, topics});
+  // console.log({topic, topics});
 
   return <div>
     {topics.length > 1 &&

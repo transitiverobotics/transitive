@@ -23,7 +23,7 @@ const Device = ({jwt, id}) => {
         'video_source', videoDevice, 'device'], checked ? videoDevice : null);
   };
 
-  console.log(device);
+  // console.log(device);
 
   return (!ready ? <StatusComponent /> :
     ( !(device && device.video_devices)

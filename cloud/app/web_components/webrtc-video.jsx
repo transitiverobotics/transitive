@@ -11,11 +11,9 @@ const styles = {
 
 const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
-let connection;
-
 const sessionId = Math.random().toString(36).slice(2);
 
-const Device = (props) => {
+const Video = (props) => {
 
   const { status, ready, StatusComponent, data, dataCache }
     = useDataSync({ jwt: props.jwt, id: props.id,
@@ -23,6 +21,8 @@ const Device = (props) => {
   const {device} = decodeJWT(props.jwt);
   let connected = false;
   const video = useRef(null);
+
+  let connection;
 
   const startVideo = () => {
     // request an audience (webrtc connection) with the device
@@ -89,11 +89,10 @@ const Device = (props) => {
     });
 
     return () => {
-      console.log('disconnecting');
+      console.log('disconnecting video');
       connection.close();
     };
   };
-
 
   useEffect(() => {
       if (!ready) {
@@ -104,27 +103,49 @@ const Device = (props) => {
     }, [ready]);
 
 
+  if (!ready) {
+    return 'Establishing connection..';
+  }
+
   return <div>
+    video:
     <video ref={video} autoPlay muted/>
+  </div>
+};
+
+
+const Device = (props) => {
+
+  const [running, setRunning] = useState(false);
+
+  return <div>
+    {running && <Video {...props}/>}
     <div>
-      <Button onClick={() => video.current.pause()}>
-        stop
-      </Button>
-      {<Timer duration={20}
-          onTimeout={() => connection.close()}
-          onStart={() => startVideo()}
+      {<Timer duration={10}
+          onTimeout={() => setRunning(false)}
+          onStart={() => setRunning(true)}
+          setOnDisconnect={props.setOnDisconnect}
           />
       }
+      <Button onClick={() => setRunning(false)}>
+        stop
+      </Button>
     </div>
   </div>
 };
 
+
 class App extends React.Component {
+
+  onDisconnect = null;
+
+  setOnDisconnect(fn) {
+    this.onDisconnect = fn;
+  }
 
   webComponentDisconnected() {
     console.log('closing webrtc connection');
-    connection.close();
-
+    this.onDisconnect && this.onDisconnect();
   }
 
   render() {
@@ -132,7 +153,7 @@ class App extends React.Component {
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
       </style>
-      <Device {...this.props}/>
+      <Device {...this.props} setOnDisconnect={this.setOnDisconnect.bind(this)}/>
     </div>;
   }
 };

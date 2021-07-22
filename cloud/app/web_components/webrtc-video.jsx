@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactWebComponent from 'react-web-component';
 
-import { Form, Dropdown, DropdownButton, Button } from 'react-bootstrap';
+import { Button } from 'react-bootstrap';
 
 import { useDataSync } from './hooks.js';
 import { InlineCode } from './shared.jsx';
@@ -40,22 +40,16 @@ const Device = (props) => {
           console.log('already connected, sort of');
           return;
         }
-        const {offer, candidate} = JSON.parse(serverSpec);
-        console.log({offer, candidate});
+        const {offer, candidate, turnCredentials} = JSON.parse(serverSpec);
+        console.log({offer, candidate, turnCredentials});
 
         connection = new RTCPeerConnection({
-          // Account needed: http://numb.viagenie.ca/
-          iceServers: [
-            {
-              // urls: "stun:numb.viagenie.ca:3478",
-              urls: "stun:stun.l.google.com:19302"
-            },
-            // {
-            //   urls: "turn:numb.viagenie.ca:3478",
-            //   username: TURN_USERNAME,
-            //   credential: TURN_CREDENTIAL,
-            // }
-          ]
+          iceServers: [{
+            // urls: "stun:stun.l.google.com:19302"
+            urls: "turn:localhost.localdomain:3478",
+            username: turnCredentials.username,
+            credential: turnCredentials.password,
+          }]
         });
 
         connection.onconnectionstatechange =
@@ -100,28 +94,23 @@ const Device = (props) => {
       };
     }, [ready]);
 
-  // note: props must include jwt and id
-  window.tr_devmode && console.log('webrtc-video');
 
   return <div>
-    webrtc-video
-    <button onClick={() => {
-      console.log('does nothing right now');
-      // channel && channel.send('hello from client!');
-      // console.log(connection.getTransceivers());
-      // video.current.play();
-      connection.close();
-    }}>test</button>
     <video ref={video} autoPlay muted/>
+    <div>
+      <Button onClick={() => connection.close()}>
+        stop
+      </Button>
+    </div>
   </div>
 };
 
 class App extends React.Component {
 
-  // webComponentDisconnected() {
-  //   console.log('let us clean up');
-  //   connection.close();
-  // }
+  webComponentDisconnected() {
+    console.log('closing webrtc connection');
+    connection.close();
+  }
 
   render() {
     return <div>

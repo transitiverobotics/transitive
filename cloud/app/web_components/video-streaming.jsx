@@ -4,7 +4,7 @@ import ReactWebComponent from 'react-web-component';
 import { Form, Dropdown, DropdownButton, Button } from 'react-bootstrap';
 
 import { useDataSync } from './hooks.js';
-import { InlineCode } from './shared.jsx';
+import { InlineCode, Timer } from './shared.jsx';
 
 const styles = {
   selector: {
@@ -20,32 +20,6 @@ const styles = {
 
 // a gray pixel to use when video-stream is inactive (will be scaled)
 const PIXEL_4x3 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAQAAAAe/WZNAAAAEElEQVR42mOcXM8ABowYDAA1agM6T/cHjQAAAABJRU5ErkJggg==";
-
-
-let interval;
-const Timer = ({duration, onTimeout, onStart}) => {
-  const [timer, setTimer] = useState(duration || 60);
-
-  if (!interval && timer > 0) {
-    interval = setInterval(() =>
-      setTimer(t => {
-        if (--t > 0) {
-          return t;
-        } else {
-          onTimeout && setTimeout(onTimeout, 1);
-          clearInterval(interval);
-          interval = null;
-        }
-      }), 1000);
-    onStart && setTimeout(onStart, 1);
-  }
-
-  return timer > 0 ? <div>Timeout in: {timer} seconds</div>
-  : <div>Timed out. <Button onClick={() => setTimer(duration)}>
-      Resume
-    </Button>
-  </div>;
-};
 
 
 /** show list where user can select topic to display */

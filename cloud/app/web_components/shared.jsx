@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 
 import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
@@ -41,3 +41,41 @@ export const Code = ({children}) => <pre style={styles.code}>
 export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
   {children}
 </tt>;
+
+
+const intervals = {};
+
+export const Timer = ({duration, onTimeout, onStart}) => {
+  const [timer, setTimer] = useState(duration || 60);
+  const id = useMemo(() => Math.random().toString(36).slice(2), []);
+
+  useEffect(() => {
+      const interval = intervals[id];
+      console.log(interval, intervals);
+      if (!interval && timer > 0) {
+        intervals[id] = setInterval(() =>
+          setTimer(t => {
+            if (--t > 0) {
+              return t;
+            } else {
+              onTimeout && setTimeout(onTimeout, 1);
+              clearInterval(interval);
+              intervals[id] = null;
+            }
+          }), 1000);
+        onStart && setTimeout(onStart, 1);
+      }
+
+      return () => {
+        console.log('stopping timer for', id);
+        clearInterval(interval);
+        intervals[id] = null;
+      };
+    }, []);
+
+  return timer > 0 ? <div>Timeout in: {timer} seconds</div>
+  : <div>Timed out. <Button onClick={() => setTimer(duration)}>
+      Resume
+    </Button>
+  </div>;
+};

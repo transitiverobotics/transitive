@@ -35,8 +35,7 @@ class WebrtcVideo extends Capability {
         if (type == 'request') {
           // generate short-term TURN credentials for this user and session:
           const {username, password} =
-            // getTURNCredentials(`${org}.${deviceId}.${sessionId}`, SECRET);
-            getTURNCredentials(sessionId, SECRET);
+            getTURNCredentials(`${org}.${deviceId}.${sessionId}`, SECRET);
           // attach them to the request to the server:
           value = JSON.stringify({
             date: value, turnCredentials: {username, password}

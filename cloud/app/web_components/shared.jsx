@@ -66,7 +66,6 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect}) => {
       setRunning(true);
       intervals[id] = setInterval(() =>
         setTimer(t => {
-          console.log('timer', t);
           if (--t > 0) {
             return t;
           } else {

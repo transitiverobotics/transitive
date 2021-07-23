@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactWebComponent from 'react-web-component';
 
 import { Button } from 'react-bootstrap';
@@ -11,10 +11,10 @@ const styles = {
 
 const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
-const sessionId = Math.random().toString(36).slice(2);
 
 const Video = (props) => {
 
+  const sessionId = useMemo(() => Math.random().toString(36).slice(2), []);
   const { status, ready, StatusComponent, data, dataCache }
     = useDataSync({ jwt: props.jwt, id: props.id,
       publishPath: `+.+.+.${sessionId}.client` });
@@ -25,6 +25,8 @@ const Video = (props) => {
   let connection;
 
   const startVideo = () => {
+    console.log('starting video for', sessionId);
+
     // request an audience (webrtc connection) with the device
     dataCache.updateFromArray(
       [props.id, device, 'webrtc-video', sessionId, 'client', 'request'], new Date()
@@ -43,7 +45,8 @@ const Video = (props) => {
       connection = new RTCPeerConnection({
         iceServers: [{
           // urls: "stun:stun.l.google.com:19302"
-          urls: "turn:localhost.localdomain:3478",
+          // urls: "turn:localhost.localdomain:3478",
+          urls: "turn:localhost:3478",
           username: turnCredentials.username,
           credential: turnCredentials.password,
         }],
@@ -89,7 +92,7 @@ const Video = (props) => {
     });
 
     return () => {
-      console.log('disconnecting video');
+      console.log('disconnecting video', sessionId);
       connection.close();
     };
   };
@@ -108,7 +111,6 @@ const Video = (props) => {
   }
 
   return <div>
-    video:
     <video ref={video} autoPlay muted/>
   </div>
 };
@@ -121,15 +123,12 @@ const Device = (props) => {
   return <div>
     {running && <Video {...props}/>}
     <div>
-      {<Timer duration={10}
+      {<Timer duration={60}
           onTimeout={() => setRunning(false)}
           onStart={() => setRunning(true)}
           setOnDisconnect={props.setOnDisconnect}
           />
       }
-      <Button onClick={() => setRunning(false)}>
-        stop
-      </Button>
     </div>
   </div>
 };

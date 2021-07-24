@@ -29,8 +29,17 @@ const Video = (props) => {
 
     // request an audience (webrtc connection) with the device
     dataCache.updateFromArray(
-      [props.id, device, 'webrtc-video', sessionId, 'client', 'request'], new Date()
-    );
+      [props.id, device, 'webrtc-video', sessionId, 'client', 'request'],
+      JSON.stringify({
+        date: new Date(),
+        type: 'rostopic',
+        // topic: '/tracking/fisheye1/image_raw',
+        topic: '/depth/color/image_raw',
+        // type: 'v4l2',
+        // device: '/dev/video0',
+        // type: 'nvargus',
+        // sensorId': '0',
+      }));
 
     dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
 
@@ -123,7 +132,7 @@ const Device = (props) => {
   return <div>
     {running && <Video {...props}/>}
     <div>
-      {<Timer duration={60}
+      {<Timer duration={30}
           onTimeout={() => setRunning(false)}
           onStart={() => setRunning(true)}
           setOnDisconnect={props.setOnDisconnect}

@@ -37,9 +37,9 @@ class WebrtcVideo extends Capability {
           const {username, password} =
             getTURNCredentials(`${org}.${deviceId}.${sessionId}`, SECRET);
           // attach them to the request to the server:
-          value = JSON.stringify({
-            date: value, turnCredentials: {username, password}
-          });
+          const parsed = JSON.parse(value);
+          parsed.turnCredentials = {username, password};
+          value = JSON.stringify(parsed);
           // change key to indicate that this was not just pass-through
           key += 'WithTURNCredentials';
           // this.mqtt.publish(

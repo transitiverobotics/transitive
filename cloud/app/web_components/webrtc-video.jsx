@@ -1,16 +1,37 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactWebComponent from 'react-web-component';
 
-import { Button } from 'react-bootstrap';
+import { Button, Badge } from 'react-bootstrap';
 
 import { useDataSync } from './hooks.js';
 import { Timer } from './shared.jsx';
 
 const styles = {
+  wrapper: {position: 'relative'},
+  status: {
+    position: 'absolute',
+    top: '4px',
+    left: '4px',
+    zIndex: 10,
+    opacity: '60%'
+  },
+  video: {},
 };
 
 const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
+const connIndicator = {
+  connected: 'success',
+  connecting: 'info',
+  closed: 'warning',
+  error: 'danger'
+}
+
+const ConnectionState = ({connectionState}) =>
+  <Badge variant={connIndicator[connectionState] || 'secondary'}
+    style={styles.status}>
+    {connectionState}
+  </Badge>;
 
 const Video = (props) => {
 
@@ -19,8 +40,9 @@ const Video = (props) => {
     = useDataSync({ jwt: props.jwt, id: props.id,
       publishPath: `+.+.+.${sessionId}.client` });
   const {device} = decodeJWT(props.jwt);
-  let connected = false;
+  const [ connectionState, setConnectionState ] = useState();
   const video = useRef(null);
+  let connected = false;
 
   let connection;
 
@@ -36,12 +58,12 @@ const Video = (props) => {
     dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
 
       if (connected) {
-        console.log('already connected, sort of', connection?.connectionState,
-          connected);
+        // console.log('already connected, sort of', connection?.connectionState,
+        //   connected);
         return;
       }
       const {offer, candidates, turnCredentials} = JSON.parse(serverSpec);
-      console.log({offer, candidates, turnCredentials});
+      // console.log({offer, candidates, turnCredentials});
 
       connection = new RTCPeerConnection({
         iceServers: [{
@@ -55,7 +77,8 @@ const Video = (props) => {
       });
 
       connection.onconnectionstatechange =
-        event => console.log(connection.connectionState, event);
+      // //   event => console.log(connection.connectionState, event);
+        event => setConnectionState(connection.connectionState);
 
       connection.ontrack = (event) => {
         // video.current.srcObject = event.streams[0];
@@ -65,11 +88,11 @@ const Video = (props) => {
       // console.log(connection.connectionState);
       // !connected
       !connected && connection.setRemoteDescription(offer).then(() => {
-          console.log('set remote', connection.connectionState);
+          // console.log('set remote', connection.connectionState);
           return Promise.all(
             candidates.map(c => connection.addIceCandidate(c)));
         }).then(() => {
-          console.log('create answer', connection.connectionState);
+          // console.log('create answer', connection.connectionState);
           return connection.createAnswer();
         }).then((answer) => {
           // set bitrate:
@@ -88,7 +111,7 @@ const Video = (props) => {
             })
           );
         }).catch((err) => {
-          console.log('error in establishing connection from spec', err);
+          console.log('warning when establishing connection from spec:', err);
         });
     });
 
@@ -102,7 +125,6 @@ const Video = (props) => {
       if (!ready) {
         return;
       }
-
       return startVideo();
     }, [ready, props.source]);
 
@@ -111,8 +133,9 @@ const Video = (props) => {
     return 'Establishing connection..';
   }
 
-  return <div>
-    <video ref={video} autoPlay muted/>
+  return <div style={styles.wrapper}>
+    <ConnectionState connectionState={connectionState} />
+    <video ref={video} autoPlay muted style={styles.video}/>
   </div>
 };
 
@@ -164,7 +187,7 @@ class App extends React.Component {
   }
 
   render() {
-    console.log('vd', this.state);
+    // console.log('webrtc video device', this.state);
     return <div>
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");

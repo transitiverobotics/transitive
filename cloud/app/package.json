@@ -14,7 +14,7 @@
     "react-bootstrap": "^1.4.3",
     "react-dom": "^17.0.1",
     "react-icons": "^4.2.0",
-    "react-web-component": "^2.0.1"
+    "react-web-component": "github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89"
   },
   "scripts": {
     "test": "mocha -w *.test.js"

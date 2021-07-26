@@ -62,6 +62,9 @@ const removePackage = (pkg) => {
 const ensureDesiredPackages = () => {
   const desired = dataCache.get('desiredPackages');
   console.log('Ensure installed packages match', desired);
+  if (!desiredPackages) {
+    return;
+  }
 
   const packages = utils.getInstalledPackages();
   packages.forEach(pkg => {

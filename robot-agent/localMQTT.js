@@ -62,6 +62,20 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
     });
   });
 
+  aedes.on('clientReady', (client) => {
+    console.log('clientReady', client.id);
+    upstreamClient.publish(
+      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, 'true',
+      {retain: true});
+  });
+
+  aedes.on('clientDisconnect', (client) => {
+    console.log('clientDisconnect', client.id);
+    upstreamClient.publish(
+      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, 'false',
+      {retain: true});
+  });
+
 
   // ------------------------
   // Security

@@ -25,21 +25,13 @@ const Video = (props) => {
   let connection;
 
   const startVideo = () => {
-    console.log('starting video for', sessionId);
+    console.log('starting video for', sessionId, props);
 
     // request an audience (webrtc connection) with the device
     dataCache.updateFromArray(
       [props.id, device, 'webrtc-video', sessionId, 'client', 'request'],
-      JSON.stringify({
-        date: new Date(),
-        type: 'rostopic',
-        // topic: '/tracking/fisheye1/image_raw',
-        topic: '/depth/color/image_raw',
-        // type: 'v4l2',
-        // device: '/dev/video0',
-        // type: 'nvargus',
-        // sensorId': '0',
-      }));
+      props.source
+    );
 
     dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
 
@@ -112,7 +104,7 @@ const Video = (props) => {
       }
 
       return startVideo();
-    }, [ready]);
+    }, [ready, props.source]);
 
 
   if (!ready) {
@@ -147,6 +139,8 @@ class App extends React.Component {
 
   onDisconnect = null;
 
+  state = JSON.parse(JSON.stringify(this.props));
+
   setOnDisconnect(fn) {
     this.onDisconnect = fn;
   }
@@ -156,14 +150,28 @@ class App extends React.Component {
     this.onDisconnect && this.onDisconnect();
   }
 
+  /**
+  Note that this currently requires
+  "react-web-component": "github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89"
+  TODO: create our own fork where this is done internally to react-web-component
+  and props are updated.
+  */
+  webComponentAttributeChanged(name, oldValue, newValue) {
+    // console.log('webComponentAttributeChanged', name, oldValue, newValue, this.props, this.state);
+    const newState = this.state;
+    newState[name] = newValue;
+    this.setState(newState);
+  }
+
   render() {
+    console.log('vd', this.state);
     return <div>
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
       </style>
-      <Device {...this.props} setOnDisconnect={this.setOnDisconnect.bind(this)}/>
+      <Device {...this.state} setOnDisconnect={this.setOnDisconnect.bind(this)}/>
     </div>;
   }
 };
 
-ReactWebComponent.create(<App />, 'webrtc-video');
+ReactWebComponent.create(<App />, 'webrtc-video', false, ['source']);

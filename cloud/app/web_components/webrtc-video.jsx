@@ -69,7 +69,7 @@ const Video = (props) => {
         iceServers: [{
           // urls: "stun:stun.l.google.com:19302"
           // urls: "turn:localhost.localdomain:3478",
-          urls: "turn:localhost:3478",
+          urls: "turn:TR_HOST:3478",
           username: turnCredentials.username,
           credential: turnCredentials.password,
         }],

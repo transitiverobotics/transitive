@@ -62,19 +62,37 @@ const Video = (props) => {
         //   connected);
         return;
       }
-      const {offer, candidates, turnCredentials} = JSON.parse(serverSpec);
-      // console.log({offer, candidates, turnCredentials});
+      const {offer, turnCredentials} = JSON.parse(serverSpec);
+      console.log({offer, turnCredentials});
 
       connection = new RTCPeerConnection({
         iceServers: [{
           // urls: "stun:stun.l.google.com:19302"
           // urls: "turn:localhost.localdomain:3478",
-          urls: `turn:${TR_HOST}:3478`,
+          urls: `turn:${TR_HOST.split(':')[0]}:3478`,
           username: turnCredentials.username,
           credential: turnCredentials.password,
         }],
         iceTransportPolicy: "all",
       });
+
+      connection.onicecandidate = (event) => {
+        // console.log('icecandidate', event.candidate && event.candidate.type,
+        //   event.candidate);
+
+        // if (event.candidate && event.candidate.type != 'relay') return; // #DEBUG
+
+        event.candidate && dataCache.updateFromArray(
+          [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'],
+          {
+            candidate: JSON.stringify(event.candidate)
+          }
+        );
+      };
+
+      connection.onicecandidateerror = (event) => {
+        console.log('onicecandidateerror', event);
+      };
 
       connection.onconnectionstatechange =
       // //   event => console.log(connection.connectionState, event);
@@ -89,9 +107,9 @@ const Video = (props) => {
       // !connected
       !connected && connection.setRemoteDescription(offer).then(() => {
           // console.log('set remote', connection.connectionState);
-          return Promise.all(
-            candidates.map(c => connection.addIceCandidate(c)));
-        }).then(() => {
+        //   return Promise.all(
+        //     candidates.map(c => connection.addIceCandidate(c)));
+        // }).then(() => {
           // console.log('create answer', connection.connectionState);
           return connection.createAnswer();
         }).then((answer) => {
@@ -105,14 +123,17 @@ const Video = (props) => {
         }).then(() => {
           connected = true;
           dataCache.updateFromArray(
-            [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'],
-            JSON.stringify({
-              answer: connection.localDescription.toJSON()
-            })
-          );
+            [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'], {
+              answer: JSON.stringify(connection.localDescription.toJSON())
+            });
         }).catch((err) => {
           console.log('warning when establishing connection from spec:', err);
         });
+    });
+
+    dataCache.subscribePath(`+.+.+.${sessionId}.server.candidate`, (candidate, key) => {
+      // console.log('got candidate from server', JSON.parse(candidate));
+      connection && connection.addIceCandidate(JSON.parse(candidate));
     });
 
     return () => {

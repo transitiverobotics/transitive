@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DataCache, pathMatch } from '@transitive-robotics/utils/client';
 
+/** This is used to connect to the Transitive cloud and authenticate
+  using the provided jwt token. */
 export const useWebSocket = ({jwt, id, onMessage}) => {
   const [status, setStatus] = useState('connecting');
   const [ws, setWS] = useState();

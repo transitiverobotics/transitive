@@ -61,6 +61,8 @@ const authenticate = (request, cb) => {
   }
 
   const users = Mongo.db.collection('users');
+  const devices = Mongo.db.collection('devices');
+
   users.findOne({_id: transitiveUserId}, (err, doc) => {
     if (err || !doc) {
       cbWithMessage(
@@ -76,7 +78,23 @@ const authenticate = (request, cb) => {
           } else {
             if (payload.validity &&
               (payload.iat + payload.validity) * 1e3 > Date.now()) {
-              cbWithMessage(null, payload);
+              // The token is valid.
+              if (!payload.device && payload.hostname) {
+                // No device id provided, look it up from hostname
+                devices.findOne({
+                    owner: transitiveUserId,
+                    'info.os.hostname': payload.hostname
+                  }, (err, doc) => {
+                    if (err) {
+                      console.warn(`Unable to find device of '${transitiveUserId}' by hostname '${payload.hostname}'`);
+                    } else {
+                      payload.device = doc._id;
+                      cbWithMessage(null, payload);
+                    }
+                  });
+              } else {
+                cbWithMessage(null, payload);
+              }
             } else {
               cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
             }

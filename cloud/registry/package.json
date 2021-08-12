@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "verdaccio": "^4.11.0",
-    "verdaccio-fake2": "file:verdaccio-fake2"
+    "verdaccio-fake2": "file:verdaccio-fake2",
+    "verdaccio-evented-local-storage": "file:verdaccio-evented-local-storage",
+    "@transitive-robotics/utils": "file:../../utils"
   }
 }

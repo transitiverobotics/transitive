@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 
-const Mongo = require('./mongo');
+const Mongo = require('@transitive-robotics/utils/mongo');
 const { MQTTHandler } = require('./mqtt');
 const Capability = require('./caps/capability');
 const HealthMonitoring = require('./caps/health_monitoring');

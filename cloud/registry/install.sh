@@ -14,12 +14,9 @@ mkdir -p $HOME/.config/systemd/user/
 cp *.service $HOME/.config/systemd/user/
 
 # copy code in place (note, we are not cleaning anything existing):
-mkdir -p $HOME/opt/registry
-cp -r index.js package*.json verdaccio-fake2 $HOME/opt/registry
-
-# run npm install
-cd $HOME/opt/registry
 npm install
+mkdir -p $HOME/opt/registry
+cp -rL * $HOME/opt/registry # the -L resolves symlinks
 
 
 # make sure linger is enabled (allows service to run on boot without user logging in)

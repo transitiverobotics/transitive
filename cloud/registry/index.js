@@ -30,6 +30,7 @@ const addPackageImages = (pkg, cb) => {
 
   tar.x({
     file: `${STORAGE}/${pkg.name}/${filename}`,
+    cwd: '/tmp',
     onentry: entry => {
       const fileType = mime.lookup(entry.path);
       if (fileType && fileType.split('/')[0] == 'image') {

@@ -7,7 +7,7 @@ After=network.target
 [Service]
 ExecStart=node index.js
 WorkingDirectory=%h/opt/registry
-# EnvironmentFile=%h/opt/registry/env
+EnvironmentFile=%h/opt/registry/env
 Restart=always
 RestartSec=2
 

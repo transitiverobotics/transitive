@@ -45,8 +45,8 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
       window.tr_devmode && console.log(data);
       const newData = JSON.parse(data);
       dataCache.updateFromModifier(newData);
-      setData(JSON.parse(JSON.stringify(
-        dataCache.get([id, '_fleet', 'health-monitoring']))));
+      const newGlobal = dataCache.get([id, '_fleet', 'health-monitoring']);
+      newGlobal && setData(JSON.parse(JSON.stringify(newGlobal)));
     }
   });
 

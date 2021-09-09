@@ -11,6 +11,7 @@ const HealthMonitoring = require('./caps/health_monitoring');
 const RemoteAccess = require('./caps/remote_access');
 const VideoStreaming = require('./caps/video_streaming');
 const WebRTCVideo = require('./caps/webrtc_video');
+const RemoteTeleop = require('./caps/remote_teleop');
 
 // ----------------------------------------------------------------------
 
@@ -142,6 +143,7 @@ Mongo.init(() => {
         dbCollection: Mongo.db.collection('devices')
       });
       const webRTCVideo = new WebRTCVideo();
+      const remoteTeleop = new RemoteTeleop();
     });
   });
 });

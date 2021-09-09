@@ -3,7 +3,7 @@ import ReactWebComponent from 'react-web-component';
 
 import { Button, Badge } from 'react-bootstrap';
 
-import { useDataSync } from './hooks.js';
+import { useDataSync, useWebRTC } from './hooks.js';
 import { Timer } from './shared.jsx';
 
 const styles = {
@@ -42,113 +42,129 @@ const Video = (props) => {
   const {device} = decodeJWT(props.jwt);
   const [ connectionState, setConnectionState ] = useState();
   const video = useRef(null);
-  let connected = false;
 
-  let connection;
+  // let connected = false;
+  // let connection;
+  //
+  // const startVideo = () => {
+  //   console.log('starting video for', sessionId, props);
+  //
+  //   // request an audience (webrtc connection) with the device
+  //   dataCache.updateFromArray(
+  //     [props.id, device, 'webrtc-video', sessionId, 'client', 'request'],
+  //     props.source
+  //   );
+  //
+  //   dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
+  //
+  //     if (connected) {
+  //       // console.log('already connected, sort of', connection?.connectionState,
+  //       //   connected);
+  //       return;
+  //     }
+  //     const {offer, turnCredentials} = JSON.parse(serverSpec);
+  //     console.log({offer, turnCredentials});
+  //
+  //     connection = new RTCPeerConnection({
+  //       iceServers: [{
+  //         // urls: "stun:stun.l.google.com:19302"
+  //         // urls: "turn:localhost.localdomain:3478",
+  //         urls: `turn:${TR_HOST.split(':')[0]}:3478`,
+  //         username: turnCredentials.username,
+  //         credential: turnCredentials.password,
+  //       }],
+  //       iceTransportPolicy: "all",
+  //     });
+  //
+  //     connection.onicecandidate = (event) => {
+  //       // console.log('icecandidate', event.candidate && event.candidate.type,
+  //       //   event.candidate);
+  //
+  //       // if (event.candidate && event.candidate.type != 'relay') return; // #DEBUG
+  //
+  //       event.candidate && dataCache.updateFromArray(
+  //         [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'],
+  //         {
+  //           candidate: JSON.stringify(event.candidate)
+  //         }
+  //       );
+  //     };
+  //
+  //     connection.onicecandidateerror = (event) => {
+  //       console.log('onicecandidateerror', event);
+  //     };
+  //
+  //     connection.onconnectionstatechange =
+  //     // //   event => console.log(connection.connectionState, event);
+  //       event => setConnectionState(connection.connectionState);
+  //
+  //     connection.ontrack = (event) => {
+  //       // video.current.srcObject = event.streams[0];
+  //       video.current.srcObject = new MediaStream([event.track]);
+  //     };
+  //
+  //     // console.log(connection.connectionState);
+  //     // !connected
+  //     !connected && connection.setRemoteDescription(offer).then(() => {
+  //         // console.log('set remote', connection.connectionState);
+  //       //   return Promise.all(
+  //       //     candidates.map(c => connection.addIceCandidate(c)));
+  //       // }).then(() => {
+  //         // console.log('create answer', connection.connectionState);
+  //         return connection.createAnswer();
+  //       }).then((answer) => {
+  //         // set bitrate:
+  //         const kbitPerSeconds = 500;
+  //         answer.sdp = answer.sdp.replace(/(c=.*\r\n)/,
+  //           `$1b=AS:${kbitPerSeconds}\r\n`);
+  //         if (connection.signalingState != 'stable') {
+  //           return connection.setLocalDescription(answer);
+  //         }
+  //       }).then(() => {
+  //         connected = true;
+  //         dataCache.updateFromArray(
+  //           [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'], {
+  //             answer: JSON.stringify(connection.localDescription.toJSON())
+  //           });
+  //       }).catch((err) => {
+  //         console.log('warning when establishing connection from spec:', err);
+  //       });
+  //   });
+  //
+  //   dataCache.subscribePath(`+.+.+.${sessionId}.server.candidate`, (candidate, key) => {
+  //     // console.log('got candidate from server', JSON.parse(candidate));
+  //     connection && connection.addIceCandidate(JSON.parse(candidate));
+  //   });
+  //
+  //   return () => {
+  //     console.log('disconnecting video', sessionId);
+  //     connection.close();
+  //   };
+  // };
+  //
+  // useEffect(() => {
+  //     if (!ready) {
+  //       return;
+  //     }
+  //     return startVideo();
+  //   }, [ready, props.source]);
 
-  const startVideo = () => {
-    console.log('starting video for', sessionId, props);
-
-    // request an audience (webrtc connection) with the device
-    dataCache.updateFromArray(
-      [props.id, device, 'webrtc-video', sessionId, 'client', 'request'],
-      props.source
-    );
-
-    dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
-
-      if (connected) {
-        // console.log('already connected, sort of', connection?.connectionState,
-        //   connected);
-        return;
-      }
-      const {offer, turnCredentials} = JSON.parse(serverSpec);
-      console.log({offer, turnCredentials});
-
-      connection = new RTCPeerConnection({
-        iceServers: [{
-          // urls: "stun:stun.l.google.com:19302"
-          // urls: "turn:localhost.localdomain:3478",
-          urls: `turn:${TR_HOST.split(':')[0]}:3478`,
-          username: turnCredentials.username,
-          credential: turnCredentials.password,
-        }],
-        iceTransportPolicy: "all",
-      });
-
-      connection.onicecandidate = (event) => {
-        // console.log('icecandidate', event.candidate && event.candidate.type,
-        //   event.candidate);
-
-        // if (event.candidate && event.candidate.type != 'relay') return; // #DEBUG
-
-        event.candidate && dataCache.updateFromArray(
-          [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'],
-          {
-            candidate: JSON.stringify(event.candidate)
-          }
-        );
-      };
-
-      connection.onicecandidateerror = (event) => {
-        console.log('onicecandidateerror', event);
-      };
-
-      connection.onconnectionstatechange =
-      // //   event => console.log(connection.connectionState, event);
-        event => setConnectionState(connection.connectionState);
-
-      connection.ontrack = (event) => {
-        // video.current.srcObject = event.streams[0];
-        video.current.srcObject = new MediaStream([event.track]);
-      };
-
-      // console.log(connection.connectionState);
-      // !connected
-      !connected && connection.setRemoteDescription(offer).then(() => {
-          // console.log('set remote', connection.connectionState);
-        //   return Promise.all(
-        //     candidates.map(c => connection.addIceCandidate(c)));
-        // }).then(() => {
-          // console.log('create answer', connection.connectionState);
-          return connection.createAnswer();
-        }).then((answer) => {
-          // set bitrate:
-          const kbitPerSeconds = 500;
-          answer.sdp = answer.sdp.replace(/(c=.*\r\n)/,
-            `$1b=AS:${kbitPerSeconds}\r\n`);
-          if (connection.signalingState != 'stable') {
-            return connection.setLocalDescription(answer);
-          }
-        }).then(() => {
-          connected = true;
-          dataCache.updateFromArray(
-            [props.id, device, 'webrtc-video', sessionId, 'client', 'spec'], {
-              answer: JSON.stringify(connection.localDescription.toJSON())
-            });
-        }).catch((err) => {
-          console.log('warning when establishing connection from spec:', err);
-        });
-    });
-
-    dataCache.subscribePath(`+.+.+.${sessionId}.server.candidate`, (candidate, key) => {
-      // console.log('got candidate from server', JSON.parse(candidate));
-      connection && connection.addIceCandidate(JSON.parse(candidate));
-    });
-
-    return () => {
-      console.log('disconnecting video', sessionId);
-      connection.close();
-    };
-  };
-
-  useEffect(() => {
-      if (!ready) {
-        return;
-      }
-      return startVideo();
-    }, [ready, props.source]);
-
+  useWebRTC({
+    sessionId,
+    dataCache,
+    ready,
+    device,
+    source: props.source,
+    id: props.id,
+    onConnectionStateChange: (connectionState) => {
+      setConnectionState(connectionState);
+    },
+    onTrack: (track) => {
+      video.current.srcObject = new MediaStream([track]);
+    },
+    bitrate_KB: 500,
+    capabilityName: 'webrtc-video'
+  });
 
   if (!ready) {
     return 'Establishing connection..';

@@ -23,7 +23,6 @@ class WebrtcVideo extends Capability {
 
   constructor() {
     super();
-    console.log('webrtc-video started');
 
     // TODO: create a utility function in Capability for this? (publishUp?
     // with retain flag parameter)

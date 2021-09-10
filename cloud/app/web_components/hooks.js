@@ -65,8 +65,8 @@ export const useDataSync = ({jwt, id, publishPath}) => {
     }
   });
 
-  publishPath && useEffect(() => {
-      ws && dataCache.subscribePath(publishPath,
+  const publish = (path) => useEffect(() => {
+      ws && dataCache.subscribePath(path,
         (value, key, matched) => {
           const changes = {};
           changes[key] = value;
@@ -74,7 +74,9 @@ export const useDataSync = ({jwt, id, publishPath}) => {
           ws.send(JSON.stringify(changes));
         })
     }, [ws]);
-  return { status, ready, StatusComponent, data, dataCache };
+
+  publishPath && publish(publishPath);
+  return { status, ready, StatusComponent, data, dataCache, publish };
 };
 
 /** Uses the provided dataCache as signaling channel to the device to
@@ -82,8 +84,12 @@ export const useDataSync = ({jwt, id, publishPath}) => {
   It is the capability on the device (robot) that determines what kind of
   data channels and tracks to create on the connection.
 */
-export const useWebRTC = ({sessionId, ready, dataCache, source, id, device,
+export const useWebRTC = ({ dataSync, source, id, device,
   onConnectionStateChange, onTrack, bitrate_KB, capabilityName }) => {
+
+    const {ready, dataCache, publish} = dataSync;
+    const sessionId = useMemo(() => Math.random().toString(36).slice(2), []);
+    publish(`+.+.+.${sessionId}.client`);
 
     let connected = false;
     let connection;

@@ -79,6 +79,7 @@ export const useDataSync = ({jwt, id, publishPath}) => {
   return { status, ready, StatusComponent, data, dataCache, publish };
 };
 
+
 /** Uses the provided dataCache as signaling channel to the device to
   request and establish a webrtc connection to the named capability.
   It is the capability on the device (robot) that determines what kind of
@@ -159,7 +160,7 @@ export const useWebRTC = ({ dataSync, source, id, device,
             return connection.createAnswer();
           }).then((answer) => {
             // set bitrate:
-            const kbitPerSeconds = bitrate_KB || 500;
+            const kbitPerSeconds = bitrate_KB * 10 || 500;
             answer.sdp = answer.sdp.replace(/(c=.*\r\n)/,
               `$1b=AS:${kbitPerSeconds}\r\n`);
             if (connection.signalingState != 'stable') {

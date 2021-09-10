@@ -33,34 +33,30 @@ const ConnectionState = ({connectionState}) =>
     {connectionState}
   </Badge>;
 
+
 const Video = (props) => {
 
-  const sessionId = useMemo(() => Math.random().toString(36).slice(2), []);
-  const { status, ready, StatusComponent, data, dataCache }
-    = useDataSync({ jwt: props.jwt, id: props.id,
-      publishPath: `+.+.+.${sessionId}.client` });
+  const dataSync = useDataSync({ jwt: props.jwt, id: props.id });
   const {device} = decodeJWT(props.jwt);
   const [ connectionState, setConnectionState ] = useState();
   const video = useRef(null);
 
   useWebRTC({
-    sessionId,
-    dataCache,
-    ready,
-    device,
+    dataSync,
     source: props.source,
     id: props.id,
+    device,
     onConnectionStateChange: (connectionState) => {
       setConnectionState(connectionState);
     },
     onTrack: (track) => {
       video.current.srcObject = new MediaStream([track]);
     },
-    bitrate_KB: 500,
+    bitrate_KB: 50,
     capabilityName: 'webrtc-video'
   });
 
-  if (!ready) {
+  if (!dataSync.ready) {
     return 'Establishing connection..';
   }
 

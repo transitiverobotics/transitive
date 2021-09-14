@@ -13,6 +13,8 @@
     "react-bootstrap": "^1.4.3",
     "react-dom": "^17.0.1",
     "react-icons": "^4.2.0",
+    "react-joystick-component": "^1.4.0",
+    "react-nipple": "^1.0.2",
     "react-web-component": "github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89"
   },
   "scripts": {

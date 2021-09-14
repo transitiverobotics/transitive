@@ -45,7 +45,7 @@ export const useWebSocket = ({jwt, id, onMessage}) => {
 
 /** connect to server via useWebSocket, collect data updates into DataCache */
 export const useDataSync = ({jwt, id, publishPath}) => {
-    const [data, setData] = useState({});
+  const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
 
   const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,
@@ -85,8 +85,8 @@ export const useDataSync = ({jwt, id, publishPath}) => {
   It is the capability on the device (robot) that determines what kind of
   data channels and tracks to create on the connection.
 */
-export const useWebRTC = ({ dataSync, source, id, device,
-  onConnectionStateChange, onTrack, bitrate_KB, capabilityName }) => {
+export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
+  onConnectionStateChange, onTrack, bitrate_KB, onDataChannel, onMessage }) => {
 
     const {ready, dataCache, publish} = dataSync;
     const sessionId = useMemo(() => Math.random().toString(36).slice(2), []);
@@ -148,6 +148,20 @@ export const useWebRTC = ({ dataSync, source, id, device,
             && onConnectionStateChange(connection.connectionState);
 
         connection.ontrack = (event) => onTrack && onTrack(event.track);
+
+        connection.ondatachannel = (event) => {
+          const channel = event.channel;
+
+          channel.onopen = (event) => {
+            // channel.send('Hi back!');
+            onDataChannel && onDataChannel(channel);
+          }
+
+          channel.onmessage = (event) => {
+            console.log(channel.label, event.data);
+            onMessage && onMessage(channel, event.data);
+          }
+        }
 
         // console.log(connection.connectionState);
         // !connected

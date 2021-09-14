@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import ReactWebComponent from 'react-web-component';
+import React, { useState, useRef } from 'react';
 
-import { Button, Badge } from 'react-bootstrap';
+import { Badge } from 'react-bootstrap';
+import { decodeJWT } from '@transitive-robotics/utils/client';
 
 import { useDataSync, useWebRTC } from './hooks.js';
-import { Timer } from './shared.jsx';
+import { Timer, createWebComponent } from './shared.jsx';
 
 const styles = {
   wrapper: {position: 'relative'},
@@ -17,8 +17,6 @@ const styles = {
   },
   video: {},
 };
-
-const decodeJWT = (jwt) => JSON.parse(atob(jwt.split('.')[1]));
 
 const connIndicator = {
   connected: 'success',
@@ -81,47 +79,8 @@ const Device = (props) => {
           />
       }
     </div>
-  </div>
+  </div>;
 };
 
 
-class App extends React.Component {
-
-  onDisconnect = null;
-
-  state = JSON.parse(JSON.stringify(this.props));
-
-  setOnDisconnect(fn) {
-    this.onDisconnect = fn;
-  }
-
-  webComponentDisconnected() {
-    console.log('closing webrtc connection');
-    this.onDisconnect && this.onDisconnect();
-  }
-
-  /**
-  Note that this currently requires
-  "react-web-component": "github:amay0048/react-web-component#780950800e2962f45f0f029be618bb8b84610c89"
-  TODO: create our own fork where this is done internally to react-web-component
-  and props are updated.
-  */
-  webComponentAttributeChanged(name, oldValue, newValue) {
-    // console.log('webComponentAttributeChanged', name, oldValue, newValue, this.props, this.state);
-    const newState = this.state;
-    newState[name] = newValue;
-    this.setState(newState);
-  }
-
-  render() {
-    // console.log('webrtc video device', this.state);
-    return <div>
-      <style>
-        @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
-      </style>
-      <Device {...this.state} setOnDisconnect={this.setOnDisconnect.bind(this)}/>
-    </div>;
-  }
-};
-
-ReactWebComponent.create(<App />, 'webrtc-video', false, ['source']);
+createWebComponent(Device, 'webrtc-video', ['source']);

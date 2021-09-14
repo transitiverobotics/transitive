@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Badge, Col, Row, Button } from 'react-bootstrap';
 import { decodeJWT } from '@transitive-robotics/utils/client';
 // import { Joystick as ReactJoystick } from 'react-joystick-component';
-import { Joystick as ReactJoystick } from './ReactJoystickComp';
+import { ReactJoystickComp } from './ReactJoystickComp';
 
 import { useDataSync, useWebRTC } from './hooks.js';
 import { Timer, createWebComponent } from './shared.jsx';
@@ -12,6 +12,7 @@ const styles = {
   wrapper: {
     display: 'flex',
     flexWrap: 'wrap',
+    alignItems: 'center',
   },
   videoWrapper: {
     position: 'relative',
@@ -93,64 +94,23 @@ const Joystick = ({dataChannel}) => {
   };
 
   const onStart = (event) => {
-    // interval to send to back-end
-    console.log(event);
+    // send the received joystick coords once right away: this is for tapping
     updatePos(event);
     send();
+    // interval to send to back-end
     interval && clearInterval(interval);
     interval = setInterval(send, 50);
   };
 
-  /** send twist once */
-  const sendOnce = (twist) => {
-    linear = twist.linear || 0;
-    angular = twist.angular || 0;
-    send();
-  };
-
-  return <div>
-    <Row className="justify-content-md-center">
-      <Col md="4" style={{textAlign: 'center'}}>
-        <Button variant="outline-secondary"
-          onClick={() => sendOnce({linear: 1.0})}
-        >Forward</Button>
-      </Col>
-    </Row>
-
-    <Row className="justify-content-md-center">
-      <Col md="2" style={{textAlign: 'center'}}>
-        <Button variant="outline-secondary"
-          onClick={() => sendOnce({angular: 1.0})}
-        >Left</Button>
-      </Col>
-
-      <Col md="8" style={{textAlign: 'center'}}>
-        <ReactJoystick
-          size={SIZE}
-          baseColor='linear-gradient(#bbb7, #8887)'
-          stickColor='linear-gradient(#7779, #0009)'
-          start={onStart}
-          move={updatePos}
-          stop={onEnd}
-          style={{margin: 'auto'}}
-          />
-      </Col>
-
-      <Col md="2" style={{textAlign: 'center'}}>
-        <Button variant="outline-secondary"
-          onClick={() => sendOnce({angular: -1.0})}
-        >Right</Button>
-      </Col>
-    </Row>
-
-    <Row className="justify-content-md-center">
-      <Col md="4" style={{textAlign: 'center'}}>
-        <Button variant="outline-secondary"
-          onClick={() => sendOnce({linear: -1.0})}
-        >Back</Button>
-      </Col>
-    </Row>
-  </div>;
+  return <ReactJoystickComp
+    size={SIZE}
+    baseColor='linear-gradient(#bbb7, #8887)'
+    stickColor='linear-gradient(#7779, #0009)'
+    start={onStart}
+    move={updatePos}
+    stop={onEnd}
+    style={{margin: 'auto'}}
+    />
 };
 
 

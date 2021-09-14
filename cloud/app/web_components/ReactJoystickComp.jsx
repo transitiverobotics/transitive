@@ -14,9 +14,10 @@ const InteractionEvents = {
 
   Modifications:
   - accept style
+  - send x/y on start event (not just on move); this allows tapping to move
 */
 
-class Joystick extends React.Component {
+export class ReactJoystickComp extends React.Component {
 
   constructor(props) {
     super(props);
@@ -61,7 +62,6 @@ class Joystick extends React.Component {
       type: "move",
       x: coordinates.relativeX,
       y: -coordinates.relativeY,
-      direction: coordinates.direction
     });
 
   }
@@ -89,21 +89,11 @@ class Joystick extends React.Component {
           type: "start",
           x,
           y: -y,
-          direction: null
         });
       }
-    }
-  }
 
-  getDirection(atan2) {
-    if(atan2 > 2.35619449 || atan2 < -2.35619449){
-      return "FORWARD";
-    } else if(atan2 < 2.35619449 && atan2 > 0.785398163) {
-      return "RIGHT"
-    } else if(atan2 < -0.785398163){
-      return "LEFT";
+      this.setState({coordinates: {relativeX: x, relativeY: y}});
     }
-    return "BACKWARD";
   }
 
   getWithinBounds(value) {
@@ -142,7 +132,6 @@ class Joystick extends React.Component {
       this.updatePos({
         relativeX: x,
         relativeY: y,
-        direction: this.getDirection(atan2),
       });
     }
   }
@@ -160,7 +149,6 @@ class Joystick extends React.Component {
         type: "stop",
         x: null,
         y: null,
-        direction: null
       });
     }
   }
@@ -218,6 +206,4 @@ class Joystick extends React.Component {
       </div>
     )
   }
-}
-
-export { Joystick };
+};

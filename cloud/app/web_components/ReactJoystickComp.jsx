@@ -16,7 +16,6 @@ const InteractionEvents = {
   - accept style
   - send x/y on start event (not just on move); this allows tapping to move
 */
-
 export class ReactJoystickComp extends React.Component {
 
   constructor(props) {

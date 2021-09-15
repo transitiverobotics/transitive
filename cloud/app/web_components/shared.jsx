@@ -47,7 +47,7 @@ export const InlineCode = ({children}) => <tt style={styles.inlineCode}>
 
 const intervals = {};
 
-export const Timer = ({duration, onTimeout, onStart, setOnDisconnect}) => {
+export const Timer = ({duration, onTimeout, onStart, setOnDisconnect, children}) => {
   duration = duration || 60;
   const [timer, setTimer] = useState(duration);
   const [running, setRunning] = useState(false);
@@ -89,10 +89,19 @@ export const Timer = ({duration, onTimeout, onStart, setOnDisconnect}) => {
     stop()
   });
 
-  return timer > 0 ? <div>Timeout in: {timer} seconds</div>
-  : <div>Timed out. <Button onClick={() => {
-      setTimer(duration);
-    }}>
+  const resetTimer = () => setTimer(duration);
+
+  return timer > 0 ?
+  <div>
+    { /** Inject prop into children to reset timer */
+      React.Children.map(children, (child) =>
+        React.cloneElement(child, {resetTimer})
+      )
+    }
+    {timer < duration * 0.5 && <div>Timeout in: {timer} seconds</div>}
+  </div>
+  :
+  <div>Timed out. <Button onClick={resetTimer}>
       Resume
     </Button>
   </div>;

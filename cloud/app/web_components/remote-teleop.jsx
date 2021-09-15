@@ -66,7 +66,7 @@ let interval;
 let linear = 0;
 let angular = 0;
 
-const Joystick = ({dataChannel}) => {
+const Joystick = ({dataChannel, resetTimer}) => {
 
   const updatePos = ({type, x, y}) => {
     // react-joystick-component' coordinate system has x to the right, y to the top
@@ -83,6 +83,7 @@ const Joystick = ({dataChannel}) => {
     // interpreted as floats again on the backend. See remote-teleop/main.js
     const buffer = Int8Array.from([linear * 127, angular * 127]);
     dataChannel.send(buffer);
+    resetTimer && resetTimer(); // reset timer when in use
   };
 
   const onEnd = () => {
@@ -160,10 +161,18 @@ const TeleopVideo = (props) => {
       <video ref={video} autoPlay muted style={styles.video}/>
     </div>
     <div style={styles.joystick} className='remote-teleop-joystick'>
-      {dataChannel && videoReady && <Joystick dataChannel={dataChannel} />}
+      {dataChannel && videoReady &&
+        <Joystick dataChannel={dataChannel} resetTimer={props.resetTimer} />}
     </div>
-  </div>
+  </div>;
 };
 
+const TimedWrapper = (props) =>
+    <Timer duration={60}
+      setOnDisconnect={props.setOnDisconnect}
+    >
+      <TeleopVideo {...props} />
+    </Timer>
+;
 
-createWebComponent(TeleopVideo, 'remote-teleop', ['source']);
+createWebComponent(TimedWrapper, 'remote-teleop', ['source']);

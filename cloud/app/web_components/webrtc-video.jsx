@@ -65,22 +65,10 @@ const Video = (props) => {
 };
 
 
-const Device = (props) => {
-
-  const [running, setRunning] = useState(false);
-
-  return <div>
-    {running && <Video {...props}/>}
-    <div>
-      {<Timer duration={30}
-          onTimeout={() => setRunning(false)}
-          onStart={() => setRunning(true)}
-          setOnDisconnect={props.setOnDisconnect}
-          />
-      }
-    </div>
-  </div>;
-};
+const Device = (props) => <Timer duration={30}
+  setOnDisconnect={props.setOnDisconnect}>
+  <Video {...props}/>
+</Timer>;
 
 
 createWebComponent(Device, 'webrtc-video', ['source']);

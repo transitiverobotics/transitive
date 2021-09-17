@@ -70,7 +70,7 @@ export const useDataSync = ({jwt, id, publishPath}) => {
         (value, key, matched) => {
           const changes = {};
           changes[key] = value;
-          console.log('sending data update to server', changes);
+          // console.log('sending data update to server', changes);
           ws.send(JSON.stringify(changes));
         })
     }, [ws]);
@@ -85,7 +85,7 @@ export const useDataSync = ({jwt, id, publishPath}) => {
   It is the capability on the device (robot) that determines what kind of
   data channels and tracks to create on the connection.
 */
-export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
+export const useWebRTC = ({ dataSync, request, namespace,
   onConnectionStateChange, onTrack, bitrate_KB, onDataChannel, onMessage }) => {
 
     const {ready, dataCache, publish} = dataSync;
@@ -95,14 +95,16 @@ export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
     let connected = false;
     let connection;
 
-    const startVideo = () => {
-      console.log('starting video for', sessionId);
+    const mqttTopicPrefix = [...namespace, sessionId, 'client'];
 
-      // request an audience (webrtc connection) with the device
+    const startVideo = () => {
+      console.log('starting video for', sessionId, request);
+
+      // request an audience (webrtc connection) with the device. The `request`
+      // objects contains application specific parameters, including source
+      // for video), and perhaps cmdVelTopic for teleop
       dataCache.updateFromArray(
-        [id, device, capabilityName, sessionId, 'client', 'request'],
-        source
-      );
+        [...mqttTopicPrefix, 'request'], request);
 
       dataCache.subscribePath(`+.+.+.${sessionId}.server.spec`, (serverSpec, key) => {
 
@@ -131,12 +133,10 @@ export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
 
           // if (event.candidate && event.candidate.type != 'relay') return; // #DEBUG
 
-          event.candidate && dataCache.updateFromArray(
-            [id, device, capabilityName, sessionId, 'client', 'spec'],
-            {
-              candidate: JSON.stringify(event.candidate)
-            }
-          );
+          event.candidate &&
+            dataCache.updateFromArray([...mqttTopicPrefix, 'spec'], {
+              candidate: JSON.stringify(event.candidate)});
+
         };
 
         connection.onicecandidateerror = (event) => {
@@ -182,8 +182,7 @@ export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
             }
           }).then(() => {
             connected = true;
-            dataCache.updateFromArray(
-              [id, device, capabilityName, sessionId, 'client', 'spec'], {
+            dataCache.updateFromArray([...mqttTopicPrefix, 'spec'], {
                 answer: JSON.stringify(connection.localDescription.toJSON())
               });
           }).catch((err) => {
@@ -202,5 +201,5 @@ export const useWebRTC = ({ dataSync, source, id, device, capabilityName,
       };
     };
 
-    useEffect(() => ready && startVideo(), [ready, source]);
+    useEffect(() => ready && startVideo(), [ready, request]);
   };

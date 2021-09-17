@@ -40,10 +40,9 @@ const Video = (props) => {
   const video = useRef(null);
 
   useWebRTC({
+    namespace: [props.id, device, 'webrtc-video'],
     dataSync,
-    source: props.source,
-    id: props.id,
-    device,
+    request: props.request,
     onConnectionStateChange: (connectionState) => {
       setConnectionState(connectionState);
     },
@@ -51,7 +50,6 @@ const Video = (props) => {
       video.current.srcObject = new MediaStream([track]);
     },
     bitrate_KB: 50,
-    capabilityName: 'webrtc-video'
   });
 
   if (!dataSync.ready) {
@@ -71,4 +69,4 @@ const Device = (props) => <Timer duration={30}
 </Timer>;
 
 
-createWebComponent(Device, 'webrtc-video', ['source']);
+createWebComponent(Device, 'webrtc-video', ['request']);

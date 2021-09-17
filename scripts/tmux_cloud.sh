@@ -28,5 +28,6 @@ newWindow "bag" "rosbag play -l magni_diag.bag" "../tmp"
 newWindow "health-cap" "# ./rundev.sh" "../../transitive-caps/health-monitoring"
 newWindow "video-cap" "# ./rundev.sh" "../../transitive-caps/video-streaming"
 newWindow "ex:express" "node server.js" "../examples/express"
+newWindow "turtlesim" "rosrun turtlesim turtlesim_node"
 
 tmux attach

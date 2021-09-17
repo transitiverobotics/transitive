@@ -125,10 +125,9 @@ const TeleopVideo = (props) => {
   const video = useRef(null);
 
   useWebRTC({
+    namespace: [props.id, device, 'remote-teleop'],
     dataSync,
-    source: props.source,
-    id: props.id,
-    device,
+    request: props.request,
     onConnectionStateChange: (connectionState) => {
       setConnectionState(connectionState);
     },
@@ -147,7 +146,6 @@ const TeleopVideo = (props) => {
       console.log('teleop got a message', message);
     },
     bitrate_KB: 50,
-    capabilityName: 'remote-teleop'
   });
 
 
@@ -175,4 +173,4 @@ const TimedWrapper = (props) =>
     </Timer>
 ;
 
-createWebComponent(TimedWrapper, 'remote-teleop', ['source']);
+createWebComponent(TimedWrapper, 'remote-teleop', ['request']);

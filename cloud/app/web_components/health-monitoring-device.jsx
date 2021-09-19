@@ -102,8 +102,6 @@ const Diagnostics = ({jwt, id}) => {
 class App extends React.Component {
 
   render() {
-    console.log('rendering web component', this.props);
-
     return <div style={styles.wrapper}>
       <style>
         @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");

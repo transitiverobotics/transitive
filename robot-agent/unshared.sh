@@ -24,6 +24,10 @@ mount --rbind $TRHOME /home
 rm -f $TRHOME/$USER/.transitive
 ln -s /home $TRHOME/$USER/.transitive
 
+# fonts
+rm -f /home/$USER/.fonts
+ln -sf /home/usr/share/fonts /home/$USER/.fonts
+
 # Shed fake root. This will make us nobody. If we need to be the original user
 # instead we can try revertuid (see tmp/experiments/revertuid)
 unshare -U bash -c "cd && $*"

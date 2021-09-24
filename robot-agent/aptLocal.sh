@@ -61,7 +61,7 @@ cp {,$DIR}/etc/apt/sources.list
 echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc/apt/sources.list.d/ros-latest.list
 
 
-cp {,$DIR}/etc/apt/trusted.gpg || true
+if [[ -e /etc/apt/trusted.gpg ]]; then cp {,$DIR}/etc/apt/trusted.gpg; fi
 cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d
 # For now, always get latest ROS repo keys, to mitigate stuff like:
 # https://discourse.ros.org/t/ros-gpg-key-expiration-incident/20669
@@ -109,9 +109,11 @@ done
 
 
 # Replace `/usr/bin/python` with `/usr/bin/env python` in locally installed packages
-for n in $(grep -Rl "/usr/bin/python" $DIR/opt/ros | xargs); do
-  sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
-done
+if [[ -e $DIR/opt/ros ]]; then
+  for n in $(grep -Rl "/usr/bin/python" $DIR/opt/ros | xargs); do
+    sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
+  done
+fi;
 for n in $(find $DIR/usr/bin -name 'ros*'); do
   sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
 done

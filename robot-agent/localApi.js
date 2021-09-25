@@ -35,9 +35,8 @@ const handlers = {
         } else {
           console.log(stdout);
           if (stderr) {
-            res.statusCode = 400;
             console.log(stderr);
-            res.end(`Unable to install packages: ${stderr}`);
+            res.end(`Warnings while installing packages (these are not usually fatal): ${stderr}`);
           } else {
             res.end();
           }

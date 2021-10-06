@@ -1,4 +1,5 @@
 const constants = require('./constants');
+const fs = require('fs');
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
 
@@ -8,9 +9,12 @@ process.env.TR_DEVMODE && console.log('*** DEV MODE');
   and if not, exit. This is to prevent other packages from installing this
   package once more in their respective node_modules and messing with the
   officially installed version in the above directory.
+  
+  Using fs.realpathSync here in case the home directory path contains a symlink.
 */
-if (__dirname != `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`
-    && !process.env.TR_DEVMODE) {
+if (__dirname != fs.realpathSync(
+  `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`)
+  && !process.env.TR_DEVMODE) {
   console.error(`This package should not be run or used anywhere but in
     ~/.transitive/node_modules directly. You probably didn't mean to. Exiting.`,
   __dirname);

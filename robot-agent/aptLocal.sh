@@ -95,6 +95,10 @@ for PACKAGE in $*; do
     # installed in the same folder.
     echo "downloading $PACKAGE" | indent
     apt-get -y -d --reinstall install $PACKAGE | indent
+    # Note: this will refetch and unpack these packages on each update to a
+    # capability requiring it. This could be improved by checking whether the
+    # package is already installed locally (-e $DIR/var/lib/dpkg/status.d/${PACKAGE})
+    # and only using --reinstall if not.
   fi
 done
 

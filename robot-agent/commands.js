@@ -10,24 +10,6 @@ const utils = require('./utils');
 const { DataCache } = require('@transitive-robotics/utils/server');
 const dataCache = new DataCache();
 
-// const diff = (a, b) => {
-//   const allkeys = _.uniq(_.keys(a).concat(_.keys(b)));
-//   const added = [];
-//   const removed = [];
-//   const changed = [];
-//   allkeys.forEach(pkg => {
-//     if (a[pkg]) {
-//       if (!b[pkg]) {
-//         removed.push(pkg);
-//       } else if (a[pkg] != b[pkg]) {
-//         changed.push(pkg);
-//       }
-//     } else {
-//       added.push(pkg);
-//     }
-//   });
-//   return {added, removed, changed};
-// };
 
 /** install new package */
 const addPackage = (addedPkg) => {
@@ -60,11 +42,7 @@ const removePackage = (pkg) => {
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
 const ensureDesiredPackages = () => {
-  const desired = dataCache.get('desiredPackages');
-  if (!desired) {
-    return;
-  }
-
+  const desired = dataCache.get('desiredPackages') || {};
   console.log('Ensure installed packages match: ', desired);
 
   const packages = utils.getInstalledPackages();
@@ -110,7 +88,8 @@ const commands = {
     execAll([
         `systemctl --user status transitive-package@${sub[0]}`,
         `ls ${process.env.HOME}/.transitive/packages/${sub[0]}`,
-        `tail -n 1000 /var/log/syslog | grep unshare`
+        `journalctl --user | grep unshare`
+        // note that journalctl -u doesn't show all output (stderr?)
       ], cb);
   },
   _getLog: (sub, value, cb) => {
@@ -120,31 +99,13 @@ const commands = {
   }
 };
 
-// dataCache.subscribe(change => {
-//   _.forEach(change, (value, key) => {
-//     const command = key.split('.')[0];
-//     const cmdFunction = dataHandlers[command];
-//     if (cmdFunction) {
-//       cmdFunction(dataCache.get(command));
-//     } else {
-//       console.error('Received unknown data command', command);
-//     }
-//   });
-// });
-
 /** define handlers for data changes (used for reactive programming) */
-dataCache.subscribePath('desiredPackages.+pkg', (value, key, {pkg}) => {
-  console.log('got desiredPackages request', pkg, value);
-  if (value) {
-    addPackage(pkg);
-  } else {
-    removePackage(pkg);
-  }
-});
+dataCache.subscribePath('desiredPackages', ensureDesiredPackages);
 
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */
   handleAgentData: (subPath, value) => {
+    console.log('handle agent data', subPath, value);
     if (subPath[0][0] != '_') {
       dataCache.update(subPath, value);
     }
@@ -152,7 +113,7 @@ module.exports = {
   handleAgentCommand: (subPath, value, cb) => {
     const cmd = commands[subPath[0]];
     if (cmd) {
-      console.error('Executing command', subPath);
+      console.log('Executing command', subPath);
       cmd(subPath.slice(1), value, cb);
     } else {
       console.error('Received unknown command', command);

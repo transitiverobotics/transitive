@@ -89,16 +89,8 @@ for PACKAGE in $*; do
     DEPS=$(dpkg-deb -f "$FILENAME" depends | sed 's/, /\n/g' | cut -d ' ' -f 1 | xargs)
     apt-get -y -d install $DEPS | indent
   else
-    # We use --reinstall to make sure the required package is install locally
-    # even if already installed globally. There are cases where this is required.
-    # For instance, libgstreamer1.0-dev assumes that libgstreamer1.0-0 is
-    # installed in the same folder.
     echo "downloading $PACKAGE" | indent
-    apt-get -y -d --reinstall install $PACKAGE | indent
-    # Note: this will refetch and unpack these packages on each update to a
-    # capability requiring it. This could be improved by checking whether the
-    # package is already installed locally (-e $DIR/var/lib/dpkg/status.d/${PACKAGE})
-    # and only using --reinstall if not.
+    apt-get -y -d install $PACKAGE | indent
   fi
 done
 

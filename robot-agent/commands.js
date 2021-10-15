@@ -88,7 +88,7 @@ const commands = {
     execAll([
         `systemctl --user status transitive-package@${sub[0]}`,
         `ls ${process.env.HOME}/.transitive/packages/${sub[0]}`,
-        `journalctl --user | grep unshare`
+        `journalctl --user -n 1000 | grep unshare`
         // note that journalctl -u doesn't show all output (stderr?)
       ], cb);
   },

@@ -42,7 +42,10 @@ const removePackage = (pkg) => {
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
 const ensureDesiredPackages = () => {
-  const desired = dataCache.get('desiredPackages') || {};
+  const desired = dataCache.get('desiredPackages');
+  if (!desired) {
+    return;
+  }
   console.log('Ensure installed packages match: ', desired);
 
   const packages = utils.getInstalledPackages();
@@ -99,8 +102,14 @@ const commands = {
   }
 };
 
-/** define handlers for data changes (used for reactive programming) */
-dataCache.subscribePath('desiredPackages', ensureDesiredPackages);
+/** define handlers for data changes (used for reactive programming), but not
+  right away, only once we have gotten our initial batch. Otherwise we'll
+  remove packages when the first to-be-installed-package message is received.
+*/
+setTimeout(() => {
+    ensureDesiredPackages();
+    dataCache.subscribePath('desiredPackages', ensureDesiredPackages);
+  }, 4000);
 
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */

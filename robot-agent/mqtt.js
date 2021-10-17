@@ -25,8 +25,7 @@ const exec = require('child_process').exec;
 
 const { parseMQTTTopic, DataCache, mqttClearRetained }
   = require('@transitive-robotics/utils/server');
-const { handleAgentCommand, handleAgentData, ensureDesiredPackages }
-  = require('./commands');
+const { handleAgentCommand, handleAgentData } = require('./commands');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
 
@@ -110,11 +109,7 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX);
 
-      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions,
-        () => {
-          // 5 seconds after start: check that desired packages are installed
-          setTimeout(ensureDesiredPackages, 5000);
-        });
+      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, console.log);

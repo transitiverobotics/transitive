@@ -35,7 +35,7 @@ const removePackage = (pkg) => {
   // stop and remove folder
   exec(`systemctl --user stop transitive-package@${pkg}.service`, {},
     (err, stdout, stderr) => {
-      console.log('package installed and started', {err, stdout, stderr});
+      console.log('package stopped, removing files', {err, stdout, stderr});
       exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
     });
 };
@@ -47,20 +47,21 @@ const ensureDesiredPackages = () => {
     return;
   }
   console.log('Ensure installed packages match: ', desired);
+  const copy = JSON.parse(JSON.stringify(desired));
 
   const packages = utils.getInstalledPackages();
   packages.forEach(pkg => {
-    if (desired[pkg]) {
+    if (copy[pkg]) {
       // TODO: later, check whether the version has changed; for now all
       // packages are set to version "*"
-      delete desired[pkg];
+      delete copy[pkg];
     } else {
       removePackage(pkg);
     }
   });
 
   // what remains in `desired` is added new, install and start
-  Object.keys(desired).forEach(addPackage);
+  Object.keys(copy).forEach(addPackage);
 };
 
 /** execute a sequence of commands and report corresponding results in cb */
@@ -114,7 +115,7 @@ setTimeout(() => {
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */
   handleAgentData: (subPath, value) => {
-    console.log('handle agent data', subPath, value);
+    console.log('handle agent data', subPath, value, dataCache.get());
     if (subPath[0][0] != '_') {
       dataCache.update(subPath, value);
     }

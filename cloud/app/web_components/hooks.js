@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DataCache, pathMatch } from '@transitive-robotics/utils/client';
+import { DataCache, pathMatch, decodeJWT } from '@transitive-robotics/utils/client';
+import mqtt from 'mqtt-browser';
 
 /** This is used to connect to the Transitive cloud and authenticate
   using the provided jwt token. */
@@ -203,3 +204,20 @@ export const useWebRTC = ({ dataSync, request, namespace,
 
     useEffect(() => ready && startVideo(), [ready, request]);
   };
+
+
+/** Hook to connect to the mqtt broker's websocket, speaking the mqtt protocol */
+export const useMQTT = ({jwt, id}) => {
+  let client;
+  useEffect(() => {
+      const url = `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`;
+      const payload = decodeJWT(jwt);
+      client = mqtt.connect(url, {
+        username: JSON.stringify({id, payload}),
+        password: jwt
+      });
+      client.on('message', console.log);
+      client.subscribe('#');
+    }, []);
+  return client;
+};

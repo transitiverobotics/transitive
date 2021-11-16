@@ -11,7 +11,9 @@ import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';
 import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
-import { useDataSync } from './hooks.js';
+// ---------------------------------------------------------------
+
+import { useDataSync, useMQTT } from './hooks.js';
 import { LevelBadge } from './shared.jsx';
 
 const styles = {
@@ -95,6 +97,10 @@ const Fleet = ({obj}) => <div>
 
 const Diagnostics = ({jwt, id}) => {
   const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
+
+  // #TEST
+  const mqttClient = useMQTT({jwt, id});
+
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };
 

@@ -3,8 +3,11 @@ const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
 const jwt = require('jsonwebtoken');
+const assert = require('assert');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
+const { parseMQTTTopic, decodeJWT } = require('@transitive-robotics/utils/server');
+
 const { MQTTHandler } = require('./mqtt');
 const Capability = require('./caps/capability');
 const HealthMonitoring = require('./caps/health_monitoring');
@@ -13,12 +16,14 @@ const VideoStreaming = require('./caps/video_streaming');
 const WebRTCVideo = require('./caps/webrtc_video');
 const RemoteTeleop = require('./caps/remote_teleop');
 
+
 // ----------------------------------------------------------------------
 
 const app = express();
 // app.use(express.static(path.join(__dirname, 'build')));
 // app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.json());
 
 const server = http.createServer(app);
 
@@ -119,26 +124,98 @@ server.on('upgrade', (request, socket, head) => {
   });
 });
 
+/** ---------------------------------------------------------------------------
+Authentication for MQTT Websockets
+*/
+
+/** authenticate the username based on the JWT given as password */
+app.post('/auth/user', async (req, res) => {
+  console.log('/auth/user', req.body);
+  //   clientid: 'qEmYn5tibovKgGvSm',
+  //   password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6ImhlYWx0aC1tb25pdG9yaW5nIiwidXNlcklkIjoicG9ydGFsVXNlci1xRW1ZbjV0aWJvdktnR3ZTbSIsInZhbGlkaXR5Ijo0MzIwMCwiaWF0IjoxNjM3MDk1Nzg5fQ.H6-3I5z-BwFeUJ3A-j1_2NE9YFa7AGAz5nTWkMPuY9k',
+  //   username: '{id, payload: {device, capability, userId, validity}}'
+
+  const users = Mongo.db.collection('users');
+  const devices = Mongo.db.collection('devices');
+
+  const token = req.body.password;
+  const payload = decodeJWT(token);
+  const parsedUsername = JSON.parse(req.body.username);
+  console.log('  ', payload, parsedUsername);
+
+  try {
+    // First verify that the user's signed JWT has the same payload as username.
+    // This is needed because downstream decision, e.g., in ACL, will be based
+    // on this verified username.
+    assert.deepEqual(payload, parsedUsername.payload);
+
+    const user = await users.findOne({_id: parsedUsername.id});
+    console.log(user);
+    if (!user) {
+      res.status(401).send(
+        'no such user, please verify the id provided to the web component');
+      return;
+    }
+    if (!user.jwt_secret) {
+      res.status(401).send('user has no jwt secret yet, please visit the portal');
+      return;
+    }
+
+    await jwt.verify(token, user.jwt_secret);
+    console.log('verified token');
+
+    if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
+      // The token is expired
+      res.status(401).send(`JWT is expired ${JSON.stringify(payload)}`);
+      return;
+    }
+
+    res.send('ok');
+  } catch (e) {
+    res.status(401).send(e);
+  }
+});
+
+app.post('/auth/acl', (req, res) => {
+  // console.log('/auth/acl', req.headers, req.body);
+  // for now
+  res.send('ok');
+});
+
+
+
+
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
   onMessage(packet) {
     // console.log('_robotAgent', packet.topic);
+    // #HERE: listen to "package running" topics and when found, make sure
+    // the required version of that package is installed and loaded
+    const {sub, device} = parseMQTTTopic(packet.topic);
+    if (sub[0] == 'status' && sub[1] == 'runningPackages') {
+      const packageName = sub[2];
+      const info = packet.payload && JSON.parse(packet.payload.toString());
+      console.log(packageName, info);
+      // #HERE: now make sure it's installed and start it -- WHERE?
+      // think about sandboxing of cloud capabilities
+    }
   }
 };
 
+
 Mongo.init(() => {
   new MQTTHandler(mqtt => {
-    Capability.init(mqtt);
-    // everything is ready, start listening for clients
     server.listen(9000, () => {
-      console.log(`Server started on port ${server.address().port} :)`);
+      console.log(`Server started on port ${server.address().port}`);
+
+      Capability.init(mqtt);
 
       // Start capabilities
       const robotAgent = new _robotAgent();
       const hm = new HealthMonitoring();
       const remoteAccess = new RemoteAccess({
-          dbCollection: Mongo.db.collection('devices')
-        });
+        dbCollection: Mongo.db.collection('devices')
+      });
       const videoStreaming = new VideoStreaming({
         dbCollection: Mongo.db.collection('devices')
       });
@@ -147,6 +224,7 @@ Mongo.init(() => {
     });
   });
 });
+
 
 
 /** catch-all to be safe */

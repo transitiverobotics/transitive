@@ -64,8 +64,13 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
 
   aedes.on('clientReady', (client) => {
     console.log('clientReady', client.id);
+    // HACKY: username is not required, so we use it to receive additional info
+    // from package:
+    const info = client._parser.settings.username != 'ignore' ?
+      client._parser.settings.username :
+      JSON.stringify({npm_package_version: 'latest'});
     upstreamClient.publish(
-      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, 'true',
+      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, info,
       {retain: true});
   });
 

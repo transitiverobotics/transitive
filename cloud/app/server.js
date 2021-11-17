@@ -177,9 +177,25 @@ app.post('/auth/user', async (req, res) => {
 });
 
 app.post('/auth/acl', (req, res) => {
-  // console.log('/auth/acl', req.headers, req.body);
-  // for now
-  res.send('ok');
+  console.log('/auth/acl', req.headers, req.body);
+  /* {
+    acc: 1,
+    clientid: 'mqttjs_c799fa50',
+    topic: '/qEmYn5tibovKgGvSm/ZXyqpabPL7/health-monitoring/diagnostics/disk partition: root/values/percent',
+    username: '{"id":"qEmYn5tibovKgGvSm","payload":{"device":"GbGa2ygqqz","capability":"health-monitoring","userId":"portalUser-qEmYn5tibovKgGvSm","validity":43200,"iat":1637107056}}'
+  }*/
+
+  const {id, payload} = JSON.parse(req.body.username);
+  const parsedTopic = parseMQTTTopic(req.body.topic);
+  if (id == parsedTopic.organization &&
+    payload.device == parsedTopic.device &&
+    payload.capability == parsedTopic.capability &&
+    payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now()) {
+
+    res.send('ok');
+  } else {
+    res.status(401).end('not authorized for topic or token expired');
+  }
 });
 
 

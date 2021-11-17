@@ -99,7 +99,7 @@ const Diagnostics = ({jwt, id}) => {
   const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
 
   // #TEST
-  const mqttClient = useMQTT({jwt, id});
+  const mqttClient = useMQTT({jwt, id, onMessage: console.log});
 
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };

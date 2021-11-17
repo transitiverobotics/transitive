@@ -207,7 +207,7 @@ export const useWebRTC = ({ dataSync, request, namespace,
 
 
 /** Hook to connect to the mqtt broker's websocket, speaking the mqtt protocol */
-export const useMQTT = ({jwt, id}) => {
+export const useMQTT = ({jwt, id, onMessage}) => {
   let client;
   useEffect(() => {
       const url = `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`;
@@ -216,8 +216,9 @@ export const useMQTT = ({jwt, id}) => {
         username: JSON.stringify({id, payload}),
         password: jwt
       });
-      client.on('message', console.log);
-      client.subscribe('#');
+      client.on('error', console.error);
+      onMessage && client.on('message', onMessage);
+      client.subscribe(`/${id}/${payload.device}/${payload.capability}/#`);
     }, []);
   return client;
 };

@@ -95,13 +95,11 @@ const Fleet = ({obj}) => <div>
 </div>;
 
 
-const Diagnostics = ({jwt, id, setOnDisconnect}) => {
+const Diagnostics = ({jwt, id}) => {
   // const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
 
   // const mqttClient = useMQTT({jwt, id, onMessage: console.log});
-  const { status, ready, StatusComponent, data, stop } =
-    useDataSync2({ jwt, id });
-  setOnDisconnect(stop);
+  const { status, ready, StatusComponent, data } = useDataSync2({ jwt, id });
 
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };

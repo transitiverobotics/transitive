@@ -38,7 +38,7 @@ const styles = {
 };
 
 // const dataCache= new DataCache();
-const FleetHealth = ({jwt, id, deviceurl, setOnDisconnect}) => {
+const FleetHealth = ({jwt, id, deviceurl}) => {
   // const [data, setData] = useState({});
   // const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
   //   onMessage: (data) => {
@@ -50,9 +50,8 @@ const FleetHealth = ({jwt, id, deviceurl, setOnDisconnect}) => {
   //   }
   // });
 
-  const { status, ready, StatusComponent, data, stop } = useDataSync2({ jwt, id });
+  const { status, ready, StatusComponent, data } = useDataSync2({ jwt, id });
   const { device } = decodeJWT(jwt);
-  setOnDisconnect(stop);
 
   if (!ready || !data || !data[id]) {
     return <StatusComponent />;

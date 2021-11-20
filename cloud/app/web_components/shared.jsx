@@ -125,6 +125,9 @@ export const createWebComponent = (Component, name, reactiveAttributes = []) => 
 
     webComponentDisconnected() {
       this.onDisconnect && this.onDisconnect();
+      // this ensures that the react component unmounts and all useEffect
+      // cleanups are called.
+      this.setState({_disconnected: true});
     }
 
     /**
@@ -145,7 +148,8 @@ export const createWebComponent = (Component, name, reactiveAttributes = []) => 
         <style>
           @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
         </style>
-        <Component {...this.state} setOnDisconnect={this.setOnDisconnect.bind(this)}/>
+        {!this.state._disconnected &&
+          <Component {...this.state} setOnDisconnect={this.setOnDisconnect.bind(this)}/>}
       </div>;
     }
   };

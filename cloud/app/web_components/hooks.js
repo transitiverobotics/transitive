@@ -228,20 +228,17 @@ export const useMQTT = ({jwt, id, onMessage}) => {
 
       setMQTTClient(client);
 
-      return stop;
+      return () => {
+        console.log('cleaning up useMQTT');
+        client.end();
+      };
     }, [jwt, id]);
-
-  const stop = () => {
-    console.log('cleaning up useMQTT');
-    mqttClient.end();
-  };
 
   return {
     mqttClient,
     status,
     ready: status == 'connected',
     StatusComponent: () => <div>{status}</div>,
-    stop
   };
 };
 
@@ -254,7 +251,7 @@ export const useDataSync2 = ({jwt, id,
   const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
 
-  const { mqttClient, status, ready, StatusComponent, stop } = useMQTT({ jwt, id,
+  const { mqttClient, status, ready, StatusComponent } = useMQTT({ jwt, id,
     onMessage: (topic, message, packet) => {
       window.tr_devmode && console.log('useDataSync2', topic, message.toString());
       // do not update paths we publish ourselves, to avoid loops:
@@ -282,7 +279,7 @@ export const useDataSync2 = ({jwt, id,
   //   }, [mqttClient]);
   //
   // publishPath && publish(publishPath);
-  return { status, ready, StatusComponent, data, dataCache, stop
+  return { status, ready, StatusComponent, data, dataCache
       // , publish
     };
 };

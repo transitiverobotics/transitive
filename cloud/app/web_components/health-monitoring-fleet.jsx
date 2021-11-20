@@ -6,7 +6,6 @@ const _ = {
 
 import { ListGroup } from 'react-bootstrap';
 
-// import { DataCache } from '@transitive-robotics/utils/client';
 import { decodeJWT } from '@transitive-robotics/utils/client';
 
 import { useWebSocket, useDataSync2 } from './hooks.js';
@@ -37,18 +36,7 @@ const styles = {
   }
 };
 
-// const dataCache= new DataCache();
 const FleetHealth = ({jwt, id, deviceurl}) => {
-  // const [data, setData] = useState({});
-  // const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
-  //   onMessage: (data) => {
-  //     window.tr_devmode && console.log(data);
-  //     const newData = JSON.parse(data);
-  //     dataCache.updateFromModifier(newData);
-  //     const newGlobal = dataCache.get([id, '_fleet', 'health-monitoring']);
-  //     newGlobal && setData(JSON.parse(JSON.stringify(newGlobal)));
-  //   }
-  // });
 
   const { status, ready, StatusComponent, data } = useDataSync2({ jwt, id });
   const { device } = decodeJWT(jwt);
@@ -92,21 +80,4 @@ const FleetHealth = ({jwt, id, deviceurl}) => {
   }
 };
 
-
-class App extends React.Component {
-
-  render() {
-    console.log('rendering health-monitoring-fleet', this.props);
-
-    return <div>
-      <style>
-        @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
-      </style>
-
-      <FleetHealth {...this.props}/>
-    </div>;
-  }
-}
-
-// ReactWebComponent.create(<App />, 'health-monitoring-fleet');
-createWebComponent(App, 'health-monitoring-fleet', ['jwt']);
+createWebComponent(FleetHealth, 'health-monitoring-fleet', ['jwt']);

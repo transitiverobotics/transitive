@@ -17,11 +17,6 @@ import { useDataSync2, useMQTT } from './hooks.js';
 import { LevelBadge, createWebComponent } from './shared.jsx';
 
 const styles = {
-  wrapper: {
-    padding: '0.5em',
-    textAlign: 'left',
-    color: '#000',
-  },
   indent: {
     marginLeft: '1em'
   },
@@ -104,24 +99,4 @@ const Diagnostics = ({jwt, id}) => {
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };
 
-
-class App extends React.Component {
-
-  render() {
-    return <div style={styles.wrapper}>
-      <style>
-        @import url("https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css");
-      </style>
-      <Diagnostics {...this.props}/>
-    </div>;
-  }
-};
-
-// ReactWebComponent.create(<App />, 'health-monitoring-device');
-// ReactWebComponent.create(<App />, 'react-web-component', false);
-
-// @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css");
-// <Button variant="primary">Primary</Button>
-// <FontAwesomeIcon icon={faCoffee} style={styles.icon}/>
-
-createWebComponent(App, 'health-monitoring-device', ['jwt']);
+createWebComponent(Diagnostics, 'health-monitoring-device', ['jwt']);

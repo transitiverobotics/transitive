@@ -208,17 +208,81 @@ export const useWebRTC = ({ dataSync, request, namespace,
 
 /** Hook to connect to the mqtt broker's websocket, speaking the mqtt protocol */
 export const useMQTT = ({jwt, id, onMessage}) => {
-  let client;
+  const [status, setStatus] = useState('connecting');
+  const [mqttClient, setMQTTClient] = useState();
+
   useEffect(() => {
       const url = `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`;
       const payload = decodeJWT(jwt);
-      client = mqtt.connect(url, {
+      const client = mqtt.connect(url, {
         username: JSON.stringify({id, payload}),
         password: jwt
       });
-      client.on('error', console.error);
+      client.on('connect', () => setStatus('connected'));
+      client.on('error', (error) => {
+          console.error(error);
+          setStatus(`error: ${error}`);
+      });
       onMessage && client.on('message', onMessage);
       client.subscribe(`/${id}/${payload.device}/${payload.capability}/#`);
-    }, []);
-  return client;
+
+      setMQTTClient(client);
+
+      return stop;
+    }, [jwt, id]);
+
+  const stop = () => {
+    console.log('cleaning up useMQTT');
+    mqttClient.end();
+  };
+
+  return {
+    mqttClient,
+    status,
+    ready: status == 'connected',
+    StatusComponent: () => <div>{status}</div>,
+    stop
+  };
+};
+
+
+
+/** connect to server via useWebSocket, collect data updates into DataCache */
+export const useDataSync2 = ({jwt, id,
+  // publishPath   // NOT IN USE
+  }) => {
+  const [data, setData] = useState({});
+  const dataCache = useMemo(() => new DataCache(), [jwt, id]);
+
+  const { mqttClient, status, ready, StatusComponent, stop } = useMQTT({ jwt, id,
+    onMessage: (topic, message, packet) => {
+      window.tr_devmode && console.log('useDataSync2', topic, message.toString());
+      // do not update paths we publish ourselves, to avoid loops:
+      // TODO, not in use
+      // publishPath && Object.keys(newData).forEach(key => {
+      //   const keyPath = key.replace(/\//g, '.').slice(1);
+      //   if (pathMatch(publishPath, keyPath)) {
+      //     delete newData[key]
+      //   }
+      // });
+      // window.tr_devmode && console.log('useDataSync, filtered keys', newData);
+      dataCache.updateFromTopic(topic,
+          message.length > 0 ? JSON.parse(message.toString()) : null);
+      setData(JSON.parse(JSON.stringify(dataCache.get())));
+    }
+  });
+
+  // const publish = (path) => useEffect(() => {
+  //     mqttClient && dataCache.subscribePath(path,
+  //       (value, key, matched) => {
+  //         const changes = {};
+  //         changes[key] = value;
+  //         // ws.send(JSON.stringify(changes)); /TODO
+  //       })
+  //   }, [mqttClient]);
+  //
+  // publishPath && publish(publishPath);
+  return { status, ready, StatusComponent, data, dataCache, stop
+      // , publish
+    };
 };

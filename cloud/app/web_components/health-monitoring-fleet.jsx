@@ -6,10 +6,11 @@ const _ = {
 
 import { ListGroup } from 'react-bootstrap';
 
-import { DataCache } from '@transitive-robotics/utils/client';
+// import { DataCache } from '@transitive-robotics/utils/client';
+import { decodeJWT } from '@transitive-robotics/utils/client';
 
-import { useWebSocket } from './hooks.js';
-import { LevelBadge } from './shared.jsx';
+import { useWebSocket, useDataSync2 } from './hooks.js';
+import { LevelBadge, createWebComponent } from './shared.jsx';
 
 const STALE_THRESHOLD = 5 * 60 * 60 * 1e3;
 
@@ -36,31 +37,40 @@ const styles = {
   }
 };
 
-const dataCache= new DataCache();
-const FleetHealth = ({jwt, id, deviceurl}) => {
-  const [data, setData] = useState({});
+// const dataCache= new DataCache();
+const FleetHealth = ({jwt, id, deviceurl, setOnDisconnect}) => {
+  // const [data, setData] = useState({});
+  // const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
+  //   onMessage: (data) => {
+  //     window.tr_devmode && console.log(data);
+  //     const newData = JSON.parse(data);
+  //     dataCache.updateFromModifier(newData);
+  //     const newGlobal = dataCache.get([id, '_fleet', 'health-monitoring']);
+  //     newGlobal && setData(JSON.parse(JSON.stringify(newGlobal)));
+  //   }
+  // });
 
-  const { status, ready, StatusComponent } = useWebSocket({ jwt, id,
-    onMessage: (data) => {
-      window.tr_devmode && console.log(data);
-      const newData = JSON.parse(data);
-      dataCache.updateFromModifier(newData);
-      const newGlobal = dataCache.get([id, '_fleet', 'health-monitoring']);
-      newGlobal && setData(JSON.parse(JSON.stringify(newGlobal)));
-    }
-  });
+  const { status, ready, StatusComponent, data, stop } = useDataSync2({ jwt, id });
+  const { device } = decodeJWT(jwt);
+  setOnDisconnect(stop);
 
-  if (!ready) {
+  if (!ready || !data || !data[id]) {
     return <StatusComponent />;
-  } else if (!Object.values(data).length) {
+  }
+
+  const ourData = data[id]._fleet['health-monitoring'];
+  console.log(data, ourData);
+
+  if (!ourData.devices || !Object.values(ourData.devices).length) {
     return <div>No devices found. Make sure you have connected devices to
       your account and installed the Health Monitoring capability.</div>
   } else {
+
     return <div>
       <b style={styles.title}>Fleet Health</b>
-      <LevelBadge level={data && data.level}/>
+      <LevelBadge level={ourData && ourData.level}/>
       <ListGroup variant="flush" style={styles.list}>
-        {_.map(data.devices, ({hostname, level, msgs, heartbeat}, id) =>
+        {_.map(ourData.devices, ({hostname, level, msgs, heartbeat}, id) =>
             <ListGroup.Item key={id}>
               <LevelBadge level={level}/> <span style={styles.hostname}>
                 { deviceurl ?
@@ -99,4 +109,5 @@ class App extends React.Component {
   }
 }
 
-ReactWebComponent.create(<App />, 'health-monitoring-fleet');
+// ReactWebComponent.create(<App />, 'health-monitoring-fleet');
+createWebComponent(App, 'health-monitoring-fleet', ['jwt']);

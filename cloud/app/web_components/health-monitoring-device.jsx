@@ -13,8 +13,8 @@ import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
 // ---------------------------------------------------------------
 
-import { useDataSync, useMQTT } from './hooks.js';
-import { LevelBadge } from './shared.jsx';
+import { useDataSync2, useMQTT } from './hooks.js';
+import { LevelBadge, createWebComponent } from './shared.jsx';
 
 const styles = {
   wrapper: {
@@ -95,11 +95,13 @@ const Fleet = ({obj}) => <div>
 </div>;
 
 
-const Diagnostics = ({jwt, id}) => {
-  const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
+const Diagnostics = ({jwt, id, setOnDisconnect}) => {
+  // const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
 
-  // #TEST
-  const mqttClient = useMQTT({jwt, id, onMessage: console.log});
+  // const mqttClient = useMQTT({jwt, id, onMessage: console.log});
+  const { status, ready, StatusComponent, data, stop } =
+    useDataSync2({ jwt, id });
+  setOnDisconnect(stop);
 
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };
@@ -117,9 +119,11 @@ class App extends React.Component {
   }
 };
 
-ReactWebComponent.create(<App />, 'health-monitoring-device');
+// ReactWebComponent.create(<App />, 'health-monitoring-device');
 // ReactWebComponent.create(<App />, 'react-web-component', false);
 
 // @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css");
 // <Button variant="primary">Primary</Button>
 // <FontAwesomeIcon icon={faCoffee} style={styles.icon}/>
+
+createWebComponent(App, 'health-monitoring-device', ['jwt']);

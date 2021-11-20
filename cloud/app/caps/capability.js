@@ -48,7 +48,7 @@ class Capability {
       registry[name] = this;
 
       this.#data.subscribe(changes => {
-        // share changes to out DataCache with subscribers
+        // share changes to our DataCache with subscribers
         for (let path in changes) {
           this.sendToPermitted(path, changes[path]);
         }

@@ -13,7 +13,7 @@ import { useAccordionToggle } from 'react-bootstrap/AccordionToggle';
 
 // ---------------------------------------------------------------
 
-import { useDataSync2, useMQTT } from './hooks.js';
+import { useDataSync, useMQTT } from './hooks.js';
 import { LevelBadge, createWebComponent } from './shared.jsx';
 
 const styles = {
@@ -91,10 +91,8 @@ const Fleet = ({obj}) => <div>
 
 
 const Diagnostics = ({jwt, id}) => {
-  // const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
-
   // const mqttClient = useMQTT({jwt, id, onMessage: console.log});
-  const { status, ready, StatusComponent, data } = useDataSync2({ jwt, id });
+  const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
 
   return (!ready ? <StatusComponent /> : <Fleet obj={data[id]} />);
 };

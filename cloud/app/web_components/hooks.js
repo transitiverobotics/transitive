@@ -2,83 +2,47 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DataCache, pathMatch, decodeJWT } from '@transitive-robotics/utils/client';
 import mqtt from 'mqtt-browser';
 
-/** This is used to connect to the Transitive cloud and authenticate
-  using the provided jwt token. */
-export const useWebSocket = ({jwt, id, onMessage}) => {
-  const [status, setStatus] = useState('connecting');
-  const [ws, setWS] = useState();
-
-  useEffect(() => {
-      const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
-      // Note: TR_* variables are injected by webpack
-      // TODO: also allow construction without token, i.e., delay connecting to ws
-      // console.log('connecting to websocket server', URL)
-
-      const ws = new WebSocket(URL);
-      ws.onopen = (event) => {
-        // ws.send("Hi from client");
-        setWS(ws);
-        setStatus('connected');
-      };
-
-      ws.onmessage = (event) => onMessage && onMessage(event.data);
-      ws.onerror = (event) => {
-        setStatus('error');
-        console.error('websocket error', event);
-      };
-      ws.onclose = (event) => {
-        setStatus('closed');
-        console.log('websocket closed', event);
-      };
-    }, [jwt, id]);
-
-  return {
-    ws,
-    status,
-    ready: status == 'connected',
-    StatusComponent: () => <div>{
-        status == 'error' ? 'Unable to connect, are you logged in?'
-        : (status == 'connecting' ? 'connecting..' : 'connected')
-      }</div>
-  };
-};
-
-
-/** connect to server via useWebSocket, collect data updates into DataCache */
-export const useDataSync = ({jwt, id, publishPath}) => {
-  const [data, setData] = useState({});
-  const dataCache = useMemo(() => new DataCache(), [jwt, id]);
-
-  const { ws, status, ready, StatusComponent } = useWebSocket({ jwt, id,
-    onMessage: (data) => {
-      const newData = JSON.parse(data);
-      window.tr_devmode && console.log('useDataSync', newData);
-      // do not update paths we publish ourselves, to avoid loops:
-      publishPath && Object.keys(newData).forEach(key => {
-        const keyPath = key.replace(/\//g, '.').slice(1);
-        if (pathMatch(publishPath, keyPath)) {
-          delete newData[key]
-        }
-      });
-      window.tr_devmode && console.log('useDataSync, filtered keys', newData);
-      dataCache.updateFromModifier(newData);
-      setData(JSON.parse(JSON.stringify(dataCache.get())));
-    }
-  });
-
-  const publish = (path) => useEffect(() => {
-      ws && dataCache.subscribePath(path,
-        (value, key, matched) => {
-          const changes = {};
-          changes[key] = value;
-          // console.log('sending data update to server', changes);
-          ws.send(JSON.stringify(changes));
-        })
-    }, [ws]);
-
-  publishPath && publish(publishPath);
-  return { status, ready, StatusComponent, data, dataCache, publish };
-};
+// Not in use.
+// /** This is used to connect to the Transitive cloud and authenticate
+//   using the provided jwt token. */
+// export const useWebSocket = ({jwt, id, onMessage}) => {
+//   const [status, setStatus] = useState('connecting');
+//   const [ws, setWS] = useState();
+//
+//   useEffect(() => {
+//       const URL = `${TR_SECURE ? 'wss' : 'ws'}://data.${TR_HOST}?t=${jwt}&id=${id}`;
+//       // Note: TR_* variables are injected by webpack
+//       // TODO: also allow construction without token, i.e., delay connecting to ws
+//       // console.log('connecting to websocket server', URL)
+//
+//       const ws = new WebSocket(URL);
+//       ws.onopen = (event) => {
+//         // ws.send("Hi from client");
+//         setWS(ws);
+//         setStatus('connected');
+//       };
+//
+//       ws.onmessage = (event) => onMessage && onMessage(event.data);
+//       ws.onerror = (event) => {
+//         setStatus('error');
+//         console.error('websocket error', event);
+//       };
+//       ws.onclose = (event) => {
+//         setStatus('closed');
+//         console.log('websocket closed', event);
+//       };
+//     }, [jwt, id]);
+//
+//   return {
+//     ws,
+//     status,
+//     ready: status == 'connected',
+//     StatusComponent: () => <div>{
+//         status == 'error' ? 'Unable to connect, are you logged in?'
+//         : (status == 'connecting' ? 'connecting..' : 'connected')
+//       }</div>
+//   };
+// };
 
 
 /** Uses the provided dataCache as signaling channel to the device to
@@ -245,15 +209,14 @@ export const useMQTT = ({jwt, id, onMessage}) => {
 
 
 /** connect to server via useWebSocket, collect data updates into DataCache */
-export const useDataSync2 = ({jwt, id,
+export const useDataSync = ({jwt, id }) => {
   // publishPath   // NOT IN USE
-  }) => {
   const [data, setData] = useState({});
   const dataCache = useMemo(() => new DataCache(), [jwt, id]);
 
   const { mqttClient, status, ready, StatusComponent } = useMQTT({ jwt, id,
     onMessage: (topic, message, packet) => {
-      window.tr_devmode && console.log('useDataSync2', topic, message.toString());
+      window.tr_devmode && console.log('useDataSync', topic, message.toString());
       // do not update paths we publish ourselves, to avoid loops:
       // TODO, not in use
       // publishPath && Object.keys(newData).forEach(key => {
@@ -264,22 +227,19 @@ export const useDataSync2 = ({jwt, id,
       // });
       // window.tr_devmode && console.log('useDataSync, filtered keys', newData);
       dataCache.updateFromTopic(topic,
-          message.length > 0 ? JSON.parse(message.toString()) : null);
+        message.length > 0 ? JSON.parse(message.toString()) : null);
       setData(JSON.parse(JSON.stringify(dataCache.get())));
     }
   });
 
-  // const publish = (path) => useEffect(() => {
-  //     mqttClient && dataCache.subscribePath(path,
-  //       (value, key, matched) => {
-  //         const changes = {};
-  //         changes[key] = value;
-  //         // ws.send(JSON.stringify(changes)); /TODO
-  //       })
-  //   }, [mqttClient]);
-  //
+  /** add a path of the data cache to be published */
+  const publish = (path) => useEffect(() => {
+      mqttClient && dataCache.subscribePath(path, (value, key, matched) => {
+        mqttClient.publish(`/${key.replace(/\./g, '/')}`,
+          JSON.stringify(value), {retain: true});
+      })
+    }, [mqttClient]);
+
   // publishPath && publish(publishPath);
-  return { status, ready, StatusComponent, data, dataCache
-      // , publish
-    };
+  return { status, ready, StatusComponent, data, dataCache, publish };
 };

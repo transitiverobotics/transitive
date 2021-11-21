@@ -8,7 +8,7 @@ import { ListGroup } from 'react-bootstrap';
 
 import { decodeJWT } from '@transitive-robotics/utils/client';
 
-import { useWebSocket, useDataSync2 } from './hooks.js';
+import { useDataSync } from './hooks.js';
 import { LevelBadge, createWebComponent } from './shared.jsx';
 
 const STALE_THRESHOLD = 5 * 60 * 60 * 1e3;
@@ -38,7 +38,7 @@ const styles = {
 
 const FleetHealth = ({jwt, id, deviceurl}) => {
 
-  const { status, ready, StatusComponent, data } = useDataSync2({ jwt, id });
+  const { status, ready, StatusComponent, data } = useDataSync({ jwt, id });
   const { device } = decodeJWT(jwt);
 
   if (!ready || !data || !data[id]) {

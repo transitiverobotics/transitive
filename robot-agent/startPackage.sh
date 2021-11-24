@@ -15,6 +15,7 @@ PATH=/home/usr/bin:$PATH
 # generate a random password for this package to use
 node -e "fs.writeFileSync('password', Math.random().toString(36).substr(2, 9))"
 
+export TRANSITIVE_IS_ROBOT=1
 npm update --no-save
 # Note: npm update also installs missing packages, see,
 # https://stackoverflow.com/a/19824154/1087119

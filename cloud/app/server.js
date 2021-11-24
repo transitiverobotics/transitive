@@ -228,7 +228,7 @@ Mongo.init(() => {
 
       // Start capabilities
       const robotAgent = new _robotAgent();
-      const hm = new HealthMonitoring();
+      // const hm = new HealthMonitoring(); // -> moved to cap
       const remoteAccess = new RemoteAccess({
         dbCollection: Mongo.db.collection('devices')
       });

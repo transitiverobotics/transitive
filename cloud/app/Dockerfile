@@ -9,4 +9,4 @@ COPY .npmrc /app
 
 RUN npm install
 
-CMD npm run cloud
+CMD npm start

@@ -17,6 +17,8 @@ const VideoStreaming = require('./caps/video_streaming');
 const WebRTCVideo = require('./caps/webrtc_video');
 const RemoteTeleop = require('./caps/remote_teleop');
 
+const docker = require('./docker');
+
 
 // ----------------------------------------------------------------------
 
@@ -28,7 +30,7 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
-const clients = [];
+// const clients = [];
 
 // const wss = new WebSocket.Server({ noServer: true });
 //
@@ -126,7 +128,7 @@ const clients = [];
 // });
 
 /** ---------------------------------------------------------------------------
-Authentication for MQTT Websockets
+  Authentication for MQTT Websockets
 */
 
 /** authenticate the username based on the JWT given as password */
@@ -200,23 +202,55 @@ app.post('/auth/acl', (req, res) => {
 });
 
 
+Mongo.init(() => {
+  server.listen(9000, () => {
+    console.log(`Server started on port ${server.address().port}`);
+  });
+});
+
+
+
+/* -------------------------------------------------------------------------
+  Cloud Agent
+*/
 
 
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
-  onMessage(packet) {
-    // console.log('_robotAgent', packet.topic);
-    // listen to "package running" topics and when found, make sure
-    // the required version of that package is installed and loaded
-    const {sub, device} = parseMQTTTopic(packet.topic);
-    if (sub[0] == 'status' && sub[1] == 'runningPackages') {
-      const packageName = sub[2];
-      const info = packet.payload && JSON.parse(packet.payload.toString());
-      console.log('start', packageName, info);
-      // #HERE: now make sure it's running, and start it in a docker container
-      // if not
-    }
+
+  runningPackages = {};
+
+  constructor() {
+    super(() => {
+      // Subscribe to all messages and make sure that the named capabilities are
+      // running.
+      this.mqtt.subscribe(`/+/+/+/#`, (packet) => {
+        const parsed = parseMQTTTopic(packet.topic);
+        if (!this.runningPackages[parsed.capability]) {
+          console.log('starting', parsed.capability);
+
+          docker.ensureRunning({name: parsed.capability, version: 'latest'})
+          // TODO: extend this (and change namespaces) to include version of pkg
+
+          this.runningPackages[parsed.capability] = new Date();
+        }
+      });
+    });
   }
+
+  // onMessage(packet) {
+  //   // console.log('_robotAgent', packet.topic);
+  //   // listen to "package running" topics and when found, make sure
+  //   // the required version of that package is installed and loaded
+  //   const {sub, device} = parseMQTTTopic(packet.topic);
+  //   if (sub[0] == 'status' && sub[1] == 'runningPackages') {
+  //     const packageName = sub[2];
+  //     const info = packet.payload && JSON.parse(packet.payload.toString());
+  //     console.log('start', packageName, info);
+  //     // #HERE: now make sure it's running, and start it in a docker container
+  //     // if not
+  //   }
+  // }
 };
 
 new _robotAgent();
@@ -243,11 +277,6 @@ new _robotAgent();
 //   });
 // });
 
-Mongo.init(() => {
-  server.listen(9000, () => {
-    console.log(`Server started on port ${server.address().port}`);
-  });
-});
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {

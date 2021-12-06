@@ -136,5 +136,5 @@ const stop = async ({name, version}) => {
   }
 };
 
-// module.exports = { ensureRunning };
-ensureRunning({name: 'health-monitoring', version: '0.3.11'});
+module.exports = { ensureRunning, stop };
+// ensureRunning({name: 'health-monitoring', version: '0.3.11'});

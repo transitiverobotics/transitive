@@ -90,11 +90,18 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
     // During ExecStartPre of each package, a random password is written
     // into it's private folder (only readable by that package and us). Using
     // this here for authentication.
-    fs.readFile(`packages/${client.id}/password`, (err, correctPassword) => {
-      callback(err, !err && correctPassword && password
-          && (password.toString('ascii') == correctPassword.toString('ascii'))
-      )
-    });
+    const parts = client.id.split('/');
+    if (parts.length != 2) {
+      callback({
+        msg: `invalid client id ${client.id}, needs to in format PKG_NAME/VERSION`});
+    } else {
+      const pkgName = parts[0];
+      fs.readFile(`packages/${pkgName}/password`, (err, correctPassword) => {
+        callback(err, !err && correctPassword && password
+            && (password.toString('ascii') == correctPassword.toString('ascii'))
+        )
+      });
+    }
   };
 
   aedes.authorizePublish = (client, packet, callback) => {

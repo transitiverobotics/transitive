@@ -68,11 +68,12 @@ const DiagnosticsStatus = ({level, message, name, hardware_id, values}) => {
 
 const Device = (status) => {
   window.tr_devmode && console.log({status});
-  const diagnostics = status['health-monitoring'].diagnostics;
+  // TODO: get npm package version -- from where?
+  const diagnostics = status['health-monitoring']['0.3.12']?.diagnostics;
 
   return <div>
     <Accordion>{
-        Object.keys(diagnostics).sort().map(name =>
+        diagnostics && Object.keys(diagnostics).sort().map(name =>
           <DiagnosticsStatus {...diagnostics[name]} name={name} key={name}/>
         )
       }</Accordion>

@@ -30,6 +30,22 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
+app.get('/bundle/:capability/:jsFile', (req, res) => {
+  console.log(`getting ${req.params.jsFile}`, req.query);
+  const runningPkgs = robotAgent &&
+    robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
+  const version = runningPkgs && runningPkgs[req.params.capability];
+  console.log(runningPkgs, version);
+  if (version) {
+    // redirect to the folder in dist (symlinked to the place where the named
+    // package exposes its distribution files bundles
+    res.redirect(`/caps_web/${req.params.capability}@${version}/${req.params.jsFile}`);
+  } else {
+    res.end(404, 'package not running on this device');
+  }
+});
+
+
 // const clients = [];
 
 // const wss = new WebSocket.Server({ noServer: true });
@@ -219,6 +235,8 @@ Mongo.init(() => {
 class _robotAgent extends Capability {
 
   runningPackages = {};
+  // store for each device which versions of which packages it is running (speaking)
+  devicePackageVersions = {};
 
   constructor() {
     super(() => {
@@ -226,16 +244,32 @@ class _robotAgent extends Capability {
       // running.
       this.mqtt.subscribe(`/+/+/+/#`, (packet) => {
         const parsed = parseMQTTTopic(packet.topic);
+        this.addDevicePackageVersion(parsed);
         if (!this.runningPackages[parsed.capability]) {
           console.log('starting', parsed.capability);
 
-          docker.ensureRunning({name: parsed.capability, version: 'latest'})
+          // #DEBUG: temporarily disabled for dev
+          // docker.ensureRunning({name: parsed.capability, version: 'latest'})
           // TODO: extend this (and change namespaces) to include version of pkg
 
           this.runningPackages[parsed.capability] = new Date();
         }
       });
     });
+  }
+
+  /** remember that the given device runs the given version of the capability */
+  addDevicePackageVersion({organization, device, capability, version}) {
+    !this.devicePackageVersions[organization] &&
+      (this.devicePackageVersions[organization] = {});
+    !this.devicePackageVersions[organization][device] &&
+      (this.devicePackageVersions[organization][device] = {});
+    this.devicePackageVersions[organization][device][capability] = version;
+  }
+
+  /** get list of all packages running on a device, incl. their versions */
+  getDevicePackages(organization, device) {
+    return this.devicePackageVersions[organization][device] || {};
   }
 
   // onMessage(packet) {
@@ -253,7 +287,7 @@ class _robotAgent extends Capability {
   // }
 };
 
-new _robotAgent();
+const robotAgent = new _robotAgent();
 
 // Mongo.init(() => {
 //   new MQTTHandler(mqtt => {

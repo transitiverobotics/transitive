@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 import { Button, Accordion, AccordionContext, Card, Badge }
 from 'react-bootstrap';

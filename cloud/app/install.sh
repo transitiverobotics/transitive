@@ -18,6 +18,7 @@ cp *.service $HOME/.config/systemd/user/
 # copy code in place (note, we are not cleaning anything existing, in particular
 # we need to ensure the certs stay in place):
 mkdir -p $HOME/opt/$MODULE
+mkdir -p $HOME/run/
 cd $HOME/opt
 # unpack the tarball we downloaded from the previous github action step (see deploy_cloud_app.yaml)
 tar xf $DIR/app.tgz

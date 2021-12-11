@@ -25,13 +25,16 @@ const docker = require('./docker');
 const app = express();
 // app.use(express.static(path.join(__dirname, 'build')));
 // app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/caps', express.static(docker.RUN_DIR));
 app.use(express.json());
 
 const server = http.createServer(app);
 
-app.get('/bundle/:capability/:jsFile', (req, res) => {
-  console.log(`getting ${req.params.jsFile}`, req.query);
+// app.get('/bundle/:capability/:jsFile', (req, res) => {
+const capRouter = express.Router();
+app.use('/bundle', capRouter);
+capRouter.get('/:capability/*', (req, res) => {
+  console.log(`getting ${req.path}`, req.query);
   const runningPkgs = robotAgent &&
     robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
   const version = runningPkgs && runningPkgs[req.params.capability];
@@ -39,11 +42,16 @@ app.get('/bundle/:capability/:jsFile', (req, res) => {
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
     // package exposes its distribution files bundles
-    res.redirect(`/caps_web/${req.params.capability}@${version}/${req.params.jsFile}`);
+    const pathParts = req.path.split('/');
+    // file to get within the folder exposed by the capabilities package:
+    const filePath = pathParts.slice(2).join('/');
+    res.redirect(`/caps/${req.params.capability}/${version}/${filePath}`);
   } else {
     res.end(404, 'package not running on this device');
   }
 });
+// test with:
+// curl "data.homedesk:8000/bundle/health-monitoring/dist/health-monitoring-device.js?userId=qEmYn5tibovKgGvSm&deviceId=GbGa2ygqqz"
 
 
 // const clients = [];
@@ -144,7 +152,7 @@ app.get('/bundle/:capability/:jsFile', (req, res) => {
 // });
 
 /** ---------------------------------------------------------------------------
-  Authentication for MQTT Websockets
+  Authentication for MQTT Websockets (called from mosquitto go-auth)
 */
 
 /** authenticate the username based on the JWT given as password */

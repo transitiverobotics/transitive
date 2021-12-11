@@ -5,17 +5,18 @@ const { execSync } = require('child_process');
 
 const Docker = require('dockerode');
 
+const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 
 const docker = new Docker();
 
 /** Ensure the given version of the given package is running. If not, start
   it in a docker container. */
 const ensureRunning = async ({name, version}) => {
-  // const list = await docker.listContainers();
-  // const isRunning = list.some(cont => cont.Image == `${name}:${version}`);
-  const list = await docker.listContainers({filter:
-    {Image: [`${name}:${version}`]}});
-  const isRunning = list.length > 0;
+  const list = await docker.listContainers();
+  const isRunning = list.some(cont => cont.Image == `${name}:${version}`);
+  // const list = await docker.listContainers({filter:
+  //   {Image: [`${name}:${version}`]}});
+  // const isRunning = list.length > 0;
   if (!isRunning) {
     await start({name, version});
   }
@@ -25,18 +26,17 @@ const ensureRunning = async ({name, version}) => {
 const build = async ({name, version}) => {
 
   const imageName = `${name}:${version}`;
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'transitive-cap-docker-'));
-  console.log(`building ${imageName} in ${tmp}`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transitive-cap-docker-'));
+  console.log(`building ${imageName} in ${dir}`);
 
   // generate certs
-  fs.mkdirSync(path.join(tmp, 'certs'));
-  const keyFile = path.join(tmp, 'certs', 'client.key');
-  const csrFile = path.join(tmp, 'certs', 'client.csr');
-  const crtFile = path.join(tmp, 'certs', 'client.crt');
+  const keyFile = path.join(dir, 'client.key');
+  const csrFile = path.join(dir, 'client.csr');
+  const crtFile = path.join(dir, 'client.crt');
   const cn = `cap:${name}`;
   execSync(`openssl genrsa -out ${keyFile} 2048`);
   execSync(`openssl req -out ${csrFile} -key ${keyFile} -new -subj="/CN=${cn}"`);
-  execSync(`openssl x509 -req -in ${csrFile} -out ${crtFile} -CA /etc/mosquitto/certs/ca.crt -CAkey /etc/mosquitto/certs/ca.key`);
+  execSync(`openssl x509 -req -in ${csrFile} -out ${crtFile} -CA /etc/mosquitto/certs/ca.crt -CAkey /etc/mosquitto/certs/ca.key -days 180`);
 
   // generate package.json
   const packageJson = {
@@ -45,14 +45,15 @@ const build = async ({name, version}) => {
       [`@transitive-robotics/${name}`]: `${version}`
     }
   };
-  fs.writeFileSync(path.join(tmp, 'package.json'),
+  fs.writeFileSync(path.join(dir, 'package.json'),
     JSON.stringify(packageJson, true, 2));
 
   // generate .npmrc
-  fs.writeFileSync(path.join(tmp, '.npmrc'),
-    `@transitive-robotics:registry=http://127.0.0.1:6000\n`); // TODO: don't hard code
+  fs.writeFileSync(path.join(dir, '.npmrc'),
+    `@transitive-robotics:registry=http://127.0.0.1:6000\n`);
+  // TODO: don't hard code
 
-  fs.writeFileSync(path.join(tmp, '.dockerignore'), [
+  fs.writeFileSync(path.join(dir, '.dockerignore'), [
       'node_modules',
       'Dockerfile'
     ].join('\n'));
@@ -60,16 +61,17 @@ const build = async ({name, version}) => {
   // generate Dockerfile
   const pkgFolder = `node_modules/@transitive-robotics/${name}/`;
   const certsFolder = `${pkgFolder}/cloud/certs`;
-  fs.writeFileSync(path.join(tmp, 'Dockerfile'), [
+  fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
-      'WORKDIR /app',
       'COPY * /app/',
+      'WORKDIR /app',
       'RUN npm install',
       `RUN mkdir ${certsFolder}`,
       `RUN ln -s /app/client.crt ${certsFolder}`,
       `RUN ln -s /app/client.key ${certsFolder}`,
       `WORKDIR /app/${pkgFolder}`,
-      'CMD npm run cloud'
+      `CMD cp -a dist /app/run && npm run cloud`
+      // this ^ will be used by cloud-agent to serve capability's web components
     ].join('\n'));
 
   /** now build the equivalent of this docker-compose:
@@ -82,10 +84,8 @@ const build = async ({name, version}) => {
       image: "${name}:${version}"
   */
   const stream = await docker.buildImage({
-      context: tmp,
-      src: ['Dockerfile',
-        'certs/client.key',
-        'certs/client.crt',
+      context: dir,
+      src: ['Dockerfile', 'client.key', 'client.crt',
         'package.json', '.npmrc', '.dockerignore']
     }, {
       networkmode: 'host', // #DEBUG
@@ -103,6 +103,8 @@ const build = async ({name, version}) => {
   yet exist */
 const start = async ({name, version}) => {
   const imageName = `${name}:${version}`;
+  const runDir = path.join(RUN_DIR, name, version);
+  fs.mkdirSync(runDir, {recursive: true});
   const list = await docker.listImages();
   const exists = list.some(image =>
     image.RepoTags && image.RepoTags.includes(imageName));
@@ -118,7 +120,8 @@ const start = async ({name, version}) => {
     name: `${name}_${version}`,
     HostConfig: {
       AutoRemove: true,
-      NetworkMode: 'host' // TODO
+      NetworkMode: 'host', // TODO
+      Binds: [`${runDir}:/app/run`]
     },
     Labels: {
       'transitive-type': 'capability'
@@ -136,5 +139,4 @@ const stop = async ({name, version}) => {
   }
 };
 
-module.exports = { ensureRunning, stop };
-// ensureRunning({name: 'health-monitoring', version: '0.3.11'});
+module.exports = { ensureRunning, stop, RUN_DIR };

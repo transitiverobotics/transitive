@@ -33,7 +33,8 @@ const data = new DataCache();
 
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
-const AGENT_PREFIX = `${PREFIX}/_robot-agent`;
+const version = process.env.npm_package_version || '0.0.0';
+const AGENT_PREFIX = `${PREFIX}/_robot-agent/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 
 const subOptions = {rap: true};
@@ -107,7 +108,7 @@ mqttClient.on('connect', function(connackPacket) {
         }
       });
 
-      const localBroker = startLocalMQTTBroker(mqttClient, PREFIX);
+      const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
       mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, console.log);

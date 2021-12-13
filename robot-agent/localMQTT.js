@@ -20,7 +20,7 @@ const PORT = 1883;
 const subOptions = {rap: true};
 
 /** Start the local mqtt broker. upstreamClient is the upstream mqtt client */
-const startLocalMQTTBroker = (upstreamClient, prefix) => {
+const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
 
   const aedes = Aedes({persistence});
 
@@ -66,18 +66,18 @@ const startLocalMQTTBroker = (upstreamClient, prefix) => {
     console.log('clientReady', client.id);
     // HACKY: username is not required, so we use it to receive additional info
     // from package:
-    const info = client._parser.settings.username != 'ignore' ?
-      client._parser.settings.username :
-      JSON.stringify({npm_package_version: 'latest'});
+    // const info = client._parser.settings.username != 'ignore' ?
+    //   client._parser.settings.username :
+    //   JSON.stringify({npm_package_version: 'latest'});
     upstreamClient.publish(
-      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, info,
+      `${agentPrefix}/status/runningPackages/${client.id}`, 'true',
       {retain: true});
   });
 
   aedes.on('clientDisconnect', (client) => {
     console.log('clientDisconnect', client.id);
     upstreamClient.publish(
-      `${prefix}/_robot-agent/status/runningPackages/${client.id}`, 'false',
+      `${agentPrefix}/status/runningPackages/${client.id}`, 'false',
       {retain: true});
   });
 

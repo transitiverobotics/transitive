@@ -26,6 +26,7 @@ const app = express();
 // app.use(express.static(path.join(__dirname, 'build')));
 // app.use(express.static(path.join(__dirname, 'public')));
 app.use('/caps', express.static(docker.RUN_DIR));
+
 app.use(express.json());
 
 const server = http.createServer(app);
@@ -214,15 +215,17 @@ app.post('/auth/acl', (req, res) => {
 
   const {id, payload} = JSON.parse(req.body.username);
   const parsedTopic = parseMQTTTopic(req.body.topic);
-  if (id == parsedTopic.organization &&
+  // whether or not the request is just for reading
+  const readAccess = (req.body.acc == 1 || req.body.acc == 4);
+  const allowed = id == parsedTopic.organization &&
     payload.device == parsedTopic.device &&
-    payload.capability == parsedTopic.capability &&
-    payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now()) {
-
-    res.send('ok');
-  } else {
-    res.status(401).end('not authorized for topic or token expired');
-  }
+    payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
+    ( payload.capability == parsedTopic.capability ||
+      // all valid JWTs for a device also grant read access to _robot-agent
+      (readAccess && payload.capability == '_robot-agent'));
+  (allowed ? res.send('ok') :
+    res.status(401).end('not authorized for topic or token expired')
+  );
 });
 
 

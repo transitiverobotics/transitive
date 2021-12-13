@@ -11,11 +11,11 @@ const { Capability } = require('@transitive-robotics/utils/cloud');
 
 const { MQTTHandler } = require('./mqtt');
 // const Capability = require('./caps/capability');
-const HealthMonitoring = require('./caps/health_monitoring');
-const RemoteAccess = require('./caps/remote_access');
-const VideoStreaming = require('./caps/video_streaming');
-const WebRTCVideo = require('./caps/webrtc_video');
-const RemoteTeleop = require('./caps/remote_teleop');
+// const HealthMonitoring = require('./caps/health_monitoring');
+// const RemoteAccess = require('./caps/remote_access');
+// const VideoStreaming = require('./caps/video_streaming');
+// const WebRTCVideo = require('./caps/webrtc_video');
+// const RemoteTeleop = require('./caps/remote_teleop');
 
 const docker = require('./docker');
 
@@ -292,8 +292,6 @@ class _robotAgent extends Capability {
   //     const packageName = sub[2];
   //     const info = packet.payload && JSON.parse(packet.payload.toString());
   //     console.log('start', packageName, info);
-  //     // #HERE: now make sure it's running, and start it in a docker container
-  //     // if not
   //   }
   // }
 };

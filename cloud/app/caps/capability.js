@@ -22,7 +22,11 @@ const getCapName = (name) => {
   return parts && parts.join('-').toLowerCase();
 };
 
-/** super class for all capabilities */
+/** super class for all capabilities
+
+  TODO:  remove once all caps are migrated to new layout (like HM right now)
+
+*/
 class Capability {
 
   #data = new DataCache();
@@ -127,8 +131,8 @@ class Capability {
     const cached = this.getPermittedCached(permission);
     // console.log('send permitted cached', cached);
     const flat = toFlatObject(cached);
-    _.forEach(flat, (value, path) => {
-      ws.send(`{ "${pathToTopic(path)}": ${JSON.stringify(value)} }`)
+    _.forEach(flat, (value, topic) => {
+      ws.send(`{ "${topic}": ${JSON.stringify(value)} }`)
     });
 
     const {transitiveUserId, device, capability} = permission;
@@ -153,7 +157,7 @@ class Capability {
     });
   }
 
-  /** send path + text to permitted clients */
+  /** send path + text to permitted clients NOT IN USE? */
   sendToPermitted(path, text) {
     // console.log('Capability: sendToPermitted', path);
     _.forEach(this.#clients, ({ws, permission}) => {

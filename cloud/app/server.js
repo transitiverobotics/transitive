@@ -211,28 +211,32 @@ app.post('/auth/acl', (req, res) => {
     topic: '/qEmYn5tibovKgGvSm/ZXyqpabPL7/health-monitoring/diagnostics/disk partition: root/values/percent',
     username: '{"id":"qEmYn5tibovKgGvSm","payload":{"device":"GbGa2ygqqz","capability":"health-monitoring","userId":"portalUser-qEmYn5tibovKgGvSm","validity":43200,"iat":1637107056}}'
   }*/
+  try {
+    const {id, payload} = JSON.parse(req.body.username);
+    // payload describes the permissions of the user
+    const parsedTopic = parseMQTTTopic(req.body.topic);
+    // whether or not the request is just for reading
+    const readAccess = (req.body.acc == 1 || req.body.acc == 4);
+    const allowed = id == parsedTopic.organization &&
+      payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
+      ( ( payload.device == parsedTopic.device &&
+            ( payload.capability == parsedTopic.capability ||
+              // all valid JWTs for a device also grant read access to _robot-agent
+              (readAccess && parsedTopic.capability == '_robot-agent'))
+        ) ||
+          // _fleet permissions give read access also to all devices' robot-agents
+          ( payload.device == '_fleet' && readAccess &&
+              parsedTopic.capability == '_robot-agent' )
+      );
+    console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
 
-  const {id, payload} = JSON.parse(req.body.username);
-  // payload describes the permissions of the user
-  const parsedTopic = parseMQTTTopic(req.body.topic);
-  // whether or not the request is just for reading
-  const readAccess = (req.body.acc == 1 || req.body.acc == 4);
-  const allowed = id == parsedTopic.organization &&
-    payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
-    ( ( payload.device == parsedTopic.device &&
-        ( payload.capability == parsedTopic.capability ||
-          // all valid JWTs for a device also grant read access to _robot-agent
-          (readAccess && parsedTopic.capability == '_robot-agent'))
-      ) ||
-        // _fleet permissions give read access also to all devices' robot-agents
-        ( payload.device == '_fleet' && readAccess &&
-          parsedTopic.capability == '_robot-agent' )
+    (allowed ? res.send('ok') :
+      res.status(401).end('not authorized for topic or token expired')
     );
-  console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
-
-  (allowed ? res.send('ok') :
-    res.status(401).end('not authorized for topic or token expired')
-  );
+  } catch (e) {
+    console.warn('/auth/acl exception', e, req.body);
+    res.status(400).end('unable to parse authentication request')
+  }
 });
 
 

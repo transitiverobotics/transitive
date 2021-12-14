@@ -263,14 +263,14 @@ class _robotAgent extends Capability {
       this.mqtt.subscribe(`/+/+/+/#`, (packet) => {
         const parsed = parseMQTTTopic(packet.topic);
         this.addDevicePackageVersion(parsed);
-        if (!this.runningPackages[parsed.capability]) {
-          console.log('starting', parsed.capability);
+        const key = `${parsed.capability}@${parsed.version}`;
+        if (!this.runningPackages[key]) {
+          console.log('starting', key);
 
           // #DEBUG: temporarily disabled for dev
-          // docker.ensureRunning({name: parsed.capability, version: 'latest'})
-          // TODO: extend this (and change namespaces) to include version of pkg
+          // docker.ensureRunning({name: parsed.capability, version: parsed.version})
 
-          this.runningPackages[parsed.capability] = new Date();
+          this.runningPackages[key] = new Date();
         }
       });
     });

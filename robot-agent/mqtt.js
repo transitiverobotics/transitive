@@ -67,9 +67,9 @@ mqttClient.on('connect', function(connackPacket) {
       console.log('subscribing to robot-agent commands');
 
       data.subscribe(flatChanges => {
-        for (let key in flatChanges) {
-          mqttClient.publish(`${AGENT_PREFIX}/${key.replace(/\./g, '/')}`,
-            JSON.stringify(flatChanges[key]), {retain: true});
+        for (let topic in flatChanges) {
+          mqttClient.publish(`${AGENT_PREFIX}${topic}`,
+            JSON.stringify(flatChanges[topic]), {retain: true});
         }
       });
 

@@ -205,7 +205,6 @@ app.post('/auth/user', async (req, res) => {
 });
 
 app.post('/auth/acl', (req, res) => {
-  console.log('/auth/acl', req.headers, req.body);
   /* {
     acc: 1,
     clientid: 'mqttjs_c799fa50',
@@ -214,15 +213,23 @@ app.post('/auth/acl', (req, res) => {
   }*/
 
   const {id, payload} = JSON.parse(req.body.username);
+  // payload describes the permissions of the user
   const parsedTopic = parseMQTTTopic(req.body.topic);
   // whether or not the request is just for reading
   const readAccess = (req.body.acc == 1 || req.body.acc == 4);
   const allowed = id == parsedTopic.organization &&
-    payload.device == parsedTopic.device &&
     payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
-    ( payload.capability == parsedTopic.capability ||
-      // all valid JWTs for a device also grant read access to _robot-agent
-      (readAccess && payload.capability == '_robot-agent'));
+    ( ( payload.device == parsedTopic.device &&
+        ( payload.capability == parsedTopic.capability ||
+          // all valid JWTs for a device also grant read access to _robot-agent
+          (readAccess && parsedTopic.capability == '_robot-agent'))
+      ) ||
+        // _fleet permissions give read access also to all devices' robot-agents
+        ( payload.device == '_fleet' && readAccess &&
+          parsedTopic.capability == '_robot-agent' )
+    );
+  console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
+
   (allowed ? res.send('ok') :
     res.status(401).end('not authorized for topic or token expired')
   );

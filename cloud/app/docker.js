@@ -121,6 +121,7 @@ const start = async ({name, version}) => {
     HostConfig: {
       AutoRemove: true,
       NetworkMode: 'host', // TODO
+      // expose app run folder to host, we are hosting the js bundle here
       Binds: [`${runDir}:/app/run`]
     },
     Labels: {

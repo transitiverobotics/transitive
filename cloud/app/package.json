@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@transitive-robotics/utils": "file:../../utils",
+    "@transitive-robotics/utils-web": "file:../../utils/web",
     "bootstrap": "^4.6.0",
     "dockerode": "^3.3.1",
     "express": "^4.17.1",

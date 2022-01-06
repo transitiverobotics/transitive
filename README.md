@@ -3,7 +3,7 @@
 # Key Features
 
 - data synchronization between robot, cloud, and UI (like Meteor)
-- roadmap: RPC across robot, cloud, UI
+  - roadmap: RPC across robot, cloud, UI
 - provides full-stack-package management (like Debian/ROS, but cross-device)
   - package definition (allows sharing of packages with third-party developers)
   - deployment mechanism

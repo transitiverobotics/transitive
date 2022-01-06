@@ -1,13 +1,14 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "1.5.0",
-  "description": "",
+  "version": "1.5.1",
+  "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
-    "dev": "DIR=$PWD; (cd ~/.transitive && env $(cat .env | grep -v ^# | xargs) TR_DEVMODE=TRUE node $DIR/index.js)"
+    "dev": "DIR=$PWD; (cd ~/.transitive && env $(cat .env | grep -v ^# | xargs) TR_DEVMODE=TRUE node $DIR/index.js)",
+    "start": "DIR=$PWD; (cd ~/.transitive && node $DIR/index.js)"
   },
   "keywords": [],
   "author": "Christian Fritz",

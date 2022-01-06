@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import ReactWebComponent from 'react-web-component';
 
-import { useDataSync } from './hooks.js';
-import { InlineCode } from './shared.jsx';
+import { useDataSync, InlineCode } from '@transitive-robotics/utils-web';
 
 const styles = {
 };

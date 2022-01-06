@@ -3,8 +3,8 @@ import React, { useState, useRef } from 'react';
 import { Badge } from 'react-bootstrap';
 import { decodeJWT } from '@transitive-robotics/utils/client';
 
-import { useDataSync, useWebRTC } from './hooks.js';
-import { Timer, createWebComponent } from './shared.jsx';
+import { useDataSync, useWebRTC, Timer, createWebComponent }
+from '@transitive-robotics/utils-web';
 
 const styles = {
   wrapper: {position: 'relative'},

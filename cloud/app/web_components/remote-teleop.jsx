@@ -5,8 +5,8 @@ import { decodeJWT } from '@transitive-robotics/utils/client';
 // import { Joystick as ReactJoystick } from 'react-joystick-component';
 import { ReactJoystickComp } from './ReactJoystickComp';
 
-import { useDataSync, useWebRTC } from './hooks.js';
-import { Timer, createWebComponent } from './shared.jsx';
+import { useDataSync, useWebRTC, Timer, createWebComponent }
+from '@transitive-robotics/utils-web';
 
 const styles = {
   wrapper: {

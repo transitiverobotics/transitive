@@ -27,13 +27,23 @@ const app = express();
 // app.use(express.static(path.join(__dirname, 'public')));
 app.use('/caps', express.static(docker.RUN_DIR));
 
+// for DEV: ignore version number and serve (latest) from relative path
+app.use('/caps/:cap/:version/:asset', (req, res, next) => {
+  const filePath = path.resolve(__dirname, '../../../transitive-caps/',
+    req.params.cap, 'dist', path.basename(req.url));
+  // console.log(req.url, filePath);
+  res.sendFile(filePath);
+});
+
 app.use(express.json());
 
 const server = http.createServer(app);
 
 // app.get('/bundle/:capability/:jsFile', (req, res) => {
+/** Serve the js bundles of capabilities */
 const capRouter = express.Router();
 app.use('/bundle', capRouter);
+capRouter.use('/_robot-agent/dist', express.static(path.resolve(__dirname, 'dist')));
 capRouter.get('/:capability/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query);
   const runningPkgs = robotAgent &&
@@ -228,7 +238,7 @@ app.post('/auth/acl', (req, res) => {
           ( payload.device == '_fleet' && readAccess &&
               parsedTopic.capability == '_robot-agent' )
       );
-    console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
+    // console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
 
     (allowed ? res.send('ok') :
       res.status(401).end('not authorized for topic or token expired')

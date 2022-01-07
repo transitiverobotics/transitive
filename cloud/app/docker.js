@@ -51,7 +51,8 @@ const build = async ({name, version}) => {
   // generate .npmrc
   fs.writeFileSync(path.join(dir, '.npmrc'),
     `@transitive-robotics:registry=http://127.0.0.1:6000\n`);
-  // TODO: don't hard code
+  // TODO: don't hard code in case we separate the npm registry from the app
+  // in the cloud onto separate instances
 
   fs.writeFileSync(path.join(dir, '.dockerignore'), [
       'node_modules',

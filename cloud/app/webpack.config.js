@@ -2,6 +2,7 @@ const path = require('path');
 const os = require('os');
 const webpack = require('webpack');
 const fs = require('fs');
+// const nodeExternals = require('webpack-node-externals');
 
 // get all web components from directory, compile each one separately
 const entry = {};
@@ -13,6 +14,7 @@ fs.readdirSync('./web_components').forEach(name =>
 
 module.exports = {
   entry, // see above
+  // externals: [nodeExternals()],
   module: {
     rules: [{
         test: /\.(js|jsx)$/,

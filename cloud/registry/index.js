@@ -7,6 +7,7 @@ const startServer = require('verdaccio').default;
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 const { versionCompare } = require('@transitive-robotics/utils/server');
+const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
 
 const STORAGE = `${process.env.HOME}/.local/share/verdaccio/storage`;
 
@@ -60,7 +61,7 @@ const addPackageImages = (pkg, cb) => {
 };
 
 
-const startVerdaccio = (capabilitiesCollection) => {
+const startVerdaccio = (mqttHandler) => {
 
   const onNew = (name, ...args) => {
     console.log('onNew!', name, ...args);
@@ -81,7 +82,8 @@ const startVerdaccio = (capabilitiesCollection) => {
     package.last_version = package.versions[latest];
     addPackageImages(package, () => {
       capabilitiesCollection.updateOne(
-        {_id: name}, {$set: {'device_package': package}}, {upsert: true});
+      {_id: name}, {$set: {'device_package': package}}, {upsert: true});
+      // mqttHandler.publish(//)  // #HERE
     });
   };
 
@@ -89,7 +91,9 @@ const startVerdaccio = (capabilitiesCollection) => {
   // https://git.cubetiqs.com/sombochea/verdaccio-ui/src/commit/6f8d891c424f6c0ccd415b4a548edcdcc55e0d39/tools/verdaccio.js
   startServer({
       storage: STORAGE,
-      store: {'evented-local-storage': { onAdd, onNew, onUpdatePackage }},
+      store: {
+        'evented-local-storage': { onAdd, onNew, onUpdatePackage, config_path: STORAGE },
+      },
       web: { enable: true },
       auth: {
         fake2: {} // TODO: rename to http; it's not so fake anymore
@@ -102,7 +106,7 @@ const startVerdaccio = (capabilitiesCollection) => {
     });
 };
 
-
 Mongo.init(() => {
   startVerdaccio(Mongo.db.collection('capabilities'));
 });
+// new MQTTHandler(startVerdaccio);

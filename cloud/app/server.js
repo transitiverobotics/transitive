@@ -249,6 +249,11 @@ app.post('/auth/acl', (req, res) => {
   }
 });
 
+app.get('*', (req, res, next) => {
+  console.log('unknown path', req.url);
+  res.status(404).end();
+});
+
 
 Mongo.init(() => {
   server.listen(9000, () => {

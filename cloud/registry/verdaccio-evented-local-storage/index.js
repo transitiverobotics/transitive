@@ -31,6 +31,10 @@ class EventedLocalDatabase extends localStorage.LocalDatabase {
 
     return localFs;
   }
+  //
+  // search(a, ...args) {
+  //   console.log('my search', this, a.toString(), args);
+  // }
 };
 
 module.exports = {

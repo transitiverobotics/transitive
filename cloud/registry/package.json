@@ -1,7 +1,7 @@
 {
-  "name": "registry",
-  "version": "1.0.0",
-  "description": "",
+  "name": "transitive-registry",
+  "version": "0.0.1",
+  "description": "Transitive npm registry",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -11,11 +11,9 @@
   "license": "ISC",
   "dependencies": {
     "@transitive-robotics/utils": "file:../../utils",
+    "express": "^4.17.2",
     "lodash": "^4.17.21",
     "mime-types": "^2.1.32",
-    "tar": "^6.1.8",
-    "verdaccio": "^4.11.0",
-    "verdaccio-evented-local-storage": "file:verdaccio-evented-local-storage",
-    "verdaccio-fake2": "file:verdaccio-fake2"
+    "tar": "^6.1.8"
   }
 }

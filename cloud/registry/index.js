@@ -114,45 +114,58 @@ const startServer = ({collections: {tarballs, packages}}) => {
   const app = express();
   app.use(express.json());
 
-  // fs.mkdirSync(STORAGE, {recursive: true});
-
   app.get('/', function (req, res) {
-    console.log('saying hello');
-    res.send('hello world');
+    res.send('This is a npm registry.');
   });
 
+  app.put('/-/user/:userid', async (req, res) => {
+    console.log('PUT', req.originalUrl, req.params, req.headers);
+  });
 
   app.put('/:package/:_rev?/:revision?', async (req, res) => {
-    console.log(req.params, JSON.stringify(req.body, true, 2));
-    const attachments = req.body._attachments;
-    delete req.body._attachments;
+    const data = req.body;
+    console.log(req.params, JSON.stringify(data, true, 2), req.headers);
+
+    const attachments = data._attachments;
+    const versionNumber = _.keys(data.versions)[0];
+    delete data._attachments;
 
     const package = await packages.findOne({_id: req.params.package});
     console.log({package});
 
+
     if (!package) {
-      packages.insertOne(req.body);
+      data.date = new Date();
+      data.versions = Object.values(data.versions); // convert to array
+      packages.insertOne(data);
     } else {
-      const versionNumber = _.keys(req.body.versions)[0];
       assert(versionNumber);
-      if (package.versions[versionNumber]) {
+
+      if (package.versions.find(({version}) => version == versionNumber)) {
         // version already exists, refusing to overwrite
-        res.status(403).end('version already exists'); // TODO: is this the right code?
+        res.status(403).end('version already exists');
         return;
       } else {
         // add new version
+        const versionObj = data.versions[versionNumber];
         packages.updateOne({_id: req.params.package},
-          {$set: {versions: {
-            [versionNumber]: req.body.versions[versionNumber]
-          }}}
+          {$set: {
+            version: versionObj.version,
+            author: versionObj.author,
+            keywords: versionObj.keywords,
+            'dist-tags': data['dist-tags'],
+            readme: data.readme,
+            description: data.description,
+            date: new Date(),
+          },
+          $push: {
+            versions: versionObj
+          }}
         );
       }
     }
 
     _.each(attachments, ({data}, filePath) => {
-      // fs.mkdirSync(`${STORAGE}/${path.dirname(filePath)}`, {recursive: true});
-      // const absoluteFilePath = `${STORAGE}/${filePath}`;
-      // fs.writeFileSync(absoluteFilePath, Buffer.from(data, 'base64'));
       tarballs.insertOne({_id: filePath, data});
       console.log(`stored tarball ${filePath}`, data);
     });
@@ -166,6 +179,7 @@ const startServer = ({collections: {tarballs, packages}}) => {
     if (!package) {
       res.status(404).end();
     } else {
+      package.versions = _.keyBy(package.versions, 'version');
       res.json(package);
     }
   });
@@ -182,12 +196,36 @@ const startServer = ({collections: {tarballs, packages}}) => {
     }
   });
 
-  app.use('/*', function(req, res) {
-    console.log('unknown path or not yet implemented',
-      req.method, req.originalUrl, req.headers);
-    res.status(404).end();
+  /** search /-/v1/search?text=%40transitive-robotics&size=20&from=0
+  */
+  app.use('/-/v1/search', async (req, res) => {
+    console.log('search for', req.query.text);
+    const total = await packages.count({name: {$regex: req.query.text}});
+    const results = await packages.find({name: {$regex: req.query.text}}).toArray();
+    console.log({results});
+    res.json({
+      total,
+      time: new Date(),
+      objects: results.map(pkg => ({
+        package: pkg,
+        score: {
+          final: 1.0,
+          detail: {
+            quality: 1.0,
+            popularity: 0.0,
+            maintenance: 0.0
+          }
+        },
+        searchScore: 1.0
+      })),
+    });
   });
 
+  app.use('/*', function(req, res) {
+    console.warn('Unknown path or not yet implemented: ',
+      req.method, req.originalUrl, req.headers, req.body);
+    res.status(404).end();
+  });
 
   app.listen(PORT);
 };

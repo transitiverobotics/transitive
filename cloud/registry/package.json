@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@transitive-robotics/utils": "file:../../utils",
+    "bcrypt": "^5.0.1",
     "express": "^4.17.2",
     "lodash": "^4.17.21",
     "mime-types": "^2.1.32",

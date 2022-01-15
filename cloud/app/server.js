@@ -174,7 +174,7 @@ app.post('/auth/user', async (req, res) => {
   //   username: '{id, payload: {device, capability, userId, validity}}'
 
   const users = Mongo.db.collection('users');
-  const devices = Mongo.db.collection('devices');
+  // const devices = Mongo.db.collection('devices');
 
   const token = req.body.password;
   const payload = decodeJWT(token);

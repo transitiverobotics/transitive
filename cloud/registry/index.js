@@ -4,12 +4,13 @@ const _ = require('lodash');
 const tar = require('tar');
 const mime = require('mime-types')
 const assert = require('assert')
-
 const express = require('express');
+const bcrypt = require('bcrypt');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
+const {randomId} = require('@transitive-robotics/utils/server');
 
 const PORT = 6000;
 const STORAGE = `${process.env.HOME}/.local/share/transitive-registry/storage`;
@@ -109,22 +110,101 @@ const STORAGE = `${process.env.HOME}/.local/share/transitive-registry/storage`;
 //     });
 // };
 
-const startServer = ({collections: {tarballs, packages}}) => {
+
+const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   const app = express();
   app.use(express.json());
 
-  app.get('/', function (req, res) {
-    res.send('This is a npm registry.');
+
+  /** middleware to retrieve user's account, if any; implies requiring login */
+  const useUser = async (req, res, next) => {
+    if (!req.headers.authorization) {
+      res.status(403).json({error: "You need to be logged in."});
+      return;
+    }
+    const token = req.headers.authorization.match(/^Bearer (.*)$/)[1];
+
+    // look up user from this token
+    const account = await accounts.findOne({'tokens.token': token});
+    if (!account) {
+      res.status(403).json({error: "Invalid npm token. Please re-login."});
+      return;
+    }
+
+    const {readonly} = account.tokens.find(tokenObj => tokenObj.token == token);
+    req.user = {_id: account._id, readonly};
+    next();
+  };
+
+
+  /** --- Authentication ---------------------------------------------------- */
+
+  app.post('/-/v1/login', (req, res) => {
+    res.status(401).end();
   });
 
+  /** login request, sample:
+    {
+        "_id": "org.couchdb.user:chfritz",
+        "date": "2022-01-12T20:39:05.775Z",
+        "name": "chfritz",
+        "password": "THE_REAL_PASSWORD_IN_PLAIN_TEXT",
+        "roles": [],
+        "type": "user"
+    }
+    when successful need to respond with 201,
+    {
+        "id": "org.couchdb.user:undefined",
+        "ok": true,
+        "rev": "_we_dont_use_revs_any_more",
+        "token": "npm_QVadVXXXXXXX_THE_ACTUAL_TOKEN_XXXXXXXXXXXXXXRq"
+    }
+  */
   app.put('/-/user/:userid', async (req, res) => {
-    console.log('PUT', req.originalUrl, req.params, req.headers);
+    console.log('PUT', req.originalUrl, req.body);
+
+    const fail = (error) => res.status(401).json({error, ok: false});
+
+    // verify ID
+    const account = await accounts.findOne({_id: req.body.name});
+    if (!account) {
+      return fail('invalid credentials');
+      // on purpose not disclosing that the account doesn't exist
+    }
+
+    const valid = await bcrypt.compare(req.body.password, account.bcryptPassword);
+    if (!valid) {
+      return fail('invalid credentials');
+    }
+
+    const token = randomId(24);
+    await accounts.updateOne({_id: req.body.name}, {$push: {tokens: {
+      readonly: false,
+      created: new Date(),
+      token
+    }}});
+
+    res.status(201).json({
+      id: req.body._id,
+      ok: true,
+      token
+    })
   });
 
-  app.put('/:package/:_rev?/:revision?', async (req, res) => {
+  /** --- Packages ---------------------------------------------------------- */
+
+  app.put('/:package/:_rev?/:revision?', useUser, async (req, res) => {
     const data = req.body;
     console.log(req.params, JSON.stringify(data, true, 2), req.headers);
+
+    if (req.user.readonly) {
+      res.status(401).json({
+        error: `Your token does not grant permission to publish`,
+        success: false
+      });
+      return;
+    }
 
     const attachments = data._attachments;
     const versionNumber = _.keys(data.versions)[0];
@@ -133,46 +213,62 @@ const startServer = ({collections: {tarballs, packages}}) => {
     const package = await packages.findOne({_id: req.params.package});
     console.log({package});
 
-
     if (!package) {
+      // TODO: add user as owner
       data.date = new Date();
       data.versions = Object.values(data.versions); // convert to array
+      data.owner = req.user._id;
       packages.insertOne(data);
+
     } else {
       assert(versionNumber);
 
+      // verify user is owner
+      if (package.owner != req.user._id) {
+        res.status(401).json({
+          error: `You are not the owner of this package`,
+          success: false
+        });
+        return;
+      }
+
       if (package.versions.find(({version}) => version == versionNumber)) {
         // version already exists, refusing to overwrite
-        res.status(403).end('version already exists');
+        res.status(403).json({
+          error: `You cannot publish over the previously published versions: ${versionNumber}`,
+          success: false
+        });
         return;
-      } else {
-        // add new version
-        const versionObj = data.versions[versionNumber];
-        packages.updateOne({_id: req.params.package},
-          {$set: {
-            version: versionObj.version,
-            author: versionObj.author,
-            keywords: versionObj.keywords,
-            'dist-tags': data['dist-tags'],
-            readme: data.readme,
-            description: data.description,
-            date: new Date(),
-          },
-          $push: {
-            versions: versionObj
-          }}
-        );
+
       }
+
+      // all test passed: add new version
+      const versionObj = data.versions[versionNumber];
+      packages.updateOne({_id: req.params.package}, {$set: {
+          version: versionObj.version,
+          author: versionObj.author,
+          keywords: versionObj.keywords,
+          'dist-tags': data['dist-tags'],
+          readme: data.readme,
+          description: data.description,
+          date: new Date(),
+        },
+        $push: {
+          versions: versionObj
+        }});
     }
 
     _.each(attachments, ({data}, filePath) => {
       tarballs.insertOne({_id: filePath, data});
       console.log(`stored tarball ${filePath}`, data);
     });
+
     res.status(200).end();
+
   });
 
 
+  /** get package info */
   app.get('/:package', async (req, res) => {
     console.log('GET', req.params);
     const package = await packages.findOne({_id: req.params.package});
@@ -184,7 +280,7 @@ const startServer = ({collections: {tarballs, packages}}) => {
     }
   });
 
-  /** get tarball */
+  /** get package tarball */
   app.get('/:scope1/:packageName/-/:scope/:filename', async (req, res) => {
     console.log('get tarball', req.url);
     const file = await tarballs.findOne({
@@ -196,7 +292,8 @@ const startServer = ({collections: {tarballs, packages}}) => {
     }
   });
 
-  /** search /-/v1/search?text=%40transitive-robotics&size=20&from=0
+  /** search for packages,
+  e.g., /-/v1/search?text=%40transitive-robotics&size=20&from=0
   */
   app.use('/-/v1/search', async (req, res) => {
     console.log('search for', req.query.text);
@@ -221,6 +318,13 @@ const startServer = ({collections: {tarballs, packages}}) => {
     });
   });
 
+  /** --- Other ------------------------------------------------------------- */
+
+  app.get('/', function (req, res) {
+    res.send('This is a npm registry.');
+  });
+
+  /** catch-all for development */
   app.use('/*', function(req, res) {
     console.warn('Unknown path or not yet implemented: ',
       req.method, req.originalUrl, req.headers, req.body);
@@ -236,6 +340,8 @@ Mongo.init(() => {
 
   const tarballs = Mongo.db.collection('tarballs');
   const packages = Mongo.db.collection('packages');
+  const accounts = Mongo.db.collection('accounts');
+  accounts.createIndexes([{key: {'tokens.token': 1}}, {key: {'name': 1}}]);
 
-  startServer({collections: {tarballs, packages}});
+  startServer({collections: {tarballs, packages, accounts}});
 });

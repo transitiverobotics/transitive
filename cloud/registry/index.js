@@ -7,6 +7,8 @@ const assert = require('assert')
 const express = require('express');
 const bcrypt = require('bcrypt');
 
+const { Readable } = require('stream');
+
 const Mongo = require('@transitive-robotics/utils/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
@@ -87,7 +89,6 @@ const STORAGE = `${process.env.HOME}/.local/share/transitive-registry/storage`;
 //     addPackageImages(package, () => {
 //       capabilitiesCollection.updateOne(
 //       {_id: name}, {$set: {'device_package': package}}, {upsert: true});
-//       // mqttHandler.publish(//)  // #HERE
 //     });
 //   };
 //
@@ -135,6 +136,55 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     const {readonly} = account.tokens.find(tokenObj => tokenObj.token == token);
     req.user = {_id: account._id, readonly};
     next();
+  };
+
+
+  /** look through the provided tar data (base64) and extract images from docs
+  folder */
+  const addImagesFromTar = (tarData, pkgId) => {
+    const stream = Readable.from(Buffer.from(tarData, 'base64'));
+    // stream.pipe(new tar.Parse({
+    // stream.pipe(tar.x({
+    //   onentry: entry => {
+
+    const images = [];
+    /* on entry: check if image and add to images array if so */
+    const onEntry = (entry) => {
+      console.log('tar entry', entry.path);
+      if (!entry.path.startsWith('package/docs')) {
+        return;
+      }
+
+      const fileType = mime.lookup(entry.path);
+      if (!fileType || fileType.split('/')[0] != 'image') {
+        return;
+      }
+      console.log(`found image in tar ${entry.path}, adding to db in base64`);
+
+      const chunks = [];
+      entry.on('data', chunk => chunks.push(chunk));
+      entry.on('end', () => {
+
+        const buf = Buffer.concat(chunks);
+        if (buf.length > 16 * 1024 * 1024) {
+          console.warn(`image ${entry.path} too large (${buf.length} bytes > 16MB), not adding`);
+          return;
+        }
+
+        images.push({
+          path: entry.path,
+          mime: fileType,
+          size: entry.size,
+          base64: buf.toString('base64')
+        });
+      });
+
+      while (entry.read());
+    };
+
+    stream.pipe(tar.x())
+      .on('entry', onEntry)
+      .on('end', () => packages.updateOne({_id: pkgId}, {$set: {images}}));
   };
 
 
@@ -261,6 +311,9 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     _.each(attachments, ({data}, filePath) => {
       tarballs.insertOne({_id: filePath, data});
       console.log(`stored tarball ${filePath}`, data);
+
+      // TODO: also untar, extract images, add to package doc in db
+      addImagesFromTar(data, req.params.package);
     });
 
     res.status(200).end();
@@ -316,6 +369,19 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
         searchScore: 1.0
       })),
     });
+  });
+
+  /** Not sure how `/-/all` was supposed to be used, npm doesn't use it anymore,
+  but we need something like that, so creating our own on this path: list all
+  packages, omitting `versions` and `images` unless requested via
+  `?versions&images` */
+  app.use('/-/custom/all', async (req, res) => {
+    const projection = {};
+    !('images' in req.query) && (projection.images = 0);
+    !('versions' in req.query) && (projection.versions = 0);
+
+    const results = await packages.find({}, {projection}).toArray();
+    res.json(results);
   });
 
   /** --- Other ------------------------------------------------------------- */

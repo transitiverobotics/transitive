@@ -32,15 +32,15 @@ npm install @transitive-robotics/cloud
 
 # [intended] Setup
 
+1. use the CLI tool to create a new account
 1. start the cloud agent (`npx transitive [--dev]`)
 1. open cloud interface (in dev at http://localhost:8000, in production at https://your-hostname)
-  1. register a new account
   1. log in and go to your fleet page
   1. copy the curl command
 1. ssh into your robot or other device
 1. paste and execute the curl command
 1. develop a package, then
   1. log into your local registry by running `npm login --registry=http://localhost:6000`
-    - enter your credentials
+    - enter your account credentials
   1. publish your package to your local registry by running `npm publish`
     - there should be a `.npmrc` file in your project folder that sets your local registry for your scope

@@ -23,5 +23,6 @@ npm update --no-save
 # are installed as well (e.g., if compilation of native code failed last time)
 npm install --no-save
 
-cd node_modules/@transitive-robotics/$1
+PKG_DIR=$(systemd-escape -u "$1")
+cd "node_modules/@transitive-robotics/$PKG_DIR"
 env PASSWORD=$(cat ../../../password) npm start

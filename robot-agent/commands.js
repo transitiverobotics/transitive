@@ -1,30 +1,38 @@
 const fs = require('fs');
 const assert = require('assert');
-const exec = require('child_process').exec;
+const { exec, execSync } = require('child_process');
 
 const _ = require('lodash');
 
 const constants = require('./constants');
 const utils = require('./utils');
 
-const { DataCache } = require('@transitive-robotics/utils/server');
+const { DataCache, toFlatObject } = require('@transitive-robotics/utils/server');
 const dataCache = new DataCache();
 
+/** given a package name, return the system-escaped version of it */
+const systemd_escape = (pkgName) =>
+  execSync(`systemd-escape "${pkgName}"`).toString().trim();
 
-/** install new package */
+/** install new package. Note: addedPkg may include a scope,
+  e.g., @transitive-robotics/test1 */
 const addPackage = (addedPkg) => {
   console.log(`adding package ${addedPkg}`);
   const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
   fs.mkdirSync(dir, {recursive: true});
   fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
   fs.writeFileSync(`${dir}/package.json`,
-    `{ "dependencies": {"@transitive-robotics/${addedPkg}": "*"} }`);
+    `{ "dependencies": {"${addedPkg}": "*"} }`);
 
-  !process.env.TR_DEVMODE &&
-    exec(`systemctl --user start transitive-package@${addedPkg}.service`, {},
-      (err, stdout, stderr) => {
-        console.log('package installed and started', {err, stdout, stderr});
-      });
+  const command =
+    `systemctl --user start transitive-package@${systemd_escape(addedPkg)}.service`;
+  if (process.env.TR_DEVMODE) {
+    console.log(`DEV MODE, not starting package (${command})`);
+  } else {
+    exec(command, {}, (err, stdout, stderr) => {
+      console.log('package installed and started', {err, stdout, stderr});
+    });
+  }
 };
 
 /** stop and uninstall named package */
@@ -33,7 +41,8 @@ const removePackage = (pkg) => {
   // verify the pkg name is a string, not empty, and doesn't contain dots
   assert(typeof pkg == 'string' && pkg.match(/\w/) && !pkg.match(/\./));
   // stop and remove folder
-  exec(`systemctl --user stop transitive-package@${pkg}.service`, {},
+  exec(`systemctl --user stop transitive-package@${systemd_escape(pkg)}.service`,
+    {},
     (err, stdout, stderr) => {
       console.log('package stopped, removing files', {err, stdout, stderr});
       exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
@@ -42,26 +51,38 @@ const removePackage = (pkg) => {
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
 const ensureDesiredPackages = () => {
+  console.log('ensureDesiredPackages');
   const desired = dataCache.get('desiredPackages');
   if (!desired) {
+    // TODO: How do I know whether we've not yet received this or whether it is
+    // indeed `null`? cf. https://github.com/chfritz/transitive/issues/85.
     return;
   }
-  console.log('Ensure installed packages match: ', desired);
-  const copy = JSON.parse(JSON.stringify(desired));
+  const desiredPackages = toFlatObject(desired);
+  // remove the initial '/' from the keys:
+  _.each(desiredPackages, (value, key) => {
+    if (key.startsWith('/')) {
+      delete desiredPackages[key];
+      desiredPackages[key.slice(1)] = value;
+    }
+  });
+  console.log('Ensure installed packages match: ', desiredPackages);
 
   const packages = utils.getInstalledPackages();
+  console.log('currently installed: ', packages);
   packages.forEach(pkg => {
-    if (copy[pkg]) {
+    if (desiredPackages[pkg]) {
       // TODO: later, check whether the version has changed; for now all
       // packages are set to version "*"
-      delete copy[pkg];
+      delete desiredPackages[pkg];
     } else {
       removePackage(pkg);
     }
   });
 
   // what remains in `desired` is added new, install and start
-  Object.keys(copy).forEach(addPackage);
+  console.log('add: ', desiredPackages);
+  Object.keys(desiredPackages).forEach(addPackage);
 };
 
 /** execute a sequence of commands and report corresponding results in cb */
@@ -76,6 +97,8 @@ const execAll = ([head, ...tail], cb) => {
   }
 };
 
+/** commands that the agent accepts over mqtt; all need to be prefixed with an
+  underscore */
 const commands = {
   _restart: () => {
     console.log("Received restart command.");
@@ -109,7 +132,7 @@ const commands = {
 */
 setTimeout(() => {
     ensureDesiredPackages();
-    dataCache.subscribePath('desiredPackages', ensureDesiredPackages);
+    dataCache.subscribePath('/desiredPackages', ensureDesiredPackages);
   }, 4000);
 
 module.exports = {

@@ -4,6 +4,7 @@ const path = require('path');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
+const fetch = require('node-fetch');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 const { parseMQTTTopic, decodeJWT } = require('@transitive-robotics/utils/server');
@@ -249,10 +250,6 @@ app.post('/auth/acl', (req, res) => {
   }
 });
 
-app.get('*', (req, res, next) => {
-  console.log('unknown path', req.url);
-  res.status(404).end();
-});
 
 
 Mongo.init(() => {
@@ -274,6 +271,7 @@ class _robotAgent extends Capability {
   runningPackages = {};
   // store for each device which versions of which packages it is running (speaking)
   devicePackageVersions = {};
+  router = express.Router();
 
   constructor() {
     super(() => {
@@ -292,6 +290,16 @@ class _robotAgent extends Capability {
           this.runningPackages[key] = new Date();
         }
       });
+    });
+
+    this.router.get('/availablePackages', async (req, res) => {
+      // TODO: do not hard-code store url (once #82)
+      // TODO: add authentication headers (once #84), npm token as Bearer
+      const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
+      const response = await fetch(`http://localhost:6000/-/custom/all?q=${selector}`);
+      const data = await response.json();
+      res.set({'Access-Control-Allow-Origin': '*'});
+      res.json(data);
     });
   }
 
@@ -346,6 +354,14 @@ const robotAgent = new _robotAgent();
 //   });
 // });
 
+// let robot agent capability handle it's own sub-path; enable the same for all
+// other, regular, capabilities as well?
+app.use('/_robot-agent', robotAgent.router);
+
+app.get('*', (req, res, next) => {
+  console.log('unknown path', req.url);
+  res.status(404).end();
+});
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {

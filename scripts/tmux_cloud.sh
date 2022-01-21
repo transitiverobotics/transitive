@@ -20,7 +20,7 @@ sleep 1
 #newWindow "ex:react" "npm run start" "examples/react-app"
 newWindow "journalctl" "journalctl --user -f"
 newWindow "proxy" "npm run dev" "../cloud/proxy"
-newWindow "verdaccio" "node index.js" "../cloud/registry"
+newWindow "npm-registry" "node index.js" "../cloud/registry"
 newWindow "cloud:build" "npx webpack --mode=development" "../cloud/app"
 newWindow "cloud:run" "node server.js" "../cloud/app"
 newWindow "portal" "ROOT_URL=http://$(hostname):8000 meteor" "../cloud/portal"

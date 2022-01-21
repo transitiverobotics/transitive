@@ -4,7 +4,7 @@
   "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha -w *.test.js",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
     "dev": "DIR=$PWD; (cd ~/.transitive && env $(cat .env | grep -v ^# | xargs) TR_DEVMODE=TRUE node $DIR/index.js)",
@@ -14,9 +14,12 @@
   "author": "Christian Fritz",
   "license": "UNLICENSED",
   "dependencies": {
-    "@transitive-robotics/utils": "^0.2.1-1",
+    "@transitive-robotics/utils": "^0.2.2",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
     "lodash": "^4.17.21",
     "mqtt": "^4.2.6"
+  },
+  "devDependencies": {
+    "mocha": "^9.1.4"
   }
 }

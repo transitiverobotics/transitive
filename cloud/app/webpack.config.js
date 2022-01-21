@@ -4,6 +4,11 @@ const webpack = require('webpack');
 const fs = require('fs');
 // const nodeExternals = require('webpack-node-externals');
 
+if (!process.env.npm_package_version) {
+  console.error('** Error: Must be run via npm, e.g., `npm run dev`.');
+  process.exit(1);
+}
+
 // get all web components from directory, compile each one separately
 const entry = {};
 fs.readdirSync('./web_components').forEach(name =>
@@ -68,7 +73,8 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       'TR_HOST': JSON.stringify(process.env.TR_HOST || `${os.hostname()}:8000`),
-      'TR_SECURE': process.env.TR_HOST ? 'true' : 'false'
+      'TR_SECURE': process.env.TR_HOST ? 'true' : 'false',
+      'TR_PKG_VERSION': JSON.stringify(process.env.npm_package_version),
     })
   ],
   watch: true

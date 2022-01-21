@@ -23,8 +23,8 @@ const os = require('os');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
 
-const { parseMQTTTopic, DataCache, mqttClearRetained }
-  = require('@transitive-robotics/utils/server');
+const { parseMQTTTopic, DataCache, mqttClearRetained, mqttParsePayload } =
+  require('@transitive-robotics/utils/server');
 const { handleAgentCommand, handleAgentData } = require('./commands');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
@@ -83,10 +83,10 @@ mqttClient.on('connect', function(connackPacket) {
         // relay the upstream message to local
 
         const parsedTopic = parseMQTTTopic(topic);
-        // TODO: ensure no one tries to publish a capability with this name
+        // TODO: ensure no one tries to publish a capability with this name -> registry
         if (parsedTopic.capability == '_robot-agent') {
           // it's for us, the robot-agent
-          const json = JSON.parse(payload.toString('utf-8'));
+          const json = mqttParsePayload(payload);
           if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
             // commands start with `_`
             handleAgentCommand(parsedTopic.sub, json, (response) => response &&

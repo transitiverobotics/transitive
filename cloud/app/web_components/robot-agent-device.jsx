@@ -12,6 +12,26 @@ const _ = {
 import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
 import { decodeJWT, versionCompare } from '@transitive-robotics/utils/client';
 
+/** merge runningPackages and desiredPackages data for display */
+const getMergedPackageInfo = (robotAgentData) => {
+  if (!robotAgentData || !robotAgentData.status) {
+    return {};
+  }
+
+  const rtv = {};
+  _.forEach(robotAgentData.status.runningPackages, (obj, name) => {
+    rtv[name] = rtv[name] || {};
+    rtv[name].running = _.some(obj, running => running);
+  });
+
+  _.forEach(robotAgentData.desiredPackages, (version, name) => {
+    rtv[name] = rtv[name] || {};
+    rtv[name].desired = version;
+  });
+
+  return rtv;
+};
+
 
 const Device = ({jwt, id, cloud_host}) => {
 
@@ -48,6 +68,11 @@ const Device = ({jwt, id, cloud_host}) => {
 
   console.log(latestVersionData);
 
+  // #HERE: not getting a reactive rerender when subscribed data (for
+  // desiredPackages) changes
+
+  const packages = getMergedPackageInfo(latestVersionData);
+
   // Pubishing under which-ever _robot-agent version we get talked to. A quirk
   // of how robot-agent works, since its robot-package and cloud code don't (yet)
   // colocate in code...
@@ -59,29 +84,33 @@ const Device = ({jwt, id, cloud_host}) => {
     mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
   };
 
+  console.log('packages', packages);
+
   return <div>
     <Row>
       <Col sm="6">
         <h6>Capabilities</h6>
         <ListGroup>
-          { latestVersionData?.status?.runningPackages?.length > 0 ?
-            _.map(latestVersionData?.status?.runningPackages, (obj, name) => {
-              if (_.some(obj, running => running)) {
-                return <ListGroup.Item key={name}>
-                  {name}
-                  <Badge variant="success">running</Badge>
-                  <Button variant='link' onClick={() =>
-                    console.log('TODO: uninstall')
-                  }>
-                    uninstall
-                  </Button>
-                  <Button variant='link' onClick={() =>
-                    console.log('TODO: restart')
-                  }>
-                    restart
-                  </Button>
-                </ListGroup.Item>;
-              }}) :
+          { Object.keys(packages).length > 0 ?
+            _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
+              {name}
+              {running && <Badge variant="success">running</Badge>}
+              {running && <Button variant='link' onClick={() =>
+                  console.log('TODO: restart')
+                }>
+                  restart
+                </Button>
+              }
+
+              {desired ? <Button variant='link' onClick={() =>
+                  console.log('TODO: uninstall')
+                }>
+                  uninstall
+                </Button> :
+                <span>(marked for removal)</span>
+              }
+            </ListGroup.Item>) :
+
             <ListGroup.Item>No apps running.</ListGroup.Item>
           }
 

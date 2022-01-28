@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown }
 from 'react-bootstrap';
+const log = require('loglevel');
+log.setLevel('debug');
 
 const _ = {
   map: require('lodash/map'),
   some: require('lodash/some'),
 };
 
-import { useDataSync, useWebRTC, createWebComponent }
-from '@transitive-robotics/utils-web';
+import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
 import { decodeJWT, versionCompare } from '@transitive-robotics/utils/client';
 
 
 const Device = ({jwt, id, cloud_host}) => {
 
-  const {status, ready, StatusComponent, data, dataCache, publish} =
-    useDataSync({jwt, id});
+  // const {status, ready, StatusComponent, data, dataCache, publish} =
+  //   useDataSync({jwt, id});
+  const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
+    mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`});
   const {device} = decodeJWT(jwt);
+  const prefix = `/${id}/${device}/_robot-agent`;
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
@@ -26,26 +30,33 @@ const Device = ({jwt, id, cloud_host}) => {
         .then(json => setAvailablePackages(json));
     }, [cloud_host]);
 
-  publish(`/${id}/${device}/_robot-agent/+/desiredPackages/#`);
+  // publish(`/${id}/${device}/_robot-agent/+/desiredPackages/#`);
 
+  if (mqttSync) {
+    mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+    log.debug('adding publish', `${prefix}/+/desiredPackages`);
+    mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
+  }
   const deviceData = data && data[id] && data[id][device] &&
     data[id][device]['_robot-agent'];
+
   if (!ready || !deviceData) return <StatusComponent />;
 
   const versions = Object.keys(deviceData);
   versions.sort(versionCompare);
   const latestVersionData = deviceData[versions[0]];
 
+  console.log(latestVersionData);
+
   // Pubishing under which-ever _robot-agent version we get talked to. A quirk
   // of how robot-agent works, since its robot-package and cloud code don't (yet)
   // colocate in code...
-  const desiredPackagesTopic =
-    `/${id}/${device}/_robot-agent/${versions[0]}/desiredPackages`;
+  const desiredPackagesTopic = `${prefix}/${versions[0]}/desiredPackages`;
 
   /** add the named package to this robot's desired packages */
   const install = (pkg) => {
     console.log(`installing ${pkg._id}`);
-    dataCache.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
+    mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
   };
 
   return <div>

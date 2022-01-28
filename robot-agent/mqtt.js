@@ -25,11 +25,14 @@ const exec = require('child_process').exec;
 
 const { parseMQTTTopic, DataCache, mqttClearRetained, mqttParsePayload } =
   require('@transitive-robotics/utils/server');
-const { handleAgentCommand, handleAgentData } = require('./commands');
+const MqttSync = require('@transitive-robotics/utils/MqttSync');
+const { handleAgentCommand, ensureDesiredPackages } =
+  require('./commands');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
 
-const data = new DataCache();
+// const data = new DataCache();
+let data;
 
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
@@ -54,6 +57,11 @@ let initialized = false;
 mqttClient.on('connect', function(connackPacket) {
   console.log(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
 
+  const mqttSync = new MqttSync({mqttClient});
+  mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
+  mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
+    (value, key) => ensureDesiredPackages(value));
+
   // TODO: this should not execute more than once, but it does if:
   //  the portal is not running, and
   //  this agent connects to the mqtt broker (which is not getting a response
@@ -66,12 +74,15 @@ mqttClient.on('connect', function(connackPacket) {
 
       console.log('subscribing to robot-agent commands');
 
-      data.subscribe(flatChanges => {
-        for (let topic in flatChanges) {
-          mqttClient.publish(`${AGENT_PREFIX}${topic}`,
-            JSON.stringify(flatChanges[topic]), {retain: true});
-        }
-      });
+      // data.subscribe(flatChanges => {
+      //   for (let topic in flatChanges) {
+      //     mqttClient.publish(`${AGENT_PREFIX}${topic}`,
+      //       JSON.stringify(flatChanges[topic]), {retain: true});
+      //   }
+      // });
+      data = mqttSync.data;
+      mqttSync.publish(`${AGENT_PREFIX}/info`);
+      mqttSync.publish(`${AGENT_PREFIX}/status`);
 
       staticInfo();
 
@@ -92,9 +103,9 @@ mqttClient.on('connect', function(connackPacket) {
             handleAgentCommand(parsedTopic.sub, json, (response) => response &&
               mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
                 JSON.stringify(response)));
-          } else {
-            // everything else is data
-            handleAgentData(parsedTopic.sub, json);
+          // } else {
+          //   // everything else is data
+          //   handleAgentData(parsedTopic.sub, json);
           }
         } else {
           // Not for us, relay it locally.
@@ -110,7 +121,7 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
-      mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
+      // mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, console.log);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, console.log);
@@ -122,23 +133,24 @@ mqttClient.on('connect', function(connackPacket) {
 
 /** publish static info about this machine */
 const staticInfo = () => {
-  data.update(['info'], { os: {
+  const info = {os: {
     hostname: os.hostname(),
     release: os.release(),
     version: os.version(),
-    networkInterfaces: os.networkInterfaces()
-  }});
+    networkInterfaces: os.networkInterfaces(),
+  }};
 
-  exec('lsb_release -a', (err, stdout, stderr) =>
-    !err && data.update(['info', 'os'], { lsb_release: stdout.trim() }));
-  exec('dpkg --print-architecture', (err, stdout, stderr) =>
-    !err && data.update(['info', 'os'], { dpkgArch: stdout.trim() }));
+  exec('lsb_release -a', (err, stdout, stderr) => {
+    !err && (info.os.lsb_release = stdout.trim());
+
+    exec('dpkg --print-architecture', (err, stdout, stderr) => {
+      !err && (info.os.dpkgArch = stdout.trim());
+
+      data.update(`${AGENT_PREFIX}/info`, info);
+    });
+  });
 };
 
 const heartbeat = () => {
-  data.update(['status'], {
-    heartbeat: new Date(),
-    // loadavg: os.loadavg(),
-    // freemem: os.freemem()
-  });
+  data.update(`${AGENT_PREFIX}/status/heartbeat`, new Date());
 };

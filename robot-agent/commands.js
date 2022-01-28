@@ -50,9 +50,9 @@ const removePackage = (pkg) => {
 };
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
-const ensureDesiredPackages = () => {
-  console.log('ensureDesiredPackages');
-  const desired = dataCache.get('desiredPackages');
+const ensureDesiredPackages = (desired) => {
+  console.log('ensureDesiredPackages', desired);
+  // const desired = dataCache.get('desiredPackages');
   if (!desired) {
     // TODO: How do I know whether we've not yet received this or whether it is
     // indeed `null`? cf. https://github.com/chfritz/transitive/issues/85.
@@ -130,19 +130,19 @@ const commands = {
   right away, only once we have gotten our initial batch. Otherwise we'll
   remove packages when the first to-be-installed-package message is received.
 */
-setTimeout(() => {
-    ensureDesiredPackages();
-    dataCache.subscribePath('/desiredPackages', ensureDesiredPackages);
-  }, 4000);
+// setTimeout(() => {
+//     ensureDesiredPackages();
+//     dataCache.subscribePath('/desiredPackages', ensureDesiredPackages);
+//   }, 4000);
 
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */
-  handleAgentData: (subPath, value) => {
-    console.log('handle agent data', subPath, value, dataCache.get());
-    if (subPath[0][0] != '_') {
-      dataCache.update(subPath, value);
-    }
-  },
+  // handleAgentData: (subPath, value) => {
+  //   console.log('handle agent data', subPath, value, dataCache.get());
+  //   if (subPath[0][0] != '_') {
+  //     dataCache.update(subPath, value);
+  //   }
+  // },
   handleAgentCommand: (subPath, value, cb) => {
     const cmd = commands[subPath[0]];
     if (cmd) {

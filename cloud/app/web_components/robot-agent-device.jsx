@@ -3,14 +3,17 @@ import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown }
 from 'react-bootstrap';
 const log = require('loglevel');
 log.setLevel('debug');
+window.log = log;
 
 const _ = {
   map: require('lodash/map'),
   some: require('lodash/some'),
+  forEach: require('lodash/forEach'),
 };
 
 import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
-import { decodeJWT, versionCompare } from '@transitive-robotics/utils/client';
+import { decodeJWT, versionCompare, toFlatObject }
+from '@transitive-robotics/utils/client';
 
 /** merge runningPackages and desiredPackages data for display */
 const getMergedPackageInfo = (robotAgentData) => {
@@ -19,12 +22,14 @@ const getMergedPackageInfo = (robotAgentData) => {
   }
 
   const rtv = {};
-  _.forEach(robotAgentData.status.runningPackages, (obj, name) => {
+  _.forEach(toFlatObject(robotAgentData.status.runningPackages), (obj, name) => {
+    name = name.slice(1); // remove initial slash
     rtv[name] = rtv[name] || {};
     rtv[name].running = _.some(obj, running => running);
   });
 
-  _.forEach(robotAgentData.desiredPackages, (version, name) => {
+  _.forEach(toFlatObject(robotAgentData.desiredPackages), (version, name) => {
+    name = name.slice(1); // remove initial slash
     rtv[name] = rtv[name] || {};
     rtv[name].desired = version;
   });
@@ -35,8 +40,6 @@ const getMergedPackageInfo = (robotAgentData) => {
 
 const Device = ({jwt, id, cloud_host}) => {
 
-  // const {status, ready, StatusComponent, data, dataCache, publish} =
-  //   useDataSync({jwt, id});
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`});
   const {device} = decodeJWT(jwt);
@@ -49,8 +52,6 @@ const Device = ({jwt, id, cloud_host}) => {
         .then(result => result.json())
         .then(json => setAvailablePackages(json));
     }, [cloud_host]);
-
-  // publish(`/${id}/${device}/_robot-agent/+/desiredPackages/#`);
 
   if (mqttSync) {
     mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this

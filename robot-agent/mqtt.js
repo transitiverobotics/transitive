@@ -22,6 +22,8 @@ const fs = require('fs');
 const os = require('os');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
+const log = require('loglevel');
+// log.setLevel('debug');
 
 const { parseMQTTTopic, DataCache, mqttClearRetained, mqttParsePayload } =
   require('@transitive-robotics/utils/server');
@@ -37,7 +39,7 @@ let data;
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version || '0.0.0';
-const AGENT_PREFIX = `${PREFIX}/_robot-agent/${version}`;
+const AGENT_PREFIX = `${PREFIX}/@transitive-robotics/_robot-agent/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 
 const subOptions = {rap: true};
@@ -59,8 +61,13 @@ mqttClient.on('connect', function(connackPacket) {
 
   const mqttSync = new MqttSync({mqttClient});
   mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
-  mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
-    (value, key) => ensureDesiredPackages(value));
+  console.log('wait for heartbeat');
+  mqttSync.waitForHeartbeatOnce(() => {
+    console.log('got heartbeat', mqttSync.data.get());
+    ensureDesiredPackages(mqttSync.data.get());
+    mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
+      (value, key) => ensureDesiredPackages(value));
+  });
 
   // TODO: this should not execute more than once, but it does if:
   //  the portal is not running, and

@@ -91,11 +91,12 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
     // into it's private folder (only readable by that package and us). Using
     // this here for authentication.
     const parts = client.id.split('/');
-    if (parts.length != 2) {
+    if (parts.length < 2) {
       callback({
         msg: `invalid client id ${client.id}, needs to in format PKG_NAME/VERSION`});
     } else {
-      const pkgName = parts[0];
+      const pkgName = parts.slice(0,-1).join('/');
+      console.log('check password', pkgName);
       fs.readFile(`packages/${pkgName}/password`, (err, correctPassword) => {
         callback(err, !err && correctPassword && password
             && (password.toString('ascii') == correctPassword.toString('ascii'))

@@ -50,14 +50,9 @@ const removePackage = (pkg) => {
 };
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
-const ensureDesiredPackages = (desired) => {
+const ensureDesiredPackages = (desired = {}) => {
   console.log('ensureDesiredPackages', desired);
   // const desired = dataCache.get('desiredPackages');
-  if (!desired) {
-    // TODO: How do I know whether we've not yet received this or whether it is
-    // indeed `null`? cf. https://github.com/chfritz/transitive/issues/85.
-    return;
-  }
   const desiredPackages = toFlatObject(desired);
   // remove the initial '/' from the keys:
   _.each(desiredPackages, (value, key) => {

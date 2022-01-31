@@ -5,6 +5,7 @@ const http = require('http');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
 const fetch = require('node-fetch');
+const log = require('loglevel');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 const { parseMQTTTopic, decodeJWT } = require('@transitive-robotics/utils/server');
@@ -20,6 +21,9 @@ const { MQTTHandler } = require('./mqtt');
 
 const docker = require('./docker');
 
+const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
+
+log.setLevel('debug');
 
 // ----------------------------------------------------------------------
 
@@ -44,7 +48,9 @@ const server = http.createServer(app);
 /** Serve the js bundles of capabilities */
 const capRouter = express.Router();
 app.use('/bundle', capRouter);
-capRouter.use('/_robot-agent/dist', express.static(path.resolve(__dirname, 'dist')));
+capRouter.use('/@transitive-robotics/_robot-agent/dist',
+  express.static(path.resolve(__dirname, 'dist')));
+
 capRouter.get('/:capability/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query);
   const runningPkgs = robotAgent &&
@@ -216,6 +222,11 @@ app.post('/auth/user', async (req, res) => {
 });
 
 app.post('/auth/acl', (req, res) => {
+  if (req.body.topic == HEARTBEAT_TOPIC) {
+    res.send('ok');
+    return;
+  }
+
   /* {
     acc: 1,
     clientid: 'mqttjs_c799fa50',
@@ -233,13 +244,15 @@ app.post('/auth/acl', (req, res) => {
       ( ( payload.device == parsedTopic.device &&
             ( payload.capability == parsedTopic.capability ||
               // all valid JWTs for a device also grant read access to _robot-agent
-              (readAccess && parsedTopic.capability == '_robot-agent'))
+              (readAccess &&
+                parsedTopic.capability == '@transitive-robotics/_robot-agent'))
         ) ||
           // _fleet permissions give read access also to all devices' robot-agents
           ( payload.device == '_fleet' && readAccess &&
-              parsedTopic.capability == '_robot-agent' )
+              parsedTopic.capability == '@transitive-robotics/_robot-agent' )
       );
-    // console.log('/auth/acl', req.headers, req.body, readAccess, allowed);
+
+    log.trace('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :
       res.status(401).end('not authorized for topic or token expired')
@@ -298,6 +311,7 @@ class _robotAgent extends Capability {
       const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
       const response = await fetch(`http://localhost:6000/-/custom/all?q=${selector}`);
       const data = await response.json();
+      log.trace('availablePackages', data);
       res.set({'Access-Control-Allow-Origin': '*'});
       res.json(data);
     });
@@ -356,7 +370,7 @@ const robotAgent = new _robotAgent();
 
 // let robot agent capability handle it's own sub-path; enable the same for all
 // other, regular, capabilities as well?
-app.use('/_robot-agent', robotAgent.router);
+app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
 
 app.get('*', (req, res, next) => {
   console.log('unknown path', req.url);

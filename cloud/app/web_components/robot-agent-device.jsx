@@ -43,12 +43,12 @@ const Device = ({jwt, id, cloud_host}) => {
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`});
   const {device} = decodeJWT(jwt);
-  const prefix = `/${id}/${device}/_robot-agent`;
+  const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
       if (!cloud_host) return;
-      fetch(`${cloud_host}/_robot-agent/availablePackages`)
+      fetch(`${cloud_host}/@transitive-robotics/_robot-agent/availablePackages`)
         .then(result => result.json())
         .then(json => setAvailablePackages(json));
     }, [cloud_host]);
@@ -58,19 +58,17 @@ const Device = ({jwt, id, cloud_host}) => {
     log.debug('adding publish', `${prefix}/+/desiredPackages`);
     mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
   }
+
+  log.debug('data', data);
   const deviceData = data && data[id] && data[id][device] &&
-    data[id][device]['_robot-agent'];
+    data[id][device]['@transitive-robotics']['_robot-agent'];
 
   if (!ready || !deviceData) return <StatusComponent />;
 
   const versions = Object.keys(deviceData);
   versions.sort(versionCompare);
   const latestVersionData = deviceData[versions[0]];
-
   console.log(latestVersionData);
-
-  // #HERE: not getting a reactive rerender when subscribed data (for
-  // desiredPackages) changes
 
   const packages = getMergedPackageInfo(latestVersionData);
 
@@ -83,6 +81,11 @@ const Device = ({jwt, id, cloud_host}) => {
   const install = (pkg) => {
     console.log(`installing ${pkg._id}`);
     mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
+  };
+
+  const uninstall = (pkgName) => {
+    console.log(`uninstalling ${pkgName}`);
+    mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, null);
   };
 
   console.log('packages', packages);
@@ -103,9 +106,7 @@ const Device = ({jwt, id, cloud_host}) => {
                 </Button>
               }
 
-              {desired ? <Button variant='link' onClick={() =>
-                  console.log('TODO: uninstall')
-                }>
+              {desired ? <Button variant='link' onClick={() => uninstall(name)}>
                   uninstall
                 </Button> :
                 <span>(marked for removal)</span>

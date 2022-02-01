@@ -21,18 +21,26 @@ const getMergedPackageInfo = (robotAgentData) => {
     return {};
   }
 
-  const rtv = {};
-  _.forEach(toFlatObject(robotAgentData.status.runningPackages), (obj, name) => {
-    name = name.slice(1); // remove initial slash
-    rtv[name] = rtv[name] || {};
-    rtv[name].running = _.some(obj, running => running);
-  });
+  log.debug(robotAgentData, toFlatObject(robotAgentData.status.runningPackages));
 
-  _.forEach(toFlatObject(robotAgentData.desiredPackages), (version, name) => {
-    name = name.slice(1); // remove initial slash
-    rtv[name] = rtv[name] || {};
-    rtv[name].desired = version;
-  });
+  const rtv = {};
+  robotAgentData?.status?.runningPackages &&
+    _.forEach(toFlatObject(robotAgentData.status.runningPackages), (running, name) => {
+      if (running) {
+        const [scope, pkgName, version] = name.slice(1).split('/');
+        name = `${scope}/${pkgName}`;
+        rtv[name] = rtv[name] || {};
+        rtv[name].running = rtv[name].running || {};
+        rtv[name].running[version] = 1;
+      }
+    });
+
+  robotAgentData.desiredPackages &&
+    _.forEach(toFlatObject(robotAgentData.desiredPackages), (version, name) => {
+      name = name.slice(1); // remove initial slash
+      rtv[name] = rtv[name] || {};
+      rtv[name].desired = version;
+    });
 
   return rtv;
 };

@@ -23,7 +23,7 @@ const os = require('os');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
 const log = require('loglevel');
-// log.setLevel('debug');
+log.setLevel('debug');
 
 const { parseMQTTTopic, DataCache, mqttClearRetained, mqttParsePayload } =
   require('@transitive-robotics/utils/server');
@@ -63,8 +63,8 @@ mqttClient.on('connect', function(connackPacket) {
   mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
   console.log('wait for heartbeat');
   mqttSync.waitForHeartbeatOnce(() => {
-    console.log('got heartbeat', mqttSync.data.get());
-    ensureDesiredPackages(mqttSync.data.get());
+    log.debug('got heartbeat');
+    ensureDesiredPackages(mqttSync.data.get(`${AGENT_PREFIX}/desiredPackages`));
     mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
       (value, key) => ensureDesiredPackages(value));
   });

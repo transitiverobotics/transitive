@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown }
 from 'react-bootstrap';
-const log = require('loglevel');
-log.setLevel('debug');
-window.log = log;
 
 const _ = {
   map: require('lodash/map'),
@@ -12,8 +9,10 @@ const _ = {
 };
 
 import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
-import { decodeJWT, versionCompare, toFlatObject }
+import { decodeJWT, versionCompare, toFlatObject, log, getLogger }
 from '@transitive-robotics/utils/client';
+log.setLevel('debug');
+window.log = log;
 
 /** merge runningPackages and desiredPackages data for display */
 const getMergedPackageInfo = (robotAgentData) => {
@@ -105,8 +104,11 @@ const Device = ({jwt, id, cloud_host}) => {
         <ListGroup>
           { Object.keys(packages).length > 0 ?
             _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
-              {name}
-              {running && <Badge variant="success">running</Badge>}
+              {name} {
+                running && <Badge variant="success">
+                  running: {Object.keys(running).join(', ')}
+                </Badge>
+              }
               {running && <Button variant='link' onClick={() =>
                   console.log('TODO: restart')
                 }>
@@ -117,7 +119,7 @@ const Device = ({jwt, id, cloud_host}) => {
               {desired ? <Button variant='link' onClick={() => uninstall(name)}>
                   uninstall
                 </Button> :
-                <span>(marked for removal)</span>
+                <span> (to be removed)</span>
               }
             </ListGroup.Item>) :
 

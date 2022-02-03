@@ -29,7 +29,8 @@ log.setLevel('debug');
 
 const app = express();
 // app.use(express.static(path.join(__dirname, 'build')));
-// app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/caps', express.static(docker.RUN_DIR));
 
 // for DEV: ignore version number and serve (latest) from relative path

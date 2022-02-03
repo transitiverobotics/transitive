@@ -44,8 +44,19 @@ const getMergedPackageInfo = (robotAgentData) => {
   return rtv;
 };
 
+/** ensure the listed props were provided */
+const ensureProps = (props, list) => list.every(name => {
+  const missing = (props[name] === undefined);
+  missing && console.error(`prop ${name} is required`);
+  return !missing;
+});
 
-const Device = ({jwt, id, cloud_host}) => {
+const Device = (props) => {
+
+  if (!ensureProps(props, ['jwt', 'id', 'cloud_host'])) {
+    return <div>missing props</div>;
+  }
+  const {jwt, id, cloud_host} = props;
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`});
@@ -54,7 +65,7 @@ const Device = ({jwt, id, cloud_host}) => {
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
-      if (!cloud_host) return;
+      if (cloud_host === undefined) return;
       fetch(`${cloud_host}/@transitive-robotics/_robot-agent/availablePackages`)
         .then(result => result.json())
         .then(json => setAvailablePackages(json));

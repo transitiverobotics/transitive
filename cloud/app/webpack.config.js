@@ -10,7 +10,10 @@ if (!process.env.npm_package_version) {
 }
 
 // get all web components from directory, compile each one separately
-const entry = {};
+const entry = {app: {
+  import: `./src/index.js`,
+  filename: 'app.js'
+}};
 fs.readdirSync('./web_components').forEach(name =>
   entry[name] = {
     import: `./web_components/${name}`,

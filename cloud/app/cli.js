@@ -21,6 +21,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 yargs(hideBin(process.argv))
+
   .command('createaccount name', 'create a new account with the given name',
   (yargs) => yargs.positional('name', {describe: 'name of the new account'}),
   (argv) => {
@@ -40,7 +41,7 @@ yargs(hideBin(process.argv))
         const {password} = await prompt.get([{
           name: 'password',
           hidden: true,
-          pattern: /^.{8}$/,
+          pattern: /^.{8}.*$/,
           message: 'Invalid password (must be at least 8 characters)',
         }]);
 
@@ -62,5 +63,44 @@ yargs(hideBin(process.argv))
       }
     });
   })
+
+  .command('chpass name', 'change password',
+  (yargs) => yargs.positional('name', {describe: 'name of the account'}),
+  (argv) => {
+    if (argv.verbose) console.info(`changing password for account: ${argv.name}`);
+
+    Mongo.init(async () => {
+      const accounts = Mongo.db.collection('accounts');
+      const existing = await accounts.findOne({_id: argv.name});
+      if (!existing) {
+        console.error('No such account');
+        process.exit(1);
+      } else {
+
+        // prompt for password
+        prompt.start();
+        prompt.message = '';
+        const {password} = await prompt.get([{
+          name: 'password',
+          hidden: true,
+          pattern: /^.{8}.*$/,
+          message: 'Invalid password (must be at least 8 characters)',
+        }]);
+
+        // bcrypt the password
+        const bcryptPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+        await accounts.updateOne({_id: existing._id}, {$set: {bcryptPassword}});
+        console.log('Password updated');
+        process.exit(0);
+      }
+    });
+  })
+
   .demandCommand(1, 'Please specify a command.')
+  .option('verbose', {
+  alias: 'v',
+  type: 'boolean',
+  description: 'Run with verbose logging'
+})
   .argv;

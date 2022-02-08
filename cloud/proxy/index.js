@@ -37,27 +37,27 @@ const handleRequest = (req, res) => {
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });
 
-  } else if (req.headers.host == `video.${host}`) {
-    const params = new URLSearchParams(req.url.slice(req.url.indexOf('?')));
-    const userId = params.get('id');
-
-    if (params.get('jwt') && userId) {
-      // Verify the provided JWT using secret from the user DB
-      verifyJWT(params.get('jwt'), userId, (err, payload) => {
-        if (err) {
-          res.end('authorization failed');
-          return;
-        }
-        if (payload.capability != 'video-streaming') {
-          res.end('authorization is for a different capability');
-          return;
-        }
-        proxy.web(req, res, {target:
-          {socketPath: `/tmp/ssh_video.${userId}.${payload.device}.socket`}});
-      });
-    } else {
-      res.end('missing authorization');
-    }
+  // } else if (req.headers.host == `video.${host}`) {
+  //   const params = new URLSearchParams(req.url.slice(req.url.indexOf('?')));
+  //   const userId = params.get('id');
+  //
+  //   if (params.get('jwt') && userId) {
+  //     // Verify the provided JWT using secret from the user DB
+  //     verifyJWT(params.get('jwt'), userId, (err, payload) => {
+  //       if (err) {
+  //         res.end('authorization failed');
+  //         return;
+  //       }
+  //       if (payload.capability != 'video-streaming') {
+  //         res.end('authorization is for a different capability');
+  //         return;
+  //       }
+  //       proxy.web(req, res, {target:
+  //         {socketPath: `/tmp/ssh_video.${userId}.${payload.device}.socket`}});
+  //     });
+  //   } else {
+  //     res.end('missing authorization');
+  //   }
 
   } else {
     // default
@@ -75,60 +75,60 @@ const handleUpgrade = function(req, socket, head) {
 // -----------------------------------------------------------------------
 // Authentication
 
-const MongoClient = require('mongodb').MongoClient;
-const jwt = require('jsonwebtoken');
-
-const URL = process.env.MONGO_URL || 'mongodb://localhost:3001';
-const DB_NAME = process.env.MONGO_DB || 'meteor';
-const mongo = new MongoClient(URL, {useUnifiedTopology: true});
-let db;
-mongo.connect((err) => {
-  if (!err) {
-    console.log('Connected successfully to mongodb server');
-    db = mongo.db(DB_NAME);
-  } else {
-    console.error('Error connecting to mongodb', err);
-  }
-});
-
-
-/** TODO: merge this with code in cloud/app/server.js (into utils) */
-const verifyJWT = (token, id, callback) => {
-  if (!db) {
-    console.log('Not yet connected to DB, unable to authenticate');
-    return false;
-  }
-
-  const cbWithMessage = (err, payload) => {
-    err && console.log(err);
-    callback(err, payload);
-  };
-
-  db.collection('users').findOne({_id: id}, (err, doc) => {
-    if (err || !doc) {
-      cbWithMessage(
-        'no such user, please verify the id provided to the web component')
-    } else {
-      console.log('from db:', err, doc);
-      if (!doc.jwt_secret) {
-        cbWithMessage('user has no jwt secret yet, please visit the portal')
-      } else {
-        jwt.verify(token, doc.jwt_secret, (err, payload) => {
-          if (err) {
-            cbWithMessage('Unable to verify JWT token');
-          } else {
-            if (payload.validity &&
-              (payload.iat + payload.validity) * 1e3 > Date.now()) {
-              cbWithMessage(null, payload);
-            } else {
-              cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
-            }
-          }
-        });
-      }
-    }
-  });
-};
+// const MongoClient = require('mongodb').MongoClient;
+// const jwt = require('jsonwebtoken');
+//
+// const URL = process.env.MONGO_URL || 'mongodb://localhost';
+// const DB_NAME = process.env.MONGO_DB || 'transitive';
+// const mongo = new MongoClient(URL, {useUnifiedTopology: true});
+// let db;
+// mongo.connect((err) => {
+//   if (!err) {
+//     console.log('Connected successfully to mongodb server');
+//     db = mongo.db(DB_NAME);
+//   } else {
+//     console.error('Error connecting to mongodb', err);
+//   }
+// });
+//
+//
+// /** TODO: merge this with code in cloud/app/server.js (into utils) */
+// const verifyJWT = (token, id, callback) => {
+//   if (!db) {
+//     console.log('Not yet connected to DB, unable to authenticate');
+//     return false;
+//   }
+//
+//   const cbWithMessage = (err, payload) => {
+//     err && console.log(err);
+//     callback(err, payload);
+//   };
+//
+//   db.collection('users').findOne({_id: id}, (err, doc) => {
+//     if (err || !doc) {
+//       cbWithMessage(
+//         'no such user, please verify the id provided to the web component')
+//     } else {
+//       console.log('from db:', err, doc);
+//       if (!doc.jwt_secret) {
+//         cbWithMessage('user has no jwt secret yet, please visit the portal')
+//       } else {
+//         jwt.verify(token, doc.jwt_secret, (err, payload) => {
+//           if (err) {
+//             cbWithMessage('Unable to verify JWT token');
+//           } else {
+//             if (payload.validity &&
+//               (payload.iat + payload.validity) * 1e3 > Date.now()) {
+//               cbWithMessage(null, payload);
+//             } else {
+//               cbWithMessage(`JWT is expired ${JSON.stringify(payload)}`);
+//             }
+//           }
+//         });
+//       }
+//     }
+//   });
+// };
 
 // -----------------------------------------------------------------------
 

@@ -21,13 +21,13 @@ sleep 1
 newWindow "journalctl" "journalctl --user -f"
 newWindow "proxy" "npm run dev" "../cloud/proxy"
 newWindow "npm-registry" "node index.js" "../cloud/registry"
-newWindow "cloud:build" "npx webpack --mode=development" "../cloud/app"
+newWindow "cloud:build" "npm run dev" "../cloud/app"
 newWindow "cloud:run" "node server.js" "../cloud/app"
-newWindow "portal" "ROOT_URL=http://$(hostname):8000 meteor" "../cloud/portal"
-newWindow "bag" "rosbag play -l magni_diag.bag" "../tmp"
+newWindow "portal" "# ROOT_URL=http://$(hostname):8000 meteor" "../cloud/portal"
+newWindow "bag" "# rosbag play -l magni_diag.bag" "../tmp"
 newWindow "health-cap" "# ./rundev.sh" "../../transitive-caps/health-monitoring"
 newWindow "video-cap" "# ./rundev.sh" "../../transitive-caps/video-streaming"
 newWindow "ex:express" "node server.js" "../examples/express"
-newWindow "turtlesim" "rosrun turtlesim turtlesim_node"
+newWindow "turtlesim" "# rosrun turtlesim turtlesim_node"
 
 tmux attach

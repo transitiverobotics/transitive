@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 const assert = require('assert');
 const fetch = require('node-fetch');
 const log = require('loglevel');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 const { parseMQTTTopic, decodeJWT } = require('@transitive-robotics/utils/server');
@@ -181,7 +184,7 @@ app.post('/auth/user', async (req, res) => {
   //   password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6ImhlYWx0aC1tb25pdG9yaW5nIiwidXNlcklkIjoicG9ydGFsVXNlci1xRW1ZbjV0aWJvdktnR3ZTbSIsInZhbGlkaXR5Ijo0MzIwMCwiaWF0IjoxNjM3MDk1Nzg5fQ.H6-3I5z-BwFeUJ3A-j1_2NE9YFa7AGAz5nTWkMPuY9k',
   //   username: '{id, payload: {device, capability, userId, validity}}'
 
-  const users = Mongo.db.collection('users');
+  const accounts = Mongo.db.collection('accounts');
   // const devices = Mongo.db.collection('devices');
 
   const token = req.body.password;
@@ -195,29 +198,31 @@ app.post('/auth/user', async (req, res) => {
     // on this verified username.
     assert.deepEqual(payload, parsedUsername.payload);
 
-    const user = await users.findOne({_id: parsedUsername.id});
-    console.log(user);
-    if (!user) {
+    const account = await accounts.findOne({_id: parsedUsername.id});
+    console.log(account);
+    if (!account) {
       res.status(401).send(
-        'no such user, please verify the id provided to the web component');
+        'no such account, please verify the id provided to the web component');
       return;
     }
-    if (!user.jwt_secret) {
-      res.status(401).send('user has no jwt secret yet, please visit the portal');
+    if (!account.jwtSecret) {
+      res.status(401).send('account has no jwt secret! please recreate using the cli tool');
       return;
     }
 
-    await jwt.verify(token, user.jwt_secret);
+    await jwt.verify(token, account.jwtSecret);
     console.log('verified token');
 
     if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
       // The token is expired
+      console.log(`JWT is expired ${JSON.stringify(payload)}`);
       res.status(401).send(`JWT is expired ${JSON.stringify(payload)}`);
       return;
     }
 
     res.send('ok');
   } catch (e) {
+    console.log(`user authentication failed`, e);
     res.status(401).send(e);
   }
 });
@@ -253,7 +258,7 @@ app.post('/auth/acl', (req, res) => {
               parsedTopic.capability == '@transitive-robotics/_robot-agent' )
       );
 
-    log.trace('/auth/acl', req.body.topic, readAccess, allowed);
+    log.debug('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :
       res.status(401).end('not authorized for topic or token expired')
@@ -265,19 +270,29 @@ app.post('/auth/acl', (req, res) => {
 });
 
 
-
 Mongo.init(() => {
+  robotAgent.addRoutes();
   server.listen(9000, () => {
     console.log(`Server started on port ${server.address().port}`);
   });
 });
 
-
+/** simple middleware to check whether the user is logged in */
+const requireLogin = (req, res, next) => {
+  if (!req.session || !req.session.user) {
+    res.status(401).end('Not authorized. You need to be logged in.');
+  } else {
+    next();
+  }
+};
 
 /* -------------------------------------------------------------------------
   Cloud Agent
 */
 
+const COOKIES = {
+  USER: 'transitive-user'
+};
 
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
@@ -306,6 +321,11 @@ class _robotAgent extends Capability {
       });
     });
 
+    this.router.use(express.json());
+  }
+
+  /** define routes for this app */
+  addRoutes() {
     this.router.get('/availablePackages', async (req, res) => {
       // TODO: do not hard-code store url (once #82)
       // TODO: add authentication headers (once #84), npm token as Bearer
@@ -316,7 +336,78 @@ class _robotAgent extends Capability {
       res.set({'Access-Control-Allow-Origin': '*'});
       res.json(data);
     });
+
+
+    this.router.use(session({
+      secret: process.env.TR_SESSION_SECRET,
+      resave: false,
+      saveUninitialized: true,
+      store: MongoStore.create({
+        clientPromise: new Promise((resolve) => resolve(Mongo.client)),
+        dbName: Mongo.db.databaseName
+      })
+    }));
+
+
+    this.router.get('/test', requireLogin, async (req, res) => {
+      req.session.count = (req.session.count || 0) + 1;
+      console.log(req.session);
+      res.json({msg: 'ok', session: req.session,
+        mongo: Mongo.db.databaseName});
+    });
+
+
+    this.router.post('/login', async (req, res) => {
+      log.debug('login', req.body);
+
+      const fail = (error) => res.clearCookie('user')
+          .status(401).json({error, ok: false});
+
+      if (!req.body.name || !req.body.password) {
+        log.debug('missing credentials', req.body);
+        return fail('to account name given');
+        // on purpose not disclosing that the account doesn't exist
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.body.name});
+      if (!account) {
+        log.debug('no such account', req.body.name);
+        return fail('invalid credentials');
+        // on purpose not disclosing that the account doesn't exist
+      }
+
+      const valid = await bcrypt.compare(req.body.password, account.bcryptPassword);
+      if (!valid) {
+        log.debug('wrong password for account', req.body.name);
+        return fail('invalid credentials');
+      }
+
+      // Write the verified username to the session to indicate logged in status
+      req.session.user = account._id;
+      res.cookie(COOKIES.USER, account._id).json({status: 'ok'});
+    });
+
+
+    this.router.post('/logout', async (req, res) => {
+      log.debug('logout', req.session.user);
+      res.clearCookie(COOKIES.USER, req.session.user).json({status: 'ok'});
+      delete req.session.user;
+    });
+
+
+    this.router.post('/getJWT', requireLogin, async (req, res) => {
+      log.debug('get JWT token', req.body);
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.session.user});
+
+      const token = jwt.sign(req.body, account.jwtSecret);
+      log.debug('responding with', {token});
+      res.json({token});
+    });
   }
+
 
   /** remember that the given device runs the given version of the capability */
   addDevicePackageVersion({organization, device, capability, version}) {
@@ -331,47 +422,15 @@ class _robotAgent extends Capability {
   getDevicePackages(organization, device) {
     return this.devicePackageVersions[organization][device] || {};
   }
-
-  // onMessage(packet) {
-  //   // console.log('_robotAgent', packet.topic);
-  //   // listen to "package running" topics and when found, make sure
-  //   // the required version of that package is installed and loaded
-  //   const {sub, device} = parseMQTTTopic(packet.topic);
-  //   if (sub[0] == 'status' && sub[1] == 'runningPackages') {
-  //     const packageName = sub[2];
-  //     const info = packet.payload && JSON.parse(packet.payload.toString());
-  //     console.log('start', packageName, info);
-  //   }
-  // }
 };
 
-const robotAgent = new _robotAgent();
 
-// Mongo.init(() => {
-//   new MQTTHandler(mqtt => {
-//     server.listen(9000, () => {
-//       console.log(`Server started on port ${server.address().port}`);
-//
-//       Capability.init(mqtt);
-//
-//       // Start capabilities
-//       const robotAgent = new _robotAgent();
-//       // const hm = new HealthMonitoring(); // -> moved to cap
-//       const remoteAccess = new RemoteAccess({
-//         dbCollection: Mongo.db.collection('devices')
-//       });
-//       const videoStreaming = new VideoStreaming({
-//         dbCollection: Mongo.db.collection('devices')
-//       });
-//       const webRTCVideo = new WebRTCVideo();
-//       const remoteTeleop = new RemoteTeleop();
-//     });
-//   });
-// });
-
+let robotAgent;
+robotAgent = new _robotAgent();
 // let robot agent capability handle it's own sub-path; enable the same for all
 // other, regular, capabilities as well?
 app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
+
 
 app.get('*', (req, res, next) => {
   console.log('unknown path', req.url);

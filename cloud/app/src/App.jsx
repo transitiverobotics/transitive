@@ -21,7 +21,7 @@ const Apps = () => {
           {body: {
             id: user,
             device: 'GbGa2ygqqz',
-            capability: '_robot-agent',
+            capability: '@transitive-robotics/_robot-agent',
             validity: 3600,
           }})
       }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown }
+import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form }
 from 'react-bootstrap';
+
+import { FaHeartbeat } from 'react-icons/fa';
 
 const _ = {
   map: require('lodash/map'),
@@ -51,6 +53,47 @@ const ensureProps = (props, list) => list.every(name => {
   return !missing;
 });
 
+/** parse lsb_release info, e.g.,
+'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'
+*/
+const parseLsbRelease = (string) => {
+  const lines = string.split('\n');
+  const rtv = {};
+  lines.forEach(line => {
+    const [field, value] = line.split('\t');
+    // drop colon of field name, then add to rtv
+    rtv[field.slice(0, -1)] = value;
+  });
+  return rtv;
+};
+
+/** display info from OS */
+const OSInfo = ({os}) => <div>
+  <h3>Device: {os.hostname}</h3>
+  <Form.Text>
+    {os.dpkgArch}, {parseLsbRelease(os.lsb_release)?.Description}
+  </Form.Text>
+</div>;
+
+const HEARTBEAT_STALE_THRESHOLD = 5 * 60 * 60 * 1e3;
+const HEARTBEAT_WARNING_THRESHOLD = 2 * 60 * 1e3;
+
+const Heartbeat = ({heartbeat}) => {
+  const style = {
+    live: {color: '#464'},
+    warning: {color: '#774'},
+    stale: {color: '#a00'},
+  };
+  const timediff = Date.now() - (new Date(heartbeat));
+  const state = timediff > HEARTBEAT_STALE_THRESHOLD ? 'stale'
+      : timediff > HEARTBEAT_WARNING_THRESHOLD ? 'warning'
+      : 'live';
+  return <div style={style[state]} title={state}>
+    <FaHeartbeat /> {(new Date(heartbeat)).toLocaleString()}
+  </div>
+};
+
+/** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
 
   if (!ensureProps(props, ['jwt', 'id', 'cloud_host'])) {
@@ -89,12 +132,14 @@ const Device = (props) => {
   const latestVersionData = deviceData[versions[0]];
   console.log(latestVersionData);
 
-  const packages = getMergedPackageInfo(latestVersionData);
-
   // Pubishing under which-ever _robot-agent version we get talked to. A quirk
   // of how robot-agent works, since its robot-package and cloud code don't (yet)
   // colocate in code...
-  const desiredPackagesTopic = `${prefix}/${versions[0]}/desiredPackages`;
+  const versionPrefix = `${prefix}/${versions[0]}`;
+
+  const packages = getMergedPackageInfo(latestVersionData);
+
+  const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
 
   /** add the named package to this robot's desired packages */
   const install = (pkg) => {
@@ -107,9 +152,22 @@ const Device = (props) => {
     mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, null);
   };
 
+  const restartAgent = () => {
+    const topic = `${versionPrefix}/_restart`;
+    console.log('sending restart command', topic);
+    mqttSync.mqtt.publish(topic, '1');
+  };
+
+
   console.log('packages', packages);
 
+  const os = latestVersionData.info?.os;
+
   return <div>
+    {os && <OSInfo os={os}/>}
+    {latestVersionData.status?.heartbeat &&
+      <Heartbeat heartbeat={latestVersionData.status.heartbeat} />}
+
     <Row>
       <Col sm="6">
         <h6>Capabilities</h6>
@@ -152,8 +210,7 @@ const Device = (props) => {
       </Col>
 
       <Col sm="6">
-        <Button onClick={() => console.log('TODO: restart agent')}
-          variant='outline-warning'>
+        <Button onClick={restartAgent} variant='outline-warning'>
           Restart agent
         </Button>
       </Col>

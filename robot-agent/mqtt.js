@@ -102,7 +102,7 @@ mqttClient.on('connect', function(connackPacket) {
 
         const parsedTopic = parseMQTTTopic(topic);
         // TODO: ensure no one tries to publish a capability with this name -> registry
-        if (parsedTopic.capability == '_robot-agent') {
+        if (parsedTopic.capability == '@transitive-robotics/_robot-agent') {
           // it's for us, the robot-agent
           const json = mqttParsePayload(payload);
           if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {

@@ -19,6 +19,8 @@ mkdir -p ~/.transitive/etc
 mkdir -p ~/.transitive/run
 mkdir -p ~/.transitive/usr/bin
 
+cp uninstall.sh ~/.transitive/usr/bin
+
 cp unshare*.sh ~/.transitive
 [ ! -e ~/.transitive/etc/env_local ] && touch ~/.transitive/etc/env_local
 

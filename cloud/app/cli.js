@@ -50,11 +50,13 @@ yargs(hideBin(process.argv))
 
         // generate random JWT secret
         const jwtSecret = randomId(16);
+        const robotToken = randomId(12);
 
         const newAccount = {
           _id: argv.name,
           bcryptPassword,
           jwtSecret,
+          robotToken
         };
 
         await accounts.insertOne(newAccount);

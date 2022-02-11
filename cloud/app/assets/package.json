@@ -1,0 +1,16 @@
+{
+  "name": "@transitive-robotics/init",
+  "version": "1.0.0",
+  "description": "The Transitive Robotics init package. Installs the agent.",
+  "repository": "-",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@transitive-robotics/robot-agent": "*"
+  }
+}

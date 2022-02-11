@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 
 import {log, getLogger, fetchJson} from '@transitive-robotics/utils/client';
-import {useAccount} from '@transitive-robotics/utils-web';
 
-export default () => {
+import {Login, UserContext, UserContextProvider} from './Login.jsx';
 
-  const {user} = useAccount();
-  // #HERE: ^^ this is not shared!! so calling refresh in Login doesn't trigger
-  // a reaction here; maybe use a react context after all?
-
-
-
+const Apps = () => {
+  const {user} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
 
   useEffect(() => {
@@ -26,17 +21,37 @@ export default () => {
           {body: {
             id: user,
             device: 'GbGa2ygqqz',
-            capability: '_robot-agent'
+            capability: '_robot-agent',
+            validity: 3600,
           }})
       }
     }, [user, jwtToken]);
 
   console.log({user, jwtToken});
 
+  if (!user) {
+    return <div>Log in to see device details</div>;
+  }
+
+  if (!jwtToken) {
+    return <div>Authenicating...</div>;
+  }
+
+  return <robot-agent-device id={user} jwt={jwtToken}
+    cloud_host={`${location.protocol}//${location.host}`} />;
+
+  // <health-monitoring-device id='abc' jwt='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImNhcGFiaWxpdHkiOiJfcm9ib3QtYWdlbnQiLCJpYXQiOjE2NDM4NTY5MDN9.R0kzAK2KwCrx7v2KpNrDcNPq6KjmNyK6ufTDWusYyis'/>
+};
+
+
+export default () => {
   return <div>
     The App
 
-    <robot-agent-login />
+    <UserContextProvider>
+      <Login />
+      <Apps />
+    </UserContextProvider>
   </div>;
 };
 

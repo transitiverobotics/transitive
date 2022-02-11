@@ -23,6 +23,7 @@ const { MQTTHandler } = require('./mqtt');
 // const RemoteTeleop = require('./caps/remote_teleop');
 
 const docker = require('./docker');
+const installRouter = require('./install');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
@@ -39,7 +40,7 @@ app.use('/caps', express.static(docker.RUN_DIR));
 // for DEV: ignore version number and serve (latest) from relative path
 app.use('/caps/:cap/:version/:asset', (req, res, next) => {
   const filePath = path.resolve(__dirname, '../../../transitive-caps/',
-    req.params.cap, 'dist', path.basename(req.url));
+    req.params.cap, 'dist', path.basename(req.url), req.params.asset);
   // console.log(req.url, filePath);
   res.sendFile(filePath);
 });
@@ -69,7 +70,7 @@ capRouter.get('/:capability/*', (req, res) => {
     const filePath = pathParts.slice(2).join('/');
     res.redirect(`/caps/${req.params.capability}/${version}/${filePath}`);
   } else {
-    res.end(404, 'package not running on this device');
+    res.status(404).end('package not running on this device');
   }
 });
 // test with:
@@ -270,13 +271,6 @@ app.post('/auth/acl', (req, res) => {
 });
 
 
-Mongo.init(() => {
-  robotAgent.addRoutes();
-  server.listen(9000, () => {
-    console.log(`Server started on port ${server.address().port}`);
-  });
-});
-
 /** simple middleware to check whether the user is logged in */
 const requireLogin = (req, res, next) => {
   if (!req.session || !req.session.user) {
@@ -431,13 +425,26 @@ robotAgent = new _robotAgent();
 // other, regular, capabilities as well?
 app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
 
+// routes used during the installation process of a new robot
+app.use('/install', installRouter);
 
-app.get('*', (req, res, next) => {
-  console.log('unknown path', req.url);
+// for debugging
+app.use('*', (req, res, next) => {
+  console.log('Unknown path', req.method, req.url);
   res.status(404).end();
 });
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
+});
+
+/** ---------------------------------------------------------------------------
+  MAIN
+*/
+Mongo.init(() => {
+  robotAgent.addRoutes();
+  server.listen(9000, () => {
+    console.log(`Server started on port ${server.address().port}`);
+  });
 });

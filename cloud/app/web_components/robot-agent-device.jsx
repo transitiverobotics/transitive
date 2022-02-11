@@ -54,6 +54,7 @@ const ensureProps = (props, list) => list.every(name => {
 const Device = (props) => {
 
   if (!ensureProps(props, ['jwt', 'id', 'cloud_host'])) {
+    console.log({props})
     return <div>missing props</div>;
   }
   const {jwt, id, cloud_host} = props;

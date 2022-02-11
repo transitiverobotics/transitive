@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-// const WebSocket = require('ws');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
@@ -259,6 +258,7 @@ app.post('/auth/acl', (req, res) => {
               parsedTopic.capability == '@transitive-robotics/_robot-agent' )
       );
 
+    log.trace('/auth/acl', payload, parsedTopic);
     log.debug('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :

@@ -19,8 +19,6 @@ const styles = {
     width: '100%',
     height: '100%',
     margin: '0px',
-    // backgroundColor: 'rgb(13, 18, 44)',
-    // color: '#eee',
     display: 'flex'
   },
   sidebar: {
@@ -85,6 +83,20 @@ const Capability = ({webComponent, capability, ...props}) => {
 };
 
 
+/** Component to render widgets of capabilities, indicated in URL params  */
+const CapabilityWidget = ({type}) => {
+  const {deviceId, scope, capabilityName} = useParams();
+  const capability = `${scope}/${capabilityName}`;
+
+  return <Capability webComponent={`${capabilityName}-device`}
+    capability={capability}/>
+
+  // #HERE: this actually works! but we still need to load the right .js
+  // bundle, and even with health-monitoring-device.js hardcoded in index.html
+  // it currently doesn't work.
+};
+
+
 const Apps = () => {
 
   return <div style={styles.wrapper}>
@@ -97,11 +109,12 @@ const Apps = () => {
 
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/admin" />
+          <Route path="/security" />
 
           <Route path="/" element={
               <Capability webComponent='robot-agent-fleet'
                 capability='@transitive-robotics/_robot-agent'
-                cloud_host={`${location.protocol}//${location.host}`}
                 device_url='/device'
                 />
             }/>
@@ -113,16 +126,13 @@ const Apps = () => {
                 />
             }/>
 
-          <Route path="/caps" />
+          {/** per capability and per device page */}
+          <Route path="/device/:deviceId/:scope/:capabilityName"
+            element={<CapabilityWidget type='device'/>} />
 
-          <Route path="/admin" />
+          <Route path="/fleet/:scope/:capabilityName"
+            element={<CapabilityWidget type='fleet'/>} />
 
-          <Route path="/security" />
-
-          <Route path="/documentation" />
-
-          {/* Not listed in navigation */}
-          <Route path="/demo" />
         </Routes>
       </div>
     </Router>

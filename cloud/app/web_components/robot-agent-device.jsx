@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form }
 from 'react-bootstrap';
 
-import { FaHeartbeat } from 'react-icons/fa';
+import { Heartbeat } from './shared';
 
 const _ = {
   map: require('lodash/map'),
@@ -15,6 +15,12 @@ import { decodeJWT, versionCompare, toFlatObject, log, getLogger }
 from '@transitive-robotics/utils/client';
 log.setLevel('debug');
 window.log = log;
+
+const styles = {
+  row: {
+    marginBottom: '2em'
+  }
+};
 
 /** merge runningPackages and desiredPackages data for display */
 const getMergedPackageInfo = (robotAgentData) => {
@@ -75,23 +81,6 @@ const OSInfo = ({os}) => <div>
   </Form.Text>
 </div>;
 
-const HEARTBEAT_STALE_THRESHOLD = 5 * 60 * 60 * 1e3;
-const HEARTBEAT_WARNING_THRESHOLD = 2 * 60 * 1e3;
-
-const Heartbeat = ({heartbeat}) => {
-  const style = {
-    live: {color: '#464'},
-    warning: {color: '#774'},
-    stale: {color: '#a00'},
-  };
-  const timediff = Date.now() - (new Date(heartbeat));
-  const state = timediff > HEARTBEAT_STALE_THRESHOLD ? 'stale'
-      : timediff > HEARTBEAT_WARNING_THRESHOLD ? 'warning'
-      : 'live';
-  return <div style={style[state]} title={state}>
-    <FaHeartbeat /> {(new Date(heartbeat)).toLocaleString()}
-  </div>
-};
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
@@ -164,57 +153,57 @@ const Device = (props) => {
   const os = latestVersionData.info?.os;
 
   return <div>
-    {os && <OSInfo os={os}/>}
-    {latestVersionData.status?.heartbeat &&
-      <Heartbeat heartbeat={latestVersionData.status.heartbeat} />}
+    <div style={styles.row}>
+      {os && <OSInfo os={os}/>}
+      {latestVersionData.status?.heartbeat &&
+        <Heartbeat heartbeat={latestVersionData.status.heartbeat} />}
+    </div>
 
-    <Row>
-      <Col sm="6">
-        <h6>Capabilities</h6>
-        <ListGroup>
-          { Object.keys(packages).length > 0 ?
-            _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
-              {name} {
-                running && <Badge variant="success">
-                  running: {Object.keys(running).join(', ')}
-                </Badge>
-              }
-              {running && <Button variant='link' onClick={() =>
-                  console.log('TODO: restart')
-                }>
-                  restart
-                </Button>
-              }
+    <div style={styles.row}>
+      <Button onClick={restartAgent} variant='outline-warning'>
+        Restart agent
+      </Button>
+    </div>
 
-              {desired ? <Button variant='link' onClick={() => uninstall(name)}>
-                  uninstall
-                </Button> :
-                <span> (to be removed)</span>
-              }
-            </ListGroup.Item>) :
+    <div style={styles.row}>
+      <h5>Capabilities</h5>
+      <ListGroup>
+        { Object.keys(packages).length > 0 ?
+          _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
+            {name} {
+              running && <Badge variant="success">
+                running: {Object.keys(running).join(', ')}
+              </Badge>
+            }
+            {running && <Button variant='link' onClick={() =>
+                console.log('TODO: restart')
+              }>
+                restart
+              </Button>
+            }
 
-            <ListGroup.Item>No apps running.</ListGroup.Item>
-          }
+            {desired ? <Button variant='link' onClick={() => uninstall(name)}>
+                uninstall
+              </Button> :
+              <span> (to be removed)</span>
+            }
+          </ListGroup.Item>) :
 
-          <ListGroup.Item>
-            <DropdownButton title="Install apps" variant='link'>
-              {availablePackages.map(pkg => <Dropdown.Item
-                  key={pkg._id}
-                  onClick={() => install(pkg)}>
-                  {pkg.versions[0].transitiverobotics.title} ({pkg.version})
-                </Dropdown.Item>)
-              }
-            </DropdownButton>
-          </ListGroup.Item>
-        </ListGroup>
-      </Col>
+          <ListGroup.Item>No apps running.</ListGroup.Item>
+        }
 
-      <Col sm="6">
-        <Button onClick={restartAgent} variant='outline-warning'>
-          Restart agent
-        </Button>
-      </Col>
-    </Row>
+        <ListGroup.Item>
+          <DropdownButton title="Install apps" variant='link'>
+            {availablePackages.map(pkg => <Dropdown.Item
+                key={pkg._id}
+                onClick={() => install(pkg)}>
+                {pkg.versions[0].transitiverobotics.title} ({pkg.version})
+              </Dropdown.Item>)
+            }
+          </DropdownButton>
+        </ListGroup.Item>
+      </ListGroup>
+    </div>
   </div>
 };
 

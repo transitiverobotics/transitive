@@ -429,10 +429,14 @@ app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
 app.use('/install', installRouter);
 
 // for debugging
-app.use('*', (req, res, next) => {
-  console.log('Unknown path', req.method, req.url);
-  res.status(404).end();
-});
+// app.use('*', (req, res, next) => {
+//   console.log('Unknown path', req.method, req.url);
+//   res.status(404).end();
+// });
+
+// to allow client-side rendering:
+app.use('/*', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {

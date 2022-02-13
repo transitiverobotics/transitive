@@ -18,35 +18,21 @@ export const UserContextProvider = ({children}) => {
   };
   useEffect(refresh, []);
 
-  return <UserContext.Provider value={{user, refresh}}>
-    {children}
-  </UserContext.Provider>;
-};
-
-
-/** Login component; updates the context on login/logout events */
-export const Login = (props) => {
-
-  const [userName, setUserName] = useState('');
-  const [password, setPassword] = useState('');
-  const {user, refresh} = useContext(UserContext);
-
   /** execute the login */
-  const login = () => fetchJson(
-    `${props.host || ''}/@transitive-robotics/_robot-agent/login`,
-    (err, res) => {
-      if (err) {
-        console.error(err);
-      } else {
-        console.log('logged in');
-        refresh();
-        props.redirect && (window.location.href = props.redirect);
-      }
-    },
-    {body: {name: userName, password}});
+  const login = (user, password, redirect = undefined) =>
+    fetchJson(`/@transitive-robotics/_robot-agent/login`,
+      (err, res) => {
+        if (err) {
+          console.error(err);
+        } else {
+          console.log('logged in');
+          refresh();
+          props.redirect && (window.location.href = props.redirect);
+        }
+      },
+      {body: {name: user, password}});
 
-  const logout = () => fetchJson(
-    `${props.host || ''}/@transitive-robotics/_robot-agent/logout`,
+  const logout = () => fetchJson('@transitive-robotics/_robot-agent/logout',
     (err, res) => {
       if (err) {
         console.error(err);
@@ -57,9 +43,23 @@ export const Login = (props) => {
     },
     {method: 'post'});
 
+  return <UserContext.Provider value={{user, login, logout}}>
+    {children}
+  </UserContext.Provider>;
+};
+
+
+/** Login component; updates the context on login/logout events */
+export const Login = ({redirect}) => {
+
+  const [userName, setUserName] = useState('');
+  const [password, setPassword] = useState('');
+  const {user, login, logout} = useContext(UserContext);
+
   if (user) {
-    return <div>logged in!
-      <Button variant="primary" disabled={!user} onClick={logout}>
+    return <div>
+      You are logged in as {user}.
+      <Button variant="primary" onClick={logout}>
         Log out
       </Button>
     </div>;
@@ -83,7 +83,7 @@ export const Login = (props) => {
           autoComplete="current-password"/>
       </Form.Group>
       <Button variant="primary" disabled={!userName || !password}
-        onClick={login}
+        onClick={() => login(userName, password, redirect)}
       >
         Log in
       </Button>

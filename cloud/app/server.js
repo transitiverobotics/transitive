@@ -4,13 +4,13 @@ const http = require('http');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
 const fetch = require('node-fetch');
-const log = require('loglevel');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
-const { parseMQTTTopic, decodeJWT } = require('@transitive-robotics/utils/server');
+const { parseMQTTTopic, decodeJWT, log, getLogger } =
+  require('@transitive-robotics/utils/server');
 const { Capability } = require('@transitive-robotics/utils/cloud');
 
 const { MQTTHandler } = require('./mqtt');
@@ -27,20 +27,28 @@ const installRouter = require('./install');
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
 log.setLevel('debug');
+const logger = getLogger(module.id);
 
 // ----------------------------------------------------------------------
 
 const app = express();
+
+app.use((req, res, next) => {
+  logger.debug(req.method, req.originalUrl);
+  next();
+});
+
 // app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/caps', express.static(docker.RUN_DIR));
 
 // for DEV: ignore version number and serve (latest) from relative path
-app.use('/caps/:cap/:version/:asset', (req, res, next) => {
+app.use('/caps/:scope/:capabilityName/:version/:asset', (req, res, next) => {
   const filePath = path.resolve(__dirname, '../../../transitive-caps/',
-    req.params.cap, 'dist', path.basename(req.url), req.params.asset);
-  // console.log(req.url, filePath);
+    req.params.capabilityName, 'dist',
+    // path.basename(req.url),
+    req.params.asset);
   res.sendFile(filePath);
 });
 
@@ -52,22 +60,22 @@ const server = http.createServer(app);
 /** Serve the js bundles of capabilities */
 const capRouter = express.Router();
 app.use('/bundle', capRouter);
-capRouter.use('/@transitive-robotics/_robot-agent/dist',
+capRouter.use('/@transitive-robotics/_robot-agent',
   express.static(path.resolve(__dirname, 'dist')));
 
-capRouter.get('/:capability/*', (req, res) => {
-  console.log(`getting ${req.path}`, req.query);
+capRouter.get('/:scope/:capabilityName/*', (req, res) => {
+  console.log(`getting ${req.path}`, req.query, req.params);
+  const capability = `${req.params.scope}/${req.params.capabilityName}`;
+  const filePath = req.params[0]; // the part that matched the *
   const runningPkgs = robotAgent &&
     robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
-  const version = runningPkgs && runningPkgs[req.params.capability];
+  const version = runningPkgs && runningPkgs[capability];
   console.log(runningPkgs, version);
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
-    // package exposes its distribution files bundles
-    const pathParts = req.path.split('/');
-    // file to get within the folder exposed by the capabilities package:
-    const filePath = pathParts.slice(2).join('/');
-    res.redirect(`/caps/${req.params.capability}/${version}/${filePath}`);
+    // package exposes its distribution files bundles: in production from docker,
+    // in dev symlinked in folder).
+    res.redirect(`/caps/${capability}/${version}/${filePath}`);
   } else {
     res.status(404).end('package not running on this device');
   }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Button, Form } from 'react-bootstrap';
 
-import { createWebComponent } from '@transitive-robotics/utils-web';
 import { log, getLogger, fetchJson, parseCookie }
 from '@transitive-robotics/utils/client';
 log.setLevel('debug');

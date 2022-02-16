@@ -13,6 +13,7 @@ import {log, getLogger, fetchJson} from '@transitive-robotics/utils/client';
 import {Login, UserContext, UserContextProvider} from './Login.jsx';
 import {Sidebar} from './Sidebar.jsx';
 import { scheme1, grays } from './utils/colors';
+import { ensureWebComponentIsLoaded } from './utils/utils';
 
 const styles = {
   wrapper: {
@@ -25,7 +26,7 @@ const styles = {
     margin: '0',
     padding: '1em 0 0 1em',
     flex: '1 0 10rem',
-    background: 'linear-gradient(45deg, black, #333)',
+    background: 'linear-gradient(45deg, #111, #333)',
     color: '#fff',
     borderRight: `1px solid ${grays[12]}`,
     position: 'relative',
@@ -49,6 +50,7 @@ const Capability = ({webComponent, capability, ...props}) => {
   const {deviceId = '_fleet'} = useParams();
 
   log.debug('Capability', {deviceId, webComponent, capability, props});
+  ensureWebComponentIsLoaded(capability, webComponent, user, deviceId);
 
   useEffect(() => {
       if (user && !jwtToken) {
@@ -87,13 +89,12 @@ const Capability = ({webComponent, capability, ...props}) => {
 const CapabilityWidget = ({type}) => {
   const {deviceId, scope, capabilityName} = useParams();
   const capability = `${scope}/${capabilityName}`;
+  const webComponent = `${capabilityName}-device`;
 
-  return <Capability webComponent={`${capabilityName}-device`}
-    capability={capability}/>
-
-  // #HERE: this actually works! but we still need to load the right .js
-  // bundle, and even with health-monitoring-device.js hardcoded in index.html
-  // it currently doesn't work.
+  return <div>
+    <h4>{capability}</h4>
+    <Capability webComponent={webComponent} capability={capability}/>
+  </div>;
 };
 
 

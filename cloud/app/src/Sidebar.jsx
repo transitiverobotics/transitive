@@ -61,11 +61,11 @@ export const Sidebar = () => {
   return <div style={styles.wrapper}>
     <Link to="/" style={styles.brand}>
       <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
-      Portal
+      portal
     </Link>
 
     <div style={styles.views}>
-      <h4>Views</h4>
+      <h5>Views</h5>
       <Link to='/'>General</Link>
 
     </div>

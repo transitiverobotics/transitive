@@ -171,18 +171,21 @@ const Device = (props) => {
         { Object.keys(packages).length > 0 ?
           _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
             {name} {
-              running && <Badge variant="success">
+              running && <Badge bg="success">
                 running: {Object.keys(running).join(', ')}
               </Badge>
-            }
-            {running && <Button variant='link' onClick={() =>
+            } {
+              running && <Button variant='link' href={`/device/${device}/${name}`}>
+                view
+              </Button>
+            } {
+              running && <Button variant='link' onClick={() =>
                 console.log('TODO: restart')
               }>
                 restart
               </Button>
-            }
-
-            {desired ? <Button variant='link' onClick={() => uninstall(name)}>
+            } {
+              desired ? <Button variant='link' onClick={() => uninstall(name)}>
                 uninstall
               </Button> :
               <span> (to be removed)</span>

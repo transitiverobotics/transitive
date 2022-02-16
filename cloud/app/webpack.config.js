@@ -23,6 +23,11 @@ fs.readdirSync('./web_components').forEach(name =>
 module.exports = {
   entry, // see above
   // externals: [nodeExternals()],
+  // resolve: {
+  //   alias: {
+  //     react: path.resolve('./node_modules/react')
+  //   }
+  // },
   module: {
     rules: [{
         test: /\.(js|jsx)$/,

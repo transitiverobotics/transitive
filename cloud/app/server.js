@@ -266,7 +266,7 @@ app.post('/auth/acl', (req, res) => {
               parsedTopic.capability == '@transitive-robotics/_robot-agent' )
       );
 
-    log.trace('/auth/acl', payload, parsedTopic);
+    log.debug('/auth/acl', payload, parsedTopic);
     log.debug('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :

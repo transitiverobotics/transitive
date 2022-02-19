@@ -67,6 +67,9 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query, req.params);
   const capability = `${req.params.scope}/${req.params.capabilityName}`;
   const filePath = req.params[0]; // the part that matched the *
+  // #HERE: handle the case where deviceId == "_fleet"; serve the
+  // latest version run by any device?
+
   const runningPkgs = robotAgent &&
     robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
   const version = runningPkgs && runningPkgs[capability];

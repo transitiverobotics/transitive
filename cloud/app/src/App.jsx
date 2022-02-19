@@ -85,11 +85,13 @@ const Capability = ({webComponent, capability, ...props}) => {
 };
 
 
-/** Component to render widgets of capabilities, indicated in URL params  */
+/** Component to render widgets of capabilities, indicated in URL params.
+  type = device | fleet
+*/
 const CapabilityWidget = ({type}) => {
   const {deviceId, scope, capabilityName} = useParams();
   const capability = `${scope}/${capabilityName}`;
-  const webComponent = `${capabilityName}-device`;
+  const webComponent = `${capabilityName}-${type}`;
 
   return <div>
     <h4>{capability}</h4>

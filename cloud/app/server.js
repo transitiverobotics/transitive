@@ -9,11 +9,11 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
-const { parseMQTTTopic, decodeJWT, log, getLogger } =
+const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
   require('@transitive-robotics/utils/server');
 const { Capability } = require('@transitive-robotics/utils/cloud');
 
-const { MQTTHandler } = require('./mqtt');
+// const { MQTTHandler } = require('./mqtt');
 // const Capability = require('./caps/capability');
 // const HealthMonitoring = require('./caps/health_monitoring');
 // const RemoteAccess = require('./caps/remote_access');
@@ -26,15 +26,14 @@ const installRouter = require('./install');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
-log.setLevel('debug');
-const logger = getLogger(module.id);
+const log = getLogger(module.id);
 
 // ----------------------------------------------------------------------
 
 const app = express();
 
 app.use((req, res, next) => {
-  logger.debug(req.method, req.originalUrl);
+  log.debug(req.method, req.originalUrl);
   next();
 });
 
@@ -69,11 +68,15 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
   const filePath = req.params[0]; // the part that matched the *
   // #HERE: handle the case where deviceId == "_fleet"; serve the
   // latest version run by any device?
-
-  const runningPkgs = robotAgent &&
-    robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
-  const version = runningPkgs && runningPkgs[capability];
-  console.log(runningPkgs, version);
+  let version;
+  if (req.query.deviceId == "_fleet") {
+    version = robotAgent.getLatestRunningVersion(req.query.userId, capability);
+  } else {
+    const runningPkgs = robotAgent &&
+      robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
+    version = runningPkgs && runningPkgs[capability];
+  }
+  console.log(version);
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
     // package exposes its distribution files bundles: in production from docker,
@@ -311,10 +314,14 @@ class _robotAgent extends Capability {
     super(() => {
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
-      this.mqtt.subscribe(`/+/+/+/#`, (packet) => {
-        const parsed = parseMQTTTopic(packet.topic);
+      this.mqtt.subscribe(`/+/+/+/#`);
+      this.mqtt.on('message', (topic) => {
+        if (topic.startsWith('$SYS')) return;
+
+        const parsed = parseMQTTTopic(topic);
         this.addDevicePackageVersion(parsed);
         const key = `${parsed.capability}@${parsed.version}`;
+
         if (!this.runningPackages[key]) {
           console.log('starting', key);
 
@@ -328,6 +335,30 @@ class _robotAgent extends Capability {
 
     this.router.use(express.json());
   }
+
+  /** remember that the given device runs the given version of the capability */
+  addDevicePackageVersion({organization, device, capability, version}) {
+    !this.devicePackageVersions[organization] &&
+      (this.devicePackageVersions[organization] = {});
+    !this.devicePackageVersions[organization][device] &&
+      (this.devicePackageVersions[organization][device] = {});
+    this.devicePackageVersions[organization][device][capability] = version;
+  }
+
+  /** get list of all packages running on a device, incl. their versions */
+  getDevicePackages(organization, device) {
+    return this.devicePackageVersions[organization][device] || {};
+  }
+
+  /** get the latest version of the named capability running on any device
+  by the given organziation */
+  getLatestRunningVersion(organization, capability) {
+    const devices = this.devicePackageVersions[organization];
+    const versions = Object.values(devices).map(device => device[capability]);
+    versions.sort(versionCompare);
+    return versions.slice(-1)[0];
+  }
+
 
   /** define routes for this app */
   addRoutes() {
@@ -413,25 +444,10 @@ class _robotAgent extends Capability {
     });
   }
 
-
-  /** remember that the given device runs the given version of the capability */
-  addDevicePackageVersion({organization, device, capability, version}) {
-    !this.devicePackageVersions[organization] &&
-      (this.devicePackageVersions[organization] = {});
-    !this.devicePackageVersions[organization][device] &&
-      (this.devicePackageVersions[organization][device] = {});
-    this.devicePackageVersions[organization][device][capability] = version;
-  }
-
-  /** get list of all packages running on a device, incl. their versions */
-  getDevicePackages(organization, device) {
-    return this.devicePackageVersions[organization][device] || {};
-  }
 };
 
 
-let robotAgent;
-robotAgent = new _robotAgent();
+const robotAgent = new _robotAgent();
 // let robot agent capability handle it's own sub-path; enable the same for all
 // other, regular, capabilities as well?
 app.use('/@transitive-robotics/_robot-agent', robotAgent.router);

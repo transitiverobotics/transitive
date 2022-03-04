@@ -8,9 +8,9 @@ const _ = {
 };
 
 import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
-import { decodeJWT, versionCompare, toFlatObject, log, getLogger }
+import { decodeJWT, versionCompare, toFlatObject, getLogger }
 from '@transitive-robotics/utils/client';
-log.setLevel('debug');
+const log = getLogger('robot-agent-fleet');
 
 /** Show one device */
 const FleetDevice = ({data, device, device_url}) => {

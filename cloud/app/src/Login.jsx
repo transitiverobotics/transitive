@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Button, Form } from 'react-bootstrap';
 
-import { log, getLogger, fetchJson, parseCookie }
+import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-robotics/utils/client';
-log.setLevel('debug');
-window.log = log;
+loglevel.setLevel('debug');
+window.loglevel = loglevel;
 
 
 export const UserContext = React.createContext({});

@@ -8,12 +8,14 @@ import {
   useParams,
 } from "react-router-dom";
 
-import {log, getLogger, fetchJson} from '@transitive-robotics/utils/client';
+import {getLogger, fetchJson} from '@transitive-robotics/utils/client';
 
 import {Login, UserContext, UserContextProvider} from './Login.jsx';
 import {Sidebar} from './Sidebar.jsx';
 import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
+
+const log = getLogger('App.jsx');
 
 const styles = {
   wrapper: {

@@ -135,9 +135,9 @@ export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:$DIR/opt/ros/$ROS_RELEASE/share
 
 export CMAKE_PREFIX_PATH=\$CMAKE_PREFIX_PATH:$DIR/opt/ros/$ROS_RELEASE
 
-export PYTHONPATH=$PYTHONPATH:$DIR/usr/lib/python2.7/dist-packages:$DIR/usr/lib/python3/dist-packages
+export PYTHONPATH=\$PYTHONPATH:$DIR/usr/lib/python2.7/dist-packages:$DIR/usr/lib/python3/dist-packages
 
 export PATH=\$PATH:$DIR/usr/sbin:$DIR/usr/bin:$DIR/sbin:$DIR/bin
 
-export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$DIR/usr/lib/$(uname -m)-linux-gnu/pkgconfig
+export PKG_CONFIG_PATH=\$PKG_CONFIG_PATH:$DIR/usr/lib/$(uname -m)-linux-gnu/pkgconfig
 EOF

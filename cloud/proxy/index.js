@@ -1,7 +1,9 @@
 "use strict";
 
+const os = require('os');
+
 const port = process.env.PORT || 8000; // always 443 in production
-const hostname = process.env.HOST || 'localhost';
+const hostname = process.env.HOST || `${os.hostname()}.local`;
 const production = !!process.env.PRODUCTION;
 const host = production ? hostname : `${hostname}:${port}`;
 
@@ -22,18 +24,18 @@ proxy.on("error", function(err, req, res) {
 // Routing logic
 
 const routingTable = {
-  [`registry.${host}`]: 'localhost:6000', // npm registry
-  [`install.${host}`]: 'localhost:9000/install',
-  [`data.${host}`]: 'localhost:9000', // Note: this is for websocket traffic, not mqtt
-  [`repo.${host}`]: 'localhost:9000/repo', // binaries we host for packages, may go away
-  [`mqtt.${host}`]: 'localhost:9001', // for clients to connect to mqtt via websockets
+  registry: 'localhost:6000', // npm registry
+  install: 'localhost:9000/install',
+  data: 'localhost:9000', // Note: this is for websocket traffic, not mqtt
+  repo: 'localhost:9000/repo', // binaries we host for packages, may go away
+  mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
 };
-const defaultTarget = 'localhost:3000';
+const defaultTarget = 'localhost:9000';
 
 /** route the request */
 const handleRequest = (req, res) => {
-  console.log(req.headers.host, req.url);
-  const target = routingTable[req.headers.host];
+  const target = routingTable[req.headers.host.split('.')[0]];
+  console.log(req.headers.host, req.url, target);
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });
 
@@ -68,7 +70,8 @@ const handleRequest = (req, res) => {
 /** handler for web socket upgrade */
 const handleUpgrade = function(req, socket, head) {
   console.log('ws:', req.headers.host, req.url);
-  const target = `ws://${routingTable[req.headers.host] || defaultTarget}`;
+  const host = routingTable[req.headers.host.split('.')[0]];
+  const target = `ws://${host || defaultTarget}`;
   proxy.ws(req, socket, head, {ws: true, target});
 };
 

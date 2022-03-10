@@ -1,11 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const _ = require('lodash');
 const tar = require('tar');
 const mime = require('mime-types')
 const assert = require('assert')
 const express = require('express');
 const bcrypt = require('bcrypt');
+const {URL} = require('url');
 
 const { Readable } = require('stream');
 
@@ -15,6 +17,9 @@ const Mongo = require('@transitive-robotics/utils/mongo');
 const {randomId} = require('@transitive-robotics/utils/server');
 
 const PORT = 6000;
+
+const TR_HOST = process.env.TR_HOST || `${os.hostname()}.local:8000`;
+const PROTOCOL = process.env.PROTOCOL || 'http';
 
 const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
@@ -149,6 +154,14 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   app.put('/:package/:_rev?/:revision?', useUser, async (req, res) => {
     const data = req.body;
+    // ensure all tarball URLs use our global hostname, not localhost
+    _.each(data.versions, ({dist}) => {
+      if (dist.tarball) {
+        const {pathname} = new URL(dist.tarball);
+        dist.tarball = `${PROTOCOL}://registry.${TR_HOST}${pathname}`;
+      }
+    });
+
     console.log(req.params, JSON.stringify(data, true, 2), req.headers);
 
     if (req.user.readonly) {

@@ -37,8 +37,8 @@ const styles = {
 /** The sidebar */
 export const Sidebar = () => {
   // const { user, isLoggedIn, email } = useAccount();
-  const {user, logout} = useContext(UserContext);
-  const isLoggedIn = !!user;
+  const {session, logout} = useContext(UserContext);
+  const isLoggedIn = !!session;
 
   // const deimpersonate = () => {
   //   localStorage.originalLoginToken &&
@@ -48,7 +48,7 @@ export const Sidebar = () => {
 
   const UserMenu = () => <div>
     <div>
-      Logged in as {user}
+      Logged in as {session.user}
     </div>
     <div>
       <Link to='/security'>Security</Link>

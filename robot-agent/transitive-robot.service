@@ -9,7 +9,7 @@ EnvironmentFile=%h/.transitive/.env
 # WorkingDirectory=%h/.transitive
 # ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
 WorkingDirectory=%h/.transitive/node_modules/@transitive-robotics/robot-agent
-ExecStart=%h/.transitive/usr/bin/npm start
+ExecStart=/bin/bash -c "PATH=$PATH:%h/.transitive/usr/sbin:%h/.transitive/usr/bin:%h/.transitive/sbin:%h/.transitive/bin %h/.transitive/usr/bin/npm start"
 
 Restart=always
 RestartSec=2

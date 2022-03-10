@@ -5,7 +5,7 @@
 if [[ $# > 0 ]]; then
   HOST=$1
 else
-  HOST=http://localhost:6000
+  HOST=http://registry.homedesk:8000
 fi;
 
 if (node -e "x = `npm show --json --registry=$HOST`; y = `cat package.json`; if (x.version == y.version) process.exit(1)"); then

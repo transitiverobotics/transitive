@@ -1,0 +1,23 @@
+# Service to advertise alternative subdomains on avahi (mDNS), so we can use
+# them from LXC containers.
+#
+# Usage:
+# systemctl --user enable transitive-dev@install
+# systemctl --user enable transitive-dev@registry
+# ...
+# also do https://askubuntu.com/a/1189644/265407 so that we can resolve these
+# names on our dev machine itself (not just on other machines or VMs in the
+# network)
+
+[Unit]
+Description=Transitive Dev Setup, add avahi subdomain for %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=bash -c "IP=$(/usr/sbin/ip -json route get 8.8.8.8 | /usr/bin/jq .[0].prefsrc) && /usr/bin/avahi-publish -a -R %i.homedesk.local ${IP:1:-1}"
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

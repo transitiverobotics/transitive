@@ -15,14 +15,15 @@ log.setLevel('debug');
 
 const router = express.Router();
 
-const environment = {
-  TR_HOST: process.env.TR_HOST || `${os.hostname()}:8000`,
-  PROTOCOL: process.env.TR_HOST ? 'https://' : 'http://'
-};
-
-/** replace all [VAR] occurances with the value of VAR in environment */
-const replaceEnvironmentVariables = (text, extras = {}) => {
-  const env = Object.assign(extras, environment);
+/** replace all [VAR] occurences in `text` with the value of VAR in env, created
+  from request parameters */
+const replaceVariables = (text, req) => {
+  const env = {
+    ...req.query,
+    host: `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`,
+    PROTOCOL: `${req.headers['x-forwarded-proto']}://`,
+    TR_HOST: req.headers['x-forwarded-host'].replace(/^install\./, '')
+  };
   return text.replace(/\[(\w*)\]/g, (match, varname) => env[varname] || match);
 };
 
@@ -34,7 +35,7 @@ router.get('/', (req, res) => {
 
   log.debug('install new robot:', req.query.id);
   const text = fs.readFileSync('assets/install.sh').toString();
-  res.end(replaceEnvironmentVariables(text, req.query));
+  res.end(replaceVariables(text, req));
 });
 
 router.get('/files/:filename', (req, res) => {
@@ -42,7 +43,7 @@ router.get('/files/:filename', (req, res) => {
   const filename = req.params.filename;
   log.debug('/files', filename);
   const text = fs.readFileSync(`assets/${filename}`).toString();
-  res.end(replaceEnvironmentVariables(text));
+  res.end(replaceVariables(text, req));
 });
 
 /** sign the provided CSR (after verifying validity) */

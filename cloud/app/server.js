@@ -12,6 +12,7 @@ const Mongo = require('@transitive-robotics/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
   require('@transitive-robotics/utils/server');
 const { Capability } = require('@transitive-robotics/utils/cloud');
+const { COOKIE_NAME } = require('./common.js');
 
 // const { MQTTHandler } = require('./mqtt');
 // const Capability = require('./caps/capability');
@@ -298,10 +299,6 @@ const requireLogin = (req, res, next) => {
   Cloud Agent
 */
 
-const COOKIES = {
-  USER: 'transitive-user'
-};
-
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
 
@@ -396,8 +393,8 @@ class _robotAgent extends Capability {
     this.router.post('/login', async (req, res) => {
       log.debug('login', req.body);
 
-      const fail = (error) => res.clearCookie('user')
-          .status(401).json({error, ok: false});
+      const fail = (error) =>
+        res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
 
       if (!req.body.name || !req.body.password) {
         log.debug('missing credentials', req.body);
@@ -421,13 +418,15 @@ class _robotAgent extends Capability {
 
       // Write the verified username to the session to indicate logged in status
       req.session.user = account._id;
-      res.cookie(COOKIES.USER, account._id).json({status: 'ok'});
+      res.cookie(COOKIE_NAME,
+        JSON.stringify({user: account._id, robot_token: account.robotToken}))
+        .json({status: 'ok'});
     });
 
 
     this.router.post('/logout', async (req, res) => {
       log.debug('logout', req.session.user);
-      res.clearCookie(COOKIES.USER, req.session.user).json({status: 'ok'});
+      res.clearCookie(COOKIE_NAME).json({status: 'ok'});
       delete req.session.user;
     });
 

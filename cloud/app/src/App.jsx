@@ -47,15 +47,15 @@ const styles = {
     username/password, which allows us to get JWTs. This is not a model of
   how to do this with capabilities in other web applications */
 const Capability = ({webComponent, capability, ...props}) => {
-  const {user} = useContext(UserContext);
+  const {session} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
   const {deviceId = '_fleet'} = useParams();
 
-  log.debug('Capability', {deviceId, webComponent, capability, props});
-  ensureWebComponentIsLoaded(capability, webComponent, user, deviceId);
+  log.debug('Capability', {deviceId, webComponent, capability, props, session});
+  ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
 
   useEffect(() => {
-      if (user && !jwtToken) {
+      if (session && !jwtToken) {
         fetchJson('/@transitive-robotics/_robot-agent/getJWT',
           (err, res) => {
             if (err) {
@@ -65,15 +65,15 @@ const Capability = ({webComponent, capability, ...props}) => {
             }
           },
           {body: {
-            id: user,
+            id: session.user,
             device: deviceId,
             capability,
             validity: 3600,
           }})
       }
-    }, [user, jwtToken]);
+    }, [session, jwtToken]);
 
-  if (!user) {
+  if (!session) {
     return <div>Log in to see device details</div>;
   }
 
@@ -82,7 +82,7 @@ const Capability = ({webComponent, capability, ...props}) => {
   }
 
   return React.createElement(webComponent,
-    {jwt: jwtToken, id: user, ...props},
+    {jwt: jwtToken, id: session.user, ...session, ...props},
     null);
 };
 

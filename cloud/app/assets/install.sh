@@ -67,9 +67,9 @@ NODE=$DIR/usr/bin/node
 NPM="$NODE $DIR/usr/bin/npm"
 
 printStep "Downloading files"
-curl -sf [PROTOCOL]install.[TR_HOST]/files/package.json -o package.json
-curl -sf [PROTOCOL]install.[TR_HOST]/files/.npmrc -o .npmrc
-curl -sf [PROTOCOL]install.[TR_HOST]/files/.env -o .env
+curl -sf [host]/files/package.json -o package.json
+curl -sf [host]/files/.npmrc -o .npmrc
+curl -sf [host]/files/.env -o .env
 
 echo "TR_USERID=[id]" >> .env
 
@@ -91,8 +91,8 @@ openssl genrsa -out $DIR/certs/client.key -rand .rnd 2048 2>/dev/null
 openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj="/CN=[id]:$HASH"
 
 # send certificate signing request to cloud
-echo "  sending CSR to [TR_HOST]"
-curl -sf --data-binary @$DIR/certs/client.csr [PROTOCOL]install.[TR_HOST]/csr?token=[token] -o $DIR/certs/client.crt
+echo "  sending CSR to [host]"
+curl -sf --data-binary @$DIR/certs/client.csr [host]/csr?token=[token] -o $DIR/certs/client.crt
 
 printStep "Installing the agent"
 $NPM install > /dev/null

@@ -3,17 +3,22 @@ import { Button, Form } from 'react-bootstrap';
 
 import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-robotics/utils/client';
+
+const { COOKIE_NAME } = require('../common.js');
+
 loglevel.setLevel('debug');
 window.loglevel = loglevel;
-
+const log = getLogger('Login');
 
 export const UserContext = React.createContext({});
 export const UserContextProvider = ({children}) => {
-  const [user, setUser] = useState();
+  const [session, setSession] = useState();
   const refresh = () => {
-    console.log('parsing cookie');
+    log.debug('parsing cookie');
     const cookie = parseCookie(document.cookie);
-    setUser(cookie['transitive-user']);
+    log.debug('cookie', cookie);
+    cookie[COOKIE_NAME] &&
+      setSession(JSON.parse(cookie[COOKIE_NAME]));
   };
   useEffect(refresh, []);
 
@@ -42,7 +47,7 @@ export const UserContextProvider = ({children}) => {
     },
     {method: 'post'});
 
-  return <UserContext.Provider value={{user, login, logout}}>
+  return <UserContext.Provider value={{session, login, logout}}>
     {children}
   </UserContext.Provider>;
 };
@@ -53,11 +58,11 @@ export const Login = ({redirect}) => {
 
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
-  const {user, login, logout} = useContext(UserContext);
+  const {session, login, logout} = useContext(UserContext);
 
-  if (user) {
+  if (session) {
     return <div>
-      You are logged in as {user}.
+      You are logged in as {session.user}.
       <Button variant="primary" onClick={logout}>
         Log out
       </Button>

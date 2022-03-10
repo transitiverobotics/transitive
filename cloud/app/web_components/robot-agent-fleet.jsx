@@ -10,6 +10,9 @@ const _ = {
 import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
 import { decodeJWT, versionCompare, toFlatObject, getLogger }
 from '@transitive-robotics/utils/client';
+
+import { Code } from '../src/utils/Code';
+
 const log = getLogger('robot-agent-fleet');
 
 /** Show one device */
@@ -26,7 +29,7 @@ const FleetDevice = ({data, device, device_url}) => {
 };
 
 /** Component showing the fleet from the robot-agent perspective */
-const Fleet = ({jwt, id, cloud_host, device_url}) => {
+const Fleet = ({jwt, id, robot_token, cloud_host, device_url}) => {
   log.debug('Fleet', cloud_host, device_url);
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
@@ -41,10 +44,16 @@ const Fleet = ({jwt, id, cloud_host, device_url}) => {
   log.debug('data', data);
   if (!ready || !data) return <StatusComponent />;
 
+  const curlURL = `http://install.${TR_HOST}`;
+
   return <div>
     <h5>Devices</h5>
     {_.map(data[id], (deviceData, device) =>
-      <FleetDevice key={id} data={deviceData} device={device} device_url={device_url} />)}
+      <FleetDevice key={device} data={deviceData} device={device} device_url={device_url} />)}
+
+      <Code>
+        curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={robot_token}" | bash
+      </Code>
   </div>
 };
 

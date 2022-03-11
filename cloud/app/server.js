@@ -28,6 +28,7 @@ const installRouter = require('./install');
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
 const log = getLogger(module.id);
+log.setLevel('debug');
 
 // ----------------------------------------------------------------------
 
@@ -67,17 +68,16 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query, req.params);
   const capability = `${req.params.scope}/${req.params.capabilityName}`;
   const filePath = req.params[0]; // the part that matched the *
-  // #HERE: handle the case where deviceId == "_fleet"; serve the
-  // latest version run by any device?
   let version;
   if (req.query.deviceId == "_fleet") {
+    // Serve the latest version run by any device
     version = robotAgent.getLatestRunningVersion(req.query.userId, capability);
   } else {
     const runningPkgs = robotAgent &&
       robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
     version = runningPkgs && runningPkgs[capability];
   }
-  console.log(version);
+  console.log({version});
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
     // package exposes its distribution files bundles: in production from docker,
@@ -351,11 +351,12 @@ class _robotAgent extends Capability {
   by the given organziation */
   getLatestRunningVersion(organization, capability) {
     const devices = this.devicePackageVersions[organization];
-    const versions = Object.values(devices).map(device => device[capability]);
+    const versions = Object.values(devices)
+        .map(device => device[capability] || '0.0.0-0');
+    log.debug({versions});
     versions.sort(versionCompare);
-    return versions.slice(-1)[0];
+    return versions.at(-1);
   }
-
 
   /** define routes for this app */
   addRoutes() {

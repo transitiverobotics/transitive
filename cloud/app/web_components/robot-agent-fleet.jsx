@@ -14,12 +14,13 @@ from '@transitive-robotics/utils/client';
 import { Code } from '../src/utils/Code';
 
 const log = getLogger('robot-agent-fleet');
+log.setLevel('debug');
 
 /** Show one device */
 const FleetDevice = ({data, device, device_url}) => {
   const agentData = data['@transitive-robotics']['_robot-agent'];
-  const version = Object.keys(agentData)[0];
-  const {status, info} = agentData[version];
+  const latestVersion = Object.keys(agentData).sort(versionCompare).at(-1);
+  const {status, info} = agentData[latestVersion];
 
   return <div>
     {info?.os?.hostname} {status.heartbeat &&

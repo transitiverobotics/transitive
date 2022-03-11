@@ -115,15 +115,14 @@ const Device = (props) => {
 
   if (!ready || !deviceData) return <StatusComponent />;
 
-  const versions = Object.keys(deviceData);
-  versions.sort(versionCompare);
-  const latestVersionData = deviceData[versions[0]];
-  console.log(latestVersionData);
+  const latestVersion = Object.keys(deviceData).sort(versionCompare).at(-1);
+  const latestVersionData = deviceData[latestVersion];
+  log.debug(latestVersionData);
 
   // Pubishing under which-ever _robot-agent version we get talked to. A quirk
   // of how robot-agent works, since its robot-package and cloud code don't (yet)
   // colocate in code...
-  const versionPrefix = `${prefix}/${versions[0]}`;
+  const versionPrefix = `${prefix}/${latestVersion}`;
 
   const packages = getMergedPackageInfo(latestVersionData);
 

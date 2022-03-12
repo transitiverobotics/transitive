@@ -273,14 +273,14 @@ app.post('/auth/acl', (req, res) => {
               parsedTopic.capability == '@transitive-robotics/_robot-agent' )
       );
 
-    log.debug('/auth/acl', payload, parsedTopic);
+    // log.debug('/auth/acl', payload, parsedTopic);
     log.debug('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :
       res.status(401).end('not authorized for topic or token expired')
     );
   } catch (e) {
-    console.warn('/auth/acl exception', e, req.body);
+    log.warn('/auth/acl exception', e, req.body);
     res.status(400).end('unable to parse authentication request')
   }
 });

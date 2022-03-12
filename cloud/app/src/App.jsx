@@ -55,7 +55,7 @@ const Capability = ({webComponent, capability, ...props}) => {
   ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
 
   useEffect(() => {
-      if (session && !jwtToken) {
+      if (session) {
         fetchJson('/@transitive-robotics/_robot-agent/getJWT',
           (err, res) => {
             if (err) {
@@ -71,7 +71,7 @@ const Capability = ({webComponent, capability, ...props}) => {
             validity: 3600,
           }})
       }
-    }, [session, jwtToken]);
+    }, [webComponent, capability, session]);
 
   if (!session) {
     return <div>Log in to see device details</div>;

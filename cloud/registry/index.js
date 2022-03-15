@@ -6,6 +6,7 @@ const tar = require('tar');
 const mime = require('mime-types')
 const assert = require('assert')
 const express = require('express');
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const {URL} = require('url');
 
@@ -236,7 +237,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
 
   /** get package info */
-  app.get('/:package', async (req, res) => {
+  app.get('/:package', cors(), async (req, res) => {
     console.log('GET', req.params);
     const package = await packages.findOne({_id: req.params.package});
     if (!package) {
@@ -290,12 +291,12 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     packages, omitting `images` unless requested via `?images`. Can specify a
   selector in `q`, e.g., `'versions.transitiverobotics': {$exists: 1}`.
   */
-  app.use('/-/custom/all', async (req, res) => {
+  app.use('/-/custom/all', cors(), async (req, res) => {
     const projection = {
       versions: {$slice: -1} // get latest version of each package
     };
     !('images' in req.query) && (projection.images = 0);
-    const selector = JSON.parse(req.query.q) || {};
+    const selector = req.query.q ? JSON.parse(req.query.q) : {};
 
     const results = await packages.find(selector, {projection}).toArray();
     res.json(results);
@@ -317,6 +318,9 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   app.listen(PORT);
 };
 
+process.on('uncaughtException', (err) => {
+  console.error(`**** Caught exception: ${err}:`, err.stack);
+});
 
 
 Mongo.init(() => {

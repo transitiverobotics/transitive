@@ -12,6 +12,7 @@
   "dependencies": {
     "@transitive-robotics/utils": "file:../../utils",
     "bcrypt": "^5.0.1",
+    "cors": "^2.8.5",
     "express": "^4.17.2",
     "lodash": "^4.17.21",
     "mime-types": "^2.1.32",

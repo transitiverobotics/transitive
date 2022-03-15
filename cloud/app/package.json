@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@transitive-robotics/utils": "^0.3.5",
+    "@transitive-robotics/utils": "^0.3.7-1",
     "@transitive-robotics/utils-web": "^0.2.10",
     "bcrypt": "^5.0.1",
     "bootstrap": "^5.1.3",

@@ -5,17 +5,20 @@ import ReactMarkdown from 'react-markdown'
 const styles = {
   wrapper: {
     width: '90%',
+    maxWidth: '80em',
     margin: 'auto',
     marginTop: '2em',
   },
   flex: {
     display: 'flex',
+    gap: '1em',
+    flexWrap: 'wrap',
   },
   text: {
-    flex: '1 0 60%'
+    flex: '6 0 30em'
   },
   images: {
-    flex: '1 0 40%'
+    flex: '4 0 20em'
   },
   image: {
     width: '100%',

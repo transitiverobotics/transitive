@@ -57,7 +57,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     /* on entry: check if image and add to images array if so */
     const onEntry = (entry) => {
       console.log('tar entry', entry.path);
-      if (!entry.path.startsWith('package/docs')) {
+      if (!entry.path.startsWith('package/docs/')) {
         return;
       }
 
@@ -155,6 +155,8 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   app.put('/:package/:_rev?/:revision?', useUser, async (req, res) => {
     const data = req.body;
+    console.log(`receiving package ${data.name}`);
+
     // ensure all tarball URLs use our global hostname, not localhost
     _.each(data.versions, ({dist}) => {
       if (dist.tarball) {
@@ -162,8 +164,6 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
         dist.tarball = `${PROTOCOL}://registry.${TR_HOST}${pathname}`;
       }
     });
-
-    console.log(req.params, JSON.stringify(data, true, 2), req.headers);
 
     if (req.user.readonly) {
       res.status(401).json({
@@ -177,11 +177,12 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     const versionNumber = _.keys(data.versions)[0];
     delete data._attachments;
 
+    // console.log(req.params, JSON.stringify(data, true, 2), req.headers);
+
     const package = await packages.findOne({_id: req.params.package});
     console.log({package});
 
     if (!package) {
-      // TODO: add user as owner
       data.date = new Date();
       data.versions = Object.values(data.versions); // convert to array
       data.owner = req.user._id;
@@ -216,7 +217,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
           author: versionObj.author,
           keywords: versionObj.keywords,
           'dist-tags': data['dist-tags'],
-          readme: data.readme,
+          readme: versionObj.readme,
           description: data.description,
           date: new Date(),
         },
@@ -227,7 +228,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
     _.each(attachments, ({data}, filePath) => {
       tarballs.insertOne({_id: filePath, data});
-      console.log(`stored tarball ${filePath}`, data);
+      console.log(`stored tarball ${filePath}`);
       addImagesFromTar(data, req.params.package);
     });
 

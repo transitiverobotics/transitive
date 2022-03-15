@@ -25,12 +25,13 @@ proxy.on("error", function(err, req, res) {
 
 const routingTable = {
   registry: 'localhost:6000', // npm registry
+  portal: 'localhost:9000',
+  data: 'localhost:9000',
   install: 'localhost:9000/install',
-  data: 'localhost:9000', // Note: this is for websocket traffic, not mqtt
   repo: 'localhost:9000/repo', // binaries we host for packages, may go away
   mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
 };
-const defaultTarget = 'localhost:9000';
+const defaultTarget = 'localhost:3000';
 
 /** route the request */
 const handleRequest = (req, res) => {

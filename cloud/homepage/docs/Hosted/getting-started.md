@@ -1,24 +1,16 @@
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-
-export const Test = () => {
-  const {siteConfig: {customFields}} = useDocusaurusContext();
-  return <span>{customFields.isDevelopment ? 'Dev!' : 'prod'}</span>
-};
-
 # Getting Started
 
-Test: <Test />
-
-Start by [registering for a free account](/register). Once registered, you can start using Transitive Robotics by:
-1. Installing the agent by running the `curl` command from your [Fleet page](/fleet),
-2. Installing a capability from the [Capabilities page](/caps), and
+Start by <Link title='registering for a free account' service='portal' path='/register'/>
+Once registered, you can start using Transitive Robotics by:
+1. Installing the agent by running the `curl` command from your <Link title='Fleet page' service='portal' path='/' />,
+2. Installing a capability, and
 3. Embedding the HTML snippet provided by the capability on the device page in your own web application.
 
 These steps are now explained in more detail.
 
 ### Installing the agent
 
-Once you have an account and are logged in, head to the [Fleet page](/). The fleet page shows you all your connected devices. Most of these will be robots, but also other devices such as on-premise servers might be listed here. To add devices to your account, find the `curl` command at the top of the page and execute it on your device. We currently support devices running Ubuntu 18.04 or 20.04 on amd64 or arm64.
+Once you have an account and are logged in, head to the <Link title='Fleet page' service='portal' path='/' />. The fleet page shows you all your connected devices. Most of these will be robots, but also other devices such as on-premise servers might be listed here. To add devices to your account, find the `curl` command at the top of the page and execute it on your device. We currently support devices running Ubuntu 18.04 or 20.04 on amd64 or arm64.
 
 :::note In case you are curious
 
@@ -60,6 +52,15 @@ All front-end components show on device pages come with embedding instructions. 
 <name-of-the-capability id="YOUR-USER-ID" jwt="JWT" />
 ```
 
-where `JWT` is a [JWT token](https://jwt.io/) signed with your JWT secret carrying a specific payload. You can find your JWT secret on your [Security page](/security). To get you started quickly with testing these front-end components, the instructions also include an HTML snippet like the above with a pre-signed JWT token valid for 12 hours. This snippet can be used to test the embedding without having to worry about signing JWTs just yet. However, in production you will need to automatically generate these tokens. They are required to let Transitive Robotics know that a user who is logged into the page where you embedded these snippets has your permission to see the content provided by the capabilities in question.
+where `JWT` is a [JWT token](https://jwt.io/) signed with your JWT secret carrying a specific payload. You can find your JWT secret on your [Security page](./security). To get you started quickly with testing these front-end components, the instructions also include an HTML snippet like the above with a pre-signed JWT token valid for 12 hours. This snippet can be used to test the embedding without having to worry about signing JWTs just yet. However, in production you will need to automatically generate these tokens. They are required to let Transitive Robotics know that a user who is logged into the page where you embedded these snippets has your permission to see the content provided by the capabilities in question.
 
 > Front-end components are packaged as [Web Components](https://developer.mozilla.org/en-US/docs/Web/Web_Components), a technology that is supported by all modern browsers, and they use a [Shadow DOM](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_shadow_DOM) to isolate themselves from the rest of the page they are embedded into. This cleanly separates concerns and prevents style clashes.
+
+
+<!-- MDX code -->
+
+import BrowserOnly from '@docusaurus/BrowserOnly';
+
+export const Link = ({title, service, path}) => <BrowserOnly>
+  {() => <a href={`//${service}.${location.host}${path}`} title={title}>{title}</a>}
+</BrowserOnly>;

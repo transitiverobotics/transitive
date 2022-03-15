@@ -1,6 +1,8 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
+const path = require('path')
+
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
@@ -43,6 +45,18 @@ const config = {
     ],
   ],
 
+  plugins: [
+    [ path.resolve(__dirname, 'plugin-dynamic-routes'),
+      { // this is the options object passed to the plugin
+        routes: [{ // using Route schema from react-router
+          path: '/caps/:scope/:name',
+          exact: false, // this is needed for sub-routes to match!
+          component: '@site/src/components/Capability'
+        }]
+      }
+    ],
+  ],
+
   themeConfig:
   /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
   ({
@@ -59,6 +73,7 @@ const config = {
           position: 'left',
           label: 'Documentation',
         },
+        {to: '/caps', label: 'Capabilities', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
         {
           href: 'https://github.com/transitiverobotics',

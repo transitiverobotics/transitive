@@ -63,8 +63,18 @@ const handleRequest = (req, res) => {
   //   }
 
   } else {
-    // default
-    proxy.web(req, res, { target: `http://${defaultTarget}` });
+    // if (req.url.startsWith('/~/')) {
+    //   // Convenience redirect so we can use relative URLs in our services, e.g.,
+    //   // the documentation. Redirect to the service named by first sub-path part.
+    //   const parts = req.url.split('/', 4);
+    //   const service = parts[2];
+    //   req.url = parts[3] || '/';
+    //   console.log('url rerouting to', service, req.url);
+    //   proxy.web(req, res, { target: `http://${routingTable[service]}` });
+    // } else {
+      // default
+      proxy.web(req, res, { target: `http://${defaultTarget}` });
+    // }
   }
 };
 

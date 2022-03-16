@@ -60,8 +60,7 @@ const styles = {
   button: {
     marginTop: '1em'
   },
-  footer: {
-    borderTop: '1px solid #ddd',
+  credits: {
     fontSize: 'smaller',
     textAlign: 'center',
     paddingTop: '1em'
@@ -153,7 +152,7 @@ const elements = [
     </F>
   },
 
-  { title: 'What\'s different about Transitive Robotics?',
+  { title: 'Transitive Robotics is different',
     text: <F>
       <p>
         Some full-fledged fleet management solutions for robotics already exist.
@@ -174,18 +173,12 @@ const elements = [
         $100/robot/month.
       </p>
 
-      <p>
-        In contrast, Transitive offers individual capabilities that are priced
-        separately—some as low as $5/robot/month others are even free!—that
-        can be embedded in your own web front-ends. This means that you are
-        still in full control of the solutions you are building, whether it is
-        customer facing or for your own operations teams and partners. And
-        you only pay for what you need.
-      </p>
-
-      <p>
-        As long as we are still in beta, you can try all our capabilities for free!
-      </p>
+      <p> In contrast, Transitive is open-core and offers individual
+      capabilities that are priced separately—some as low as $5/robot/month
+      others are even free!—that can be embedded in your own web front-ends.
+      This means that you are still in full control of the solutions you are
+      building, whether it is customer facing or for your own operations teams
+      and partners. And you only pay for what you need. </p>
     </F>
   },
 ];
@@ -287,6 +280,15 @@ export default function Home() {
       <main>
         <TRHome />
       </main>
+
+      <div style={styles.credits}>
+        Icon credits:
+        delivery robot by iconcheese,
+        industrial robot by Dooder,
+        dashboard by LAFS, and
+        drone by Soremba from <a
+          href="https://thenounproject.com/">The Noun Project</a>.
+      </div>
     </Layout>
   );
   // <HomepageFeatures />

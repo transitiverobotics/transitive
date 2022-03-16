@@ -29,17 +29,16 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          // Please change this to your repo.
-          // editUrl: 'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
         blog: {
           showReadingTime: true,
-          // Please change this to your repo.
-          // editUrl:
-          // 'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
+        },
+        gtag: {
+          trackingID: 'G-E14WHWWP9L',
+          anonymizeIP: true,
         },
       }),
     ],
@@ -50,7 +49,7 @@ const config = {
       { // this is the options object passed to the plugin
         routes: [{ // using Route schema from react-router
           path: '/caps/:scope/:name',
-          exact: false, // this is needed for sub-routes to match!
+          exact: false,
           component: '@site/src/components/Capability'
         }]
       }
@@ -76,6 +75,11 @@ const config = {
         {to: '/caps', label: 'Capabilities', position: 'left'},
         {to: '/blog', label: 'Blog', position: 'left'},
         {
+          href: 'https://portal.transitiverobotics.com',
+          label: 'Portal',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/transitiverobotics',
           label: 'GitHub',
           position: 'right',
@@ -91,6 +95,10 @@ const config = {
             {
               label: 'Documentation',
               to: '/docs/documentation',
+            },
+            {
+              label: 'Demo',
+              to: '/demo',
             },
           ],
         },
@@ -125,18 +133,15 @@ const config = {
           ],
         },
       ],
-      // copyright: `Copyright © ${new Date().getFullYear()} Transitive Robotics. Built with Docusaurus.`,
-      copyright: `Copyright © ${new Date().getFullYear()} Transitive Robotics.
-      Icon credits:
-      delivery robot by iconcheese,
-      industrial robot by Dooder,
-      dashboard by LAFS, and
-      drone by Soremba from <a
-      href="https://thenounproject.com/">The Noun Project</a>.`
+      copyright: `Copyright © ${new Date().getFullYear()} Transitive Robotics. <a href='/terms'>Terms of Service</a>.`
     },
     prism: {
       theme: lightCodeTheme,
       darkTheme: darkCodeTheme,
+    },
+    colorMode: {
+      defaultMode: 'light',
+      respectPrefersColorScheme: true,
     },
   }),
 };

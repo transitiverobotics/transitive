@@ -2,10 +2,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
-
 const Docker = require('dockerode');
+const { getLogger } = require('@transitive-robotics/utils/server');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
+
+const log = getLogger('docker.js');
+log.setLevel('debug');
 
 const docker = new Docker();
 
@@ -22,28 +25,29 @@ const ensureRunning = async ({name, version}) => {
   }
 };
 
+/** generate docker tag name from capability name and version */
+const getTagName = ({name, version}) => `${name.replace(/@/g, '')}:${version}`;
+
 /** Build docker image for the given version of the given package */
 const build = async ({name, version}) => {
 
-  const imageName = `${name}:${version}`;
+  const tagName = getTagName({name, version});
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transitive-cap-docker-'));
-  console.log(`building ${imageName} in ${dir}`);
+  log.debug(`building ${tagName} in ${dir}`);
 
   // generate certs
   const keyFile = path.join(dir, 'client.key');
   const csrFile = path.join(dir, 'client.csr');
   const crtFile = path.join(dir, 'client.crt');
-  const cn = `cap:${name}`;
+  const cn = `cap:${name.replace(/\//g, '\\/')}`;
   execSync(`openssl genrsa -out ${keyFile} 2048`);
   execSync(`openssl req -out ${csrFile} -key ${keyFile} -new -subj="/CN=${cn}"`);
   execSync(`openssl x509 -req -in ${csrFile} -out ${crtFile} -CA /etc/mosquitto/certs/ca.crt -CAkey /etc/mosquitto/certs/ca.key -days 180`);
 
   // generate package.json
   const packageJson = {
-    transitive_package: `@transitive-robotics/${name}`,
-    dependencies: {
-      [`@transitive-robotics/${name}`]: `${version}`
-    }
+    transitive_package: name,
+    dependencies: {[name]: `${version}`}
   };
   fs.writeFileSync(path.join(dir, 'package.json'),
     JSON.stringify(packageJson, true, 2));
@@ -60,7 +64,7 @@ const build = async ({name, version}) => {
     ].join('\n'));
 
   // generate Dockerfile
-  const pkgFolder = `node_modules/@transitive-robotics/${name}/`;
+  const pkgFolder = `node_modules/${name}/`;
   const certsFolder = `${pkgFolder}/cloud/certs`;
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
@@ -84,41 +88,45 @@ const build = async ({name, version}) => {
         network: host
       image: "${name}:${version}"
   */
+  log.debug('building the image');
   const stream = await docker.buildImage({
       context: dir,
       src: ['Dockerfile', 'client.key', 'client.crt',
         'package.json', '.npmrc', '.dockerignore']
     }, {
-      networkmode: 'host', // #DEBUG
-      t: imageName
+      networkmode: 'host', // #DEBUG,
+      extrahosts: 'registry.homedesk.local:172.17.0.1', // #DEBUG
+      t: tagName
     });
-  stream.on('data', chunk => console.log(chunk.toString()));
+  stream.on('data', chunk =>
+    log.debug(JSON.parse(chunk.toString()).stream?.trim()));
   await new Promise((resolve, reject) => {
     docker.modem.followProgress(stream,
       (err, res) => err ? reject(err) : resolve(res));
   });
-  console.log('done building');
+  log.debug('done building');
 };
 
 /** start the given version of the given package, build it first if it doesn't
   yet exist */
 const start = async ({name, version}) => {
-  const imageName = `${name}:${version}`;
+
+  const tagName = getTagName({name, version});
   const runDir = path.join(RUN_DIR, name, version);
   fs.mkdirSync(runDir, {recursive: true});
   const list = await docker.listImages();
   const exists = list.some(image =>
-    image.RepoTags && image.RepoTags.includes(imageName));
+    image.RepoTags && image.RepoTags.includes(tagName));
 
   if (!exists) {
     await build({name, version});
   } else {
-    console.log('image exists');
+    log.debug('image exists');
   }
 
-  console.log('starting container');
-  docker.run(imageName, [], null, {
-    name: `${name}_${version}`,
+  log.debug('starting container');
+  docker.run(tagName, [], null, {
+    name: tagName.replace(/[\/:]/g, '.'),
     HostConfig: {
       AutoRemove: true,
       NetworkMode: 'host', // TODO
@@ -134,7 +142,7 @@ const start = async ({name, version}) => {
 /** stop the container for the given version of the given package name */
 const stop = async ({name, version}) => {
   const containerName = `${name}_${version}`;
-  console.log('stopping', containerName);
+  log.debug('stopping', containerName);
   const list = await docker.listContainers({filters: {name: [containerName]}});
   if (list.length > 0) {
     await docker.getContainer(list[0].Id).stop();

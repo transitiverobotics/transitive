@@ -106,7 +106,7 @@ export const Sidebar = () => {
     </Link>
 
     <div style={styles.views}>
-      <h5>Views</h5>
+      <h5>Fleet Widgets</h5>
       <Link to='/'>General</Link>
       <OtherFleetCaps />
     </div>

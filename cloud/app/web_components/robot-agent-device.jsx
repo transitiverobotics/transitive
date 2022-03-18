@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form }
 from 'react-bootstrap';
 
-import { Heartbeat } from './shared';
+import { Heartbeat, ensureProps } from './shared';
 
 const _ = {
   map: require('lodash/map'),
@@ -51,12 +51,6 @@ const getMergedPackageInfo = (robotAgentData) => {
   return rtv;
 };
 
-/** ensure the listed props were provided */
-const ensureProps = (props, list) => list.every(name => {
-  const missing = (props[name] === undefined);
-  missing && console.error(`prop ${name} is required`);
-  return !missing;
-});
 
 /** parse lsb_release info, e.g.,
 'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'
@@ -84,24 +78,26 @@ const OSInfo = ({os}) => <div>
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
 
-  if (!ensureProps(props, ['jwt', 'id', 'cloud_host'])) {
+  if (!ensureProps(props, ['jwt', 'id', 'host'])) {
     console.log({props})
     return <div>missing props</div>;
   }
-  const {jwt, id, cloud_host} = props;
+  const {jwt, id, host} = props;
+  const ssl = props.ssl && JSON.parse(props.ssl);
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
-    mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`});
+    mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
   const {device} = decodeJWT(jwt);
   const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
-      if (cloud_host === undefined) return;
-      fetch(`${cloud_host}/@transitive-robotics/_robot-agent/availablePackages`)
+      if (host === undefined) return;
+      const cloudHost = `${ssl ? 'https' : 'http'}://data.${host}`;
+      fetch(`${cloudHost}/@transitive-robotics/_robot-agent/availablePackages`)
         .then(result => result.json())
         .then(json => setAvailablePackages(json));
-    }, [cloud_host]);
+    }, [ssl, host]);
 
   if (mqttSync) {
     mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this

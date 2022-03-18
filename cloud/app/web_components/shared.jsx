@@ -21,3 +21,11 @@ export const Heartbeat = ({heartbeat}) => {
     <FaHeartbeat /> {(new Date(heartbeat)).toLocaleString()}
   </span>
 };
+
+
+/** ensure the listed props were provided */
+export const ensureProps = (props, list) => list.every(name => {
+  const missing = (props[name] === undefined);
+  missing && console.error(`prop ${name} is required, got`, props);
+  return !missing;
+});

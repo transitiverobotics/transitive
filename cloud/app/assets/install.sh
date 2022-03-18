@@ -16,9 +16,6 @@ CYAN="\033[36m"
 WHITE="\033[37m"
 NORMAL="\033[0;39m"
 
-# TODO, use `dpkg --print-architecture` to find right architecture and download
-# the correct file for that
-
 ARCH=$(dpkg --print-architecture)
 NODEURL=https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/nodejs_16.14.0-deb-1nodesource1_${ARCH}.deb
 NODEDEB=/tmp/transitive_nodejs16.deb

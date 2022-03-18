@@ -30,22 +30,23 @@ log.setLevel('debug');
 
 const app = express();
 
+/* log all requests when debugging */
 app.use((req, res, next) => {
   log.debug(req.method, req.originalUrl);
   next();
 });
 
-// app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/caps', express.static(docker.RUN_DIR));
 
 // for DEV: ignore version number and serve (latest) from relative path
-app.use('/caps/:scope/:capabilityName/:version/:asset', (req, res, next) => {
+app.use('/caps/:scope/:capabilityName/:version/dist/:asset', (req, res, next) => {
   const filePath = path.resolve(__dirname, '../../../transitive-caps/',
     req.params.capabilityName, 'dist',
     // path.basename(req.url),
     req.params.asset);
+  log.debug('capability bundle from dev environment:', filePath);
   res.sendFile(filePath);
 });
 
@@ -68,6 +69,8 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
   if (req.query.deviceId == "_fleet") {
     // Serve the latest version run by any device
     version = robotAgent.getLatestRunningVersion(req.query.userId, capability);
+    // TODO: if no device is running this capability, serve the latest version.
+    // This is required to allow capabilities that are cloud+UI only.
   } else {
     const runningPkgs = robotAgent &&
       robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
@@ -78,7 +81,7 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
     // redirect to the folder in dist (symlinked to the place where the named
     // package exposes its distribution files bundles: in production from docker,
     // in dev symlinked in folder).
-    res.redirect(`/caps/${capability}/${version}/${filePath}`);
+    res.redirect(`/caps/${capability}/${version}/dist/${filePath}`);
   } else {
     res.status(404).end('package not running on this device');
   }
@@ -218,11 +221,14 @@ class _robotAgent extends Capability {
         this.addDevicePackageVersion(parsed);
         const key = `${parsed.capability}@${parsed.version}`;
 
-        if (!this.runningPackages[key]) {
-          console.log('starting', key);
+        if (!this.runningPackages[key] && !key.startsWith('@transitive-robotics/_')) {
 
-          // #DEBUG: temporarily disabled for dev
-          // docker.ensureRunning({name: parsed.capability, version: parsed.version})
+          if (process.env.NODOCKER) {
+            log.debug('NODOCKER: not starting docker container for', key);
+          } else {
+            log.debug('starting docker container for', key);
+            docker.ensureRunning({name: parsed.capability, version: parsed.version});
+          }
 
           this.runningPackages[key] = new Date();
         }

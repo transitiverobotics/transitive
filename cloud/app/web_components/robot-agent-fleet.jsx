@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {  } from 'react-bootstrap';
 
-import { Heartbeat } from './shared';
+import { Heartbeat, ensureProps } from './shared';
 
 const _ = {
   map: require('lodash/map'),
@@ -30,11 +30,17 @@ const FleetDevice = ({data, device, device_url}) => {
 };
 
 /** Component showing the fleet from the robot-agent perspective */
-const Fleet = ({jwt, id, robot_token, cloud_host, device_url}) => {
-  log.debug('Fleet', cloud_host, device_url);
+const Fleet = (props) => {
+
+  if (!ensureProps(props, ['jwt', 'id', 'robot_token', 'host', 'device_url'])) {
+    return <div>missing props</div>;
+  }
+  const {jwt, id, robot_token, host, device_url} = props;
+  const ssl = props.ssl && JSON.parse(props.ssl);
+  log.debug('Fleet', host, device_url);
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
-    mqttUrl: `${TR_SECURE ? 'wss' : 'ws'}://mqtt.${TR_HOST}`}); // TODO: use prop
+    mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
   const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
 
   if (mqttSync) {
@@ -45,7 +51,7 @@ const Fleet = ({jwt, id, robot_token, cloud_host, device_url}) => {
   log.debug('data', data);
   if (!ready || !data) return <StatusComponent />;
 
-  const curlURL = `http://install.${TR_HOST}`;
+  const curlURL = `http${ssl ? 's' : ''}://install.${host}`;
 
   return <div>
     <h5>Devices</h5>

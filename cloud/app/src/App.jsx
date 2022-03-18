@@ -81,9 +81,14 @@ const Capability = ({webComponent, capability, ...props}) => {
     return <div>Authenicating...</div>;
   }
 
-  return React.createElement(webComponent,
-    {jwt: jwtToken, id: session.user, ...session, ...props},
-    null);
+  return React.createElement(webComponent, {
+      jwt: jwtToken,
+      id: session.user,
+      host: TR_HOST,
+      ssl: TR_SECURE,
+      ...session,
+      ...props
+    }, null);
 };
 
 
@@ -127,7 +132,8 @@ const Apps = () => {
           <Route path="/device/:deviceId" element={
               <Capability webComponent='robot-agent-device'
                 capability='@transitive-robotics/_robot-agent'
-                cloud_host={`${location.protocol}//${location.host}`}
+                host={TR_HOST}
+                ssl={TR_SECURE}
                 />
             }/>
 

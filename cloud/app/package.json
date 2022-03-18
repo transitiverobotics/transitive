@@ -24,7 +24,8 @@
   },
   "scripts": {
     "test": "mocha -w *.test.js",
-    "dev": "npx webpack --mode=development"
+    "build-dev": "npx webpack --mode=development",
+    "dev": "NODOCKER=1 node server.js"
   },
   "eslintConfig": {},
   "browserslist": {

@@ -68,7 +68,7 @@ const Capability = ({webComponent, capability, ...props}) => {
             id: session.user,
             device: deviceId,
             capability,
-            validity: 3600,
+            validity: 3600 * 24,
           }})
       }
     }, [webComponent, capability, session]);

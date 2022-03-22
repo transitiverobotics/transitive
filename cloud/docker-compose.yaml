@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+
+  # mongodb:
+  #   image: mongo:5
+  #   restart: always
+  #   ports:
+  #     - "27017:27017"
+
+  mosquitto:
+    build: ./mosquitto
+    image: transitive/mosquitto:latest
+    volumes:
+      - ./certs/:/mosquitto/config/certs
+    ports:
+      - 8883:8883
+      - 9001:9001
+    extra_hosts:
+      - "auth:host-gateway"
+
+  homepage:
+    build: ./homepage
+    image: transitive/homepage:latest
+    volumes:
+      - /opt/transitive/static:/static
+    ports:
+      - 3000:3000

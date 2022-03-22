@@ -27,6 +27,7 @@ const routingTable = {
   registry: 'localhost:6000', // npm registry
   portal: 'localhost:9000',
   data: 'localhost:9000',
+  auth: 'localhost:9000',
   install: 'localhost:9000/install',
   repo: 'localhost:9000/repo', // binaries we host for packages, may go away
   mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
@@ -35,7 +36,8 @@ const defaultTarget = 'localhost:3000';
 
 /** route the request */
 const handleRequest = (req, res) => {
-  const target = routingTable[req.headers.host.split('.')[0]];
+  const hostname = req.headers.host.split(':')[0];
+  const target = routingTable[hostname.split('.')[0]];
   console.log(req.headers.host, req.url, target);
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });

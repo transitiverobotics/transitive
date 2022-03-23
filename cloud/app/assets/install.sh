@@ -51,7 +51,7 @@ cd $DIR
 echo "  unpacking nodejs into $DIR"
 dpkg -x $NODEDEB .
 
-# Record the fact that we have locally installed node.js 12. This is important
+# Record the fact that we have locally installed node.js. This is important
 # so that packages cannot request a lower version to be installed over it. See
 # aptLocal.sh.
 mkdir -p var/lib/dpkg/status.d

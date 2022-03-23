@@ -4,12 +4,15 @@ services:
   # mongodb:
   #   image: mongo:5
   #   restart: always
+  #   volumes:
+  #     - /var/lib/mongodb:/data/db
   #   ports:
   #     - "27017:27017"
 
   mosquitto:
     build: ./mosquitto
     image: transitive/mosquitto:latest
+    restart: always
     volumes:
       - ./certs/:/mosquitto/config/certs
     ports:
@@ -21,7 +24,18 @@ services:
   homepage:
     build: ./homepage
     image: transitive/homepage:latest
+    restart: always
     volumes:
       - /opt/transitive/static:/static
     ports:
       - 3000:3000
+
+  # cloud:
+  #   build: ./app
+  #   image: transitive/cloud:latest
+  #   restart: always
+  #   environment:
+  #     MONGO_URL=mongodb://mongodb:27017
+  #     MONGO_DB=transitive
+
+#      TR_HOST=transitiverobotics.com

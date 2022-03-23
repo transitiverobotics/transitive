@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@transitive-robotics/utils": "^0.3.7-1",
-    "@transitive-robotics/utils-web": "^0.2.10",
+    "@transitive-robotics/utils": "^0.4.0",
+    "@transitive-robotics/utils-web": "^0.2.12-9",
     "bcrypt": "^5.0.1",
     "bootstrap": "^5.1.3",
     "connect-mongo": "^4.6.0",
@@ -25,7 +25,9 @@
   "scripts": {
     "test": "mocha -w *.test.js",
     "build-dev": "npx webpack --mode=development",
-    "dev": "NODOCKER=1 node server.js"
+    "build": "npx webpack --mode=production --no-watch",
+    "dev": "NODOCKER=1 node server.js",
+    "start": "node server.js"
   },
   "eslintConfig": {},
   "browserslist": {

@@ -1,12 +1,17 @@
-# This file is for creating containers for the cloud-component of capabilities
+FROM node:16 as builder
+
+COPY . /app
+WORKDIR /app
+RUN npm ci
+RUN npm run build
+
+
 FROM node:16
 
+COPY . /app
+COPY --from=builder /app/dist /app
 WORKDIR /app
-# these files are generated on-the-fly by the cloud agent prior to docker build
-COPY certs/ /app/certs
-COPY package.json /app
-COPY .npmrc /app
-
-RUN npm install
+RUN rm -rf web_components src
+RUN npm ci --omit dev
 
 CMD npm start

@@ -11,7 +11,7 @@ const prompt = require('prompt');
 const bcrypt = require('bcrypt');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
-const {randomId} = require('@transitive-robotics/utils/server');
+const {randomId} = require('@transitive-robotics/utils');
 
 const SALT_ROUNDS = 10;
 

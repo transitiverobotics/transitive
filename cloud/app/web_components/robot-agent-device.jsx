@@ -10,9 +10,9 @@ const _ = {
   forEach: require('lodash/forEach'),
 };
 
-import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
-import { decodeJWT, versionCompare, toFlatObject, getLogger }
-from '@transitive-robotics/utils/client';
+import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
+toFlatObject, getLogger } from '@transitive-robotics/utils-web';
+
 const log = getLogger('robot-agent-device');
 
 const styles = {

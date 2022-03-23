@@ -10,8 +10,10 @@ const MongoStore = require('connect-mongo');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
-  require('@transitive-robotics/utils/server');
+  require('@transitive-robotics/utils');
 const { Capability } = require('@transitive-robotics/utils/cloud');
+
+
 const { COOKIE_NAME } = require('./common.js');
 
 // const WebRTCVideo = require('./caps/webrtc_video');
@@ -23,7 +25,7 @@ const installRouter = require('./install');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
-const log = getLogger(module.id);
+const log = getLogger(__filename);
 log.setLevel('debug');
 
 // ----------------------------------------------------------------------

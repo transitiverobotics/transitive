@@ -7,9 +7,8 @@ const _ = {
   map: require('lodash/map'),
 };
 
-import { useMqttSync, createWebComponent } from '@transitive-robotics/utils-web';
-import { decodeJWT, versionCompare, toFlatObject, getLogger }
-from '@transitive-robotics/utils/client';
+import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
+toFlatObject, getLogger } from '@transitive-robotics/utils-web';
 
 import { Code } from '../src/utils/Code';
 

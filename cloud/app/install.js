@@ -9,7 +9,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const Mongo = require('@transitive-robotics/utils/mongo');
-const { getLogger } = require('@transitive-robotics/utils/server');
+const { getLogger } = require('@transitive-robotics/utils');
 const log = getLogger(module.id);
 log.setLevel('debug');
 

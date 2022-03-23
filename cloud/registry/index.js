@@ -15,7 +15,7 @@ const { Readable } = require('stream');
 const Mongo = require('@transitive-robotics/utils/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
-const {randomId} = require('@transitive-robotics/utils/server');
+const {randomId} = require('@transitive-robotics/utils');
 
 const PORT = 6000;
 

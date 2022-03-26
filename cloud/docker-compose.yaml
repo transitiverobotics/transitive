@@ -1,20 +1,30 @@
 version: "3.9"
 services:
 
-  # mongodb:
-  #   image: mongo:5
-  #   restart: always
-  #   volumes:
-  #     - /var/lib/mongodb:/data/db
-  #   ports:
-  #     - "27017:27017"
+  # a minimal container that ensures certificates are present in the shared,
+  # mounted volume
+  ensure_certs:
+    image: ensure_certs
+    build: ./certs
+    volumes:
+      - ./certs:/certs
+
+  mongodb:
+    image: mongo:5
+    restart: always
+    # volumes:
+    #   - /var/lib/mongodb:/data/db
+    # ports:
+    #   - "27017:27017"
 
   mosquitto:
     build: ./mosquitto
     image: transitive/mosquitto:latest
     restart: always
+    depends_on:
+      - ensure_certs
     volumes:
-      - ./certs/:/mosquitto/config/certs
+      - ./certs:/mosquitto/certs
     ports:
       - 8883:8883
       - 9001:9001
@@ -30,12 +40,21 @@ services:
     ports:
       - 3000:3000
 
-  # cloud:
-  #   build: ./app
-  #   image: transitive/cloud:latest
-  #   restart: always
-  #   environment:
-  #     MONGO_URL=mongodb://mongodb:27017
-  #     MONGO_DB=transitive
+  cloud:
+    build: ./app
+    image: transitive/cloud:latest
+    restart: always
+    depends_on:
+      - ensure_certs
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./certs:/etc/mosquitto/certs
+      - ./certs:/app/certs
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - MONGO_DB=transitive
+      - MQTT_URL=mqtts://mosquitto
+    ports:
+      - 9000:9000
 
-#      TR_HOST=transitiverobotics.com
+#      - TR_HOST=transitiverobotics.com

@@ -10,8 +10,8 @@ const { hideBin } = require('yargs/helpers')
 const prompt = require('prompt');
 const bcrypt = require('bcrypt');
 
-const Mongo = require('@transitive-robotics/utils/mongo');
-const {randomId} = require('@transitive-robotics/utils');
+const Mongo = require('@transitive-sdk/utils/mongo');
+const {randomId} = require('@transitive-sdk/utils');
 
 const SALT_ROUNDS = 10;
 

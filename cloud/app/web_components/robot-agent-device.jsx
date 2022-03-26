@@ -11,7 +11,7 @@ const _ = {
 };
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-toFlatObject, getLogger } from '@transitive-robotics/utils-web';
+toFlatObject, getLogger } from '@transitive-sdk/utils-web';
 
 const log = getLogger('robot-agent-device');
 

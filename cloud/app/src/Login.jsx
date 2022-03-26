@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Button, Form } from 'react-bootstrap';
 
 import { loglevel, getLogger, fetchJson, parseCookie }
-from '@transitive-robotics/utils-web';
+from '@transitive-sdk/utils-web';
 
 const { COOKIE_NAME } = require('../common.js');
 

@@ -8,8 +8,8 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const Mongo = require('@transitive-robotics/utils/mongo');
-const { getLogger } = require('@transitive-robotics/utils');
+const Mongo = require('@transitive-sdk/utils/mongo');
+const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger(module.id);
 log.setLevel('debug');
 

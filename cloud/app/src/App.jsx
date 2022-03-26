@@ -8,7 +8,7 @@ import {
   useParams,
 } from "react-router-dom";
 
-import {getLogger, fetchJson} from '@transitive-robotics/utils-web';
+import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
 
 import {Login, UserContext, UserContextProvider} from './Login.jsx';
 import {Sidebar} from './Sidebar.jsx';

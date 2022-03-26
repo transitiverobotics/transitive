@@ -23,6 +23,8 @@ Install dependencies: mosquitto, mongodb, node.js.
 
 **TODO**: how to set configuration for mosquitto (and download auth-plugin)? a configure script as part of `@transitive-robotics/cloud`? a postinstall script, and require sudo? require `sudo npm -g install`?
  - yes, also needed to create `master` user and password (stored as bcrypt hash in db)
+ - or just do everything via docker-compose or similar?
+ - when and where to generate master certs for mqtt? 
 
 On your cloud server run
 ```

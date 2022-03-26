@@ -8,10 +8,10 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
-const Mongo = require('@transitive-robotics/utils/mongo');
+const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
-  require('@transitive-robotics/utils');
-const { Capability } = require('@transitive-robotics/utils/cloud');
+  require('@transitive-sdk/utils');
+const { Capability } = require('@transitive-sdk/utils/cloud');
 
 
 const { COOKIE_NAME } = require('./common.js');

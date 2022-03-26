@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 const Docker = require('dockerode');
-const { getLogger } = require('@transitive-robotics/utils');
+const { getLogger } = require('@transitive-sdk/utils');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 

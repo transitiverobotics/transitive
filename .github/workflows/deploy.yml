@@ -18,34 +18,28 @@ jobs:
       # see https://github.com/actions/checkout/tree/v2
       - uses: actions/checkout@v2
 
-      - name: Set auth-token for npm
-        env:
-          BOT_AUTH_TOKEN: ${{ secrets.BOT_AUTH_TOKEN }}
-        run: |
-          echo "//registry.transitiverobotics.com/:_authToken=\"$BOT_AUTH_TOKEN\"" > ~/.npmrc
+      # - name: Set auth-token for npm
+      #   env:
+      #     BOT_AUTH_TOKEN: ${{ secrets.BOT_AUTH_TOKEN }}
+      #   run: |
+      #     echo "//registry.transitiverobotics.com/:_authToken=\"$BOT_AUTH_TOKEN\"" > ~/.npmrc
 
-      - name: Publish transitive-robotics/utils if new version
+      - name: Prepare var folder
         run: |
-          cd utils
-          /bin/bash republish.sh https://registry.transitiverobotics.com
+          mkdir -p ~/var/certs
+          mkdir -p ~/var/db
+          mkdir -p ~/var/static
 
-      - name: Run proxy install script
+      - name: Copy env file
         run: |
-          cd cloud/proxy
-          /bin/bash install.sh
+          cp ~/var/production.env ~/transitive/cloud/.env
 
-      - name: Run registry install script
+      - name: Run docker-compose build
         run: |
-          cd cloud/registry
-          /bin/bash install.sh
+          cd ~/transitive/cloud
+          docker-compose build
 
-      - name: Publish robot-agent if new version
+      - name: Run docker-compose up
         run: |
-          cd robot-agent
-          rm .npmrc
-          /bin/bash republish.sh https://registry.transitiverobotics.com
-
-      - name: Install ssh keys
-        run: |
-          cd cloud/system
-          /bin/bash addKeys.sh
+          cd ~/transitive/cloud
+          docker-compose up -d

@@ -1,7 +1,8 @@
 FROM alpine:latest
 
 RUN apk add openssl
-VOLUME certs
-WORKDIR /certs
+COPY . /certs
+VOLUME /generated
+WORKDIR /generated
 
-CMD sh generate.sh
+CMD sh ../certs/generate.sh

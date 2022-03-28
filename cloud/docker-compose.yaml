@@ -7,13 +7,13 @@ services:
     image: ensure_certs
     build: ./certs
     volumes:
-      - ./certs:/certs
+      - ${TR_VAR_DIR:-.}/certs:/generated
 
   mongodb:
     image: mongo:5
     restart: always
     volumes:
-      - ./db:/data/db
+      - ${TR_VAR_DIR:-.}/db:/data/db
 
     # ports:
     #   - "27017:27017"
@@ -25,19 +25,17 @@ services:
     depends_on:
       - ensure_certs
     volumes:
-      - ./certs:/mosquitto/certs
+      - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
     ports:
       - 8883:8883
       - 9001:9001
-    extra_hosts:
-      - "auth:host-gateway"
 
   homepage:
     build: ./homepage
     image: transitive/homepage:latest
     restart: always
     volumes:
-      - /opt/transitive/static:/static
+      - ${TR_VAR_DIR:-.}/static:/static
     ports:
       - 3000:3000
 
@@ -53,8 +51,8 @@ services:
       - mongodb
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./certs:/etc/mosquitto/certs
-      - ./certs:/app/certs
+      - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
+      - ${TR_VAR_DIR:-.}/certs:/app/certs
     env_file:
       - .env
     ports:
@@ -65,7 +63,7 @@ services:
     image: transitive/proxy:latest
     restart: always
     volumes:
-      - ./greenlock.d:/app/greenlock.d
+      - ${TR_VAR_DIR:-.}/greenlock.d:/app/greenlock.d
     env_file:
       - .env
     ports:

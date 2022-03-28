@@ -1,6 +1,5 @@
-FROM node:16
+FROM node:16.14.2
 
-RUN npm install -g npm@8.5.5
 COPY . /app
 WORKDIR /app
 RUN npm ci --omit dev

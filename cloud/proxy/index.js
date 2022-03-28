@@ -51,7 +51,7 @@ const routingTable = dockerCompose ? {
 const handleRequest = (req, res) => {
   const hostname = req.headers.host.split(':')[0];
   const target = routingTable[hostname.split('.')[0]];
-  console.log(req.headers.host, req.url, target);
+  console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });
   } else {

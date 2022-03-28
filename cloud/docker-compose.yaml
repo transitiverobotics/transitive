@@ -35,7 +35,7 @@ services:
     image: transitive/homepage:latest
     restart: always
     volumes:
-      - ${TR_VAR_DIR:-.}/static:/static
+      - ${TR_VAR_DIR:-.}/static:/app/static
     ports:
       - 3000:3000
 

@@ -5,7 +5,10 @@ const fs = require('fs');
 
 const port = process.env.PORT || 8000; // always 443 in production
 const hostname = process.env.HOST || `${os.hostname()}.local`;
-const production = !!process.env.PRODUCTION;
+const production = process.env.PRODUCTION ?
+  JSON.parse(process.env.PRODUCTION) : false;
+const dockerCompose = process.env.DOCKER_COMPOSE ?
+  JSON.parse(process.env.DOCKER_COMPOSE) : false;
 const host = production ? hostname : `${hostname}:${port}`;
 
 console.log({host, production});
@@ -24,7 +27,7 @@ proxy.on("error", function(err, req, res) {
 // -----------------------------------------------------------------------
 // Routing logic
 
-const routingTable = process.env.DOCKER_COMPOSE ? {
+const routingTable = dockerCompose ? {
     registry: 'registry:6000', // npm registry
     portal: 'cloud:9000',
     data: 'cloud:9000',
@@ -81,7 +84,6 @@ if (production) {
       prefix == 'default' ? host : `${prefix}.${host}`)
   }]};
   fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
-  process.exit(123);
 
   require("greenlock-express").init(() => {
     // Greenlock Config

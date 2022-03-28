@@ -33,7 +33,7 @@ const routingTable = dockerCompose ? {
     data: 'cloud:9000',
     auth: 'cloud:9000',
     install: 'cloud:9000/install',
-    repo: 'clour:9000/repo', // binaries we host for packages, may go away
+    repo: 'cloud:9000/repo', // binaries we host for packages, may go away
     mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
     default: 'homepage:3000'
   } : { // when not started via docker-compose (for local dev):
@@ -70,20 +70,34 @@ const handleUpgrade = function(req, socket, head) {
 
 // -----------------------------------------------------------------------
 
+/** update ./greenlock.d/config.json using HOST for the hostname suffixes */
+const updateConfig = () => {
+  fs.mkdirSync('greenlock.d', {recursive: true});
+  let config = {};
+  try {
+    // If the file exists, read it and update it. This is important, because
+    // greenlock-express updates that file with additional data regarding
+    // renewals.
+    const buffer = fs.readFileSync('greenlock.d/config.json');
+    config = JSON.parse(buffer.toString());
+  } catch (e) {}
+
+  config.sites = [{
+    subject: host,
+    altnames: Object.keys(routingTable).map(prefix =>
+      prefix == 'default' ? host : `${prefix}.${host}`)
+  }];
+
+  fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
+};
+
+// -----------------------------------------------------------------------
+
 
 if (production) {
   // in production we use greenlock-express as the server to terminate SSL requests
 
-  // TODO: write `config.json` into ./greenlock.d using TR_HOST for the
-  // hostname suffixes
-
-  fs.mkdirSync('greenlock.d', {recursive: true});
-  const config = {sites: [{
-    subject: host,
-    altnames: Object.keys(routingTable).map(prefix =>
-      prefix == 'default' ? host : `${prefix}.${host}`)
-  }]};
-  fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
+  updateConfig();
 
   require("greenlock-express").init(() => {
     // Greenlock Config

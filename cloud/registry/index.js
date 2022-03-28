@@ -12,10 +12,10 @@ const {URL} = require('url');
 
 const { Readable } = require('stream');
 
-const Mongo = require('@transitive-robotics/utils/mongo');
+const Mongo = require('@transitive-sdk/utils/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
-const {randomId} = require('@transitive-robotics/utils');
+const {randomId} = require('@transitive-sdk/utils');
 
 const PORT = 6000;
 
@@ -330,6 +330,16 @@ Mongo.init(() => {
   const packages = Mongo.db.collection('packages');
   const accounts = Mongo.db.collection('accounts');
   accounts.createIndexes([{key: {'tokens.token': 1}}, {key: {'name': 1}}]);
+
+  // If a bot token is provided as an env var, set it int he accounts db
+  console.log(process.env.TR_BOT_TOKEN);
+  process.env.TR_BOT_TOKEN && accounts.replaceOne({_id: 'bot'}, {
+    tokens: [{
+      readonly: false,
+      created: new Date,
+      token: process.env.TR_BOT_TOKEN
+    }]
+  }, {upsert: true});
 
   startServer({collections: {tarballs, packages, accounts}});
 });

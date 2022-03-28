@@ -81,7 +81,7 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       'TR_HOST': JSON.stringify(process.env.TR_HOST || `${os.hostname()}:8000`),
-      'TR_SECURE': process.env.TR_HOST ? 'true' : 'false',
+      'TR_SECURE': JSON.stringify(process.env.TR_SECURE || false),
       'TR_PKG_VERSION': JSON.stringify(process.env.npm_package_version),
     })
   ],

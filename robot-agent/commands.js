@@ -7,7 +7,7 @@ const _ = require('lodash');
 const constants = require('./constants');
 const utils = require('./utils');
 
-const { DataCache, toFlatObject } = require('@transitive-robotics/utils/server');
+const { DataCache, toFlatObject } = require('@transitive-sdk/utils');
 const dataCache = new DataCache();
 
 /** given a package name, return the system-escaped version of it */

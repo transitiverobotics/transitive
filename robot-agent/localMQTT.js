@@ -11,7 +11,6 @@ const persistence = require('aedes-persistence')();
 //   prefix: 'mqtt'    // defaults to ''
 // });
 const Aedes = require('aedes');
-const { DataCache } = require('@transitive-robotics/utils/server');
 
 const PORT = 1883;
 

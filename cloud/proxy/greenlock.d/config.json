@@ -8,7 +8,7 @@
       "install.transitiverobotics.com",
       "registry.transitiverobotics.com",
       "repo.transitiverobotics.com",
-      "video.transitiverobotics.com"
+      "mqtt.transitiverobotics.com"
     ]
   }]
 }

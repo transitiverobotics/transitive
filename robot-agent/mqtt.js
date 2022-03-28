@@ -25,15 +25,14 @@ const exec = require('child_process').exec;
 const log = require('loglevel');
 log.setLevel('debug');
 
-const { parseMQTTTopic, DataCache, mqttClearRetained, mqttParsePayload } =
-  require('@transitive-robotics/utils/server');
-const MqttSync = require('@transitive-robotics/utils/MqttSync');
+const { parseMQTTTopic, mqttClearRetained, mqttParsePayload } =
+  require('@transitive-sdk/utils');
+const { MqttSync } = require('@transitive-sdk/utils');
 const { handleAgentCommand, ensureDesiredPackages } =
   require('./commands');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
 
-// const data = new DataCache();
 let data;
 
 // prefix for all our mqtt topics, i.e., our namespace

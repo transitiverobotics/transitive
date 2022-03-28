@@ -7,7 +7,7 @@ const hostname = process.env.HOST || `${os.hostname()}.local`;
 const production = !!process.env.PRODUCTION;
 const host = production ? hostname : `${hostname}:${port}`;
 
-console.log({host, production});
+console.log({host, production}, process.env);
 
 // ------------------------------------------------------------------
 
@@ -23,16 +23,25 @@ proxy.on("error", function(err, req, res) {
 // -----------------------------------------------------------------------
 // Routing logic
 
-const routingTable = {
-  registry: 'localhost:6000', // npm registry
-  portal: 'localhost:9000',
-  data: 'localhost:9000',
-  auth: 'localhost:9000',
-  install: 'localhost:9000/install',
-  repo: 'localhost:9000/repo', // binaries we host for packages, may go away
-  mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
-};
-const defaultTarget = 'localhost:3000';
+const routingTable = process.env.DOCKER_COMPOSE ? {
+    registry: 'registry:6000', // npm registry
+    portal: 'cloud:9000',
+    data: 'cloud:9000',
+    auth: 'cloud:9000',
+    install: 'cloud:9000/install',
+    repo: 'clour:9000/repo', // binaries we host for packages, may go away
+    mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
+    default: 'homepage:3000'
+  } : { // when not started via docker-compose (for local dev):
+    registry: 'localhost:6000', // npm registry
+    portal: 'localhost:9000',
+    data: 'localhost:9000',
+    auth: 'localhost:9000',
+    install: 'localhost:9000/install',
+    repo: 'localhost:9000/repo', // binaries we host for packages, may go away
+    mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
+    default: 'localhost:3000'
+  };
 
 /** route the request */
 const handleRequest = (req, res) => {
@@ -42,7 +51,7 @@ const handleRequest = (req, res) => {
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });
   } else {
-    proxy.web(req, res, { target: `http://${defaultTarget}` });
+    proxy.web(req, res, { target: `http://${routingTable.default}` });
   }
 };
 
@@ -50,7 +59,7 @@ const handleRequest = (req, res) => {
 const handleUpgrade = function(req, socket, head) {
   console.log('ws:', req.headers.host, req.url);
   const host = routingTable[req.headers.host.split('.')[0]];
-  const target = `ws://${host || defaultTarget}`;
+  const target = `ws://${host || routingTable.default}`;
   proxy.ws(req, socket, head, {ws: true, target});
 };
 
@@ -61,11 +70,14 @@ const handleUpgrade = function(req, socket, head) {
 if (production) {
   // in production we use greenlock-express as the server to terminate SSL requests
 
+  // TODO: write `config.json` into ./greenlock.d using TR_HOST for the
+  // hostname suffixes
+
   require("greenlock-express").init(() => {
     // Greenlock Config
     return {
       packageRoot: __dirname,
-      configDir: `${process.env.HOME}/etc/greenlock.d`,
+      configDir: `./greenlock.d`,
       maintainerEmail: "christian@transitiverobotics.com",
       cluster: false,
       staging: false, // false == production, i.e., get actual certs from Let's Encrypt

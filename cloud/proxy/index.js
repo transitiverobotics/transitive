@@ -1,13 +1,14 @@
 "use strict";
 
 const os = require('os');
+const fs = require('fs');
 
 const port = process.env.PORT || 8000; // always 443 in production
 const hostname = process.env.HOST || `${os.hostname()}.local`;
 const production = !!process.env.PRODUCTION;
 const host = production ? hostname : `${hostname}:${port}`;
 
-console.log({host, production}, process.env);
+console.log({host, production});
 
 // ------------------------------------------------------------------
 
@@ -73,12 +74,21 @@ if (production) {
   // TODO: write `config.json` into ./greenlock.d using TR_HOST for the
   // hostname suffixes
 
+  fs.mkdirSync('greenlock.d', {recursive: true});
+  const config = {sites: [{
+    subject: host,
+    altnames: Object.keys(routingTable).map(prefix =>
+      prefix == 'default' ? host : `${prefix}.${host}`)
+  }]};
+  fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
+  process.exit(123);
+
   require("greenlock-express").init(() => {
     // Greenlock Config
     return {
       packageRoot: __dirname,
       configDir: `./greenlock.d`,
-      maintainerEmail: "christian@transitiverobotics.com",
+      maintainerEmail: process.env.TR_SSL_EMAIL,
       cluster: false,
       staging: false, // false == production, i.e., get actual certs from Let's Encrypt
     };

@@ -25,3 +25,5 @@ yarn-error.log*
 /dist
 
 certs
+greenlock.d
+

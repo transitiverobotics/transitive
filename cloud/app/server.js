@@ -13,7 +13,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
   require('@transitive-sdk/utils');
 const { Capability } = require('@transitive-sdk/utils/cloud');
 
-
+const {createAccount} = require('./accounts');
 const { COOKIE_NAME } = require('./common.js');
 
 // const WebRTCVideo = require('./caps/webrtc_video');
@@ -385,6 +385,11 @@ process.on('uncaughtException', (err) => {
   MAIN
 */
 Mongo.init(() => {
+  // if username and password are provided as env vars, create account if it
+  // doesn't yet exists. This is used for initial bringup.
+  process.env.TR_USER && process.env.TR_PASS &&
+    createAccount(process.env.TR_USER, process.env.TR_PASS);
+
   robotAgent.addRoutes();
   server.listen(9000, () => {
     console.log(`Server started on port ${server.address().port}`);

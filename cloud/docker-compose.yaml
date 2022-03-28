@@ -12,8 +12,9 @@ services:
   mongodb:
     image: mongo:5
     restart: always
-    # volumes:
-    #   - /var/lib/mongodb:/data/db
+    volumes:
+      - ./db:/data/db
+
     # ports:
     #   - "27017:27017"
 
@@ -41,20 +42,53 @@ services:
       - 3000:3000
 
   cloud:
-    build: ./app
+    build:
+      context: ./app
+      args:
+        - TR_HOST=${TR_HOST:-localhost}
     image: transitive/cloud:latest
     restart: always
     depends_on:
       - ensure_certs
+      - mongodb
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./certs:/etc/mosquitto/certs
       - ./certs:/app/certs
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017
-      - MONGO_DB=transitive
-      - MQTT_URL=mqtts://mosquitto
+    env_file:
+      - .env
     ports:
       - 9000:9000
 
-#      - TR_HOST=transitiverobotics.com
+  proxy:
+    build: ./proxy
+    image: transitive/proxy:latest
+    restart: always
+    volumes:
+      - ./greenlock.d:/app/greenlock.d
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+      - 80:80
+      - 443:443
+
+  registry:
+    build: ./registry
+    image: transitive/registry:latest
+    restart: always
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    ports:
+      - 6000:6000
+
+  # Once the registry is up, republish the robot-agent to it, in case it changed
+  publish:
+    build: ../robot-agent
+    image: transitive/publish:latest
+    depends_on:
+      - registry
+    env_file:
+      - .env

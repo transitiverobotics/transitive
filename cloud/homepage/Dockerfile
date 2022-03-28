@@ -14,4 +14,4 @@ WORKDIR /app
 RUN npm ci
 COPY --from=builder /app/build /app
 
-CMD npx http-server -p 3000
+CMD npx http-server -p 3000 -g -b

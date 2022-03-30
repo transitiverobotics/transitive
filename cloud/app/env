@@ -1,4 +1,0 @@
-# EnvironmentFile used by systemd service in production
-MONGO_URL=mongodb://localhost:27017
-MONGO_DB=transitive
-TR_HOST=transitiverobotics.com

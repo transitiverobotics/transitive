@@ -53,6 +53,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
       - ${TR_VAR_DIR:-.}/certs:/app/certs
+      - /run/user/0:/run/user/0
+      # - ./app:/app # DEVEL, this might be dangerous as it overwrites the bound app/certs
     env_file:
       - .env
     ports:

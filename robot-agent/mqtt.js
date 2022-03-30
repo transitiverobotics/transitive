@@ -40,6 +40,7 @@ const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version || '0.0.0';
 const AGENT_PREFIX = `${PREFIX}/@transitive-robotics/_robot-agent/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
+console.log('using', {AGENT_PREFIX, MQTT_HOST});
 
 const subOptions = {rap: true};
 
@@ -67,11 +68,6 @@ mqttClient.on('connect', function(connackPacket) {
     mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
       (value, key) => ensureDesiredPackages(value));
   });
-
-  // TODO: this should not execute more than once, but it does if:
-  //  the portal is not running, and
-  //  this agent connects to the mqtt broker (which is not getting a response
-  //    from the portal)
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
   // "publication", of which this may be a "clear on start" functionality

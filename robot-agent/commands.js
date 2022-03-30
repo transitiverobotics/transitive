@@ -1,18 +1,15 @@
 const fs = require('fs');
 const assert = require('assert');
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 
 const _ = require('lodash');
 
 const constants = require('./constants');
-const utils = require('./utils');
+const {getInstalledPackages, systemd_escape} = require('./utils');
 
 const { DataCache, toFlatObject } = require('@transitive-sdk/utils');
 const dataCache = new DataCache();
 
-/** given a package name, return the system-escaped version of it */
-const systemd_escape = (pkgName) =>
-  execSync(`systemd-escape "${pkgName}"`).toString().trim();
 
 /** install new package. Note: addedPkg may include a scope,
   e.g., @transitive-robotics/test1 */
@@ -25,14 +22,14 @@ const addPackage = (addedPkg) => {
     `{ "dependencies": {"${addedPkg}": "*"} }`);
 
   const command =
-    `systemctl --user start transitive-package@${systemd_escape(addedPkg)}.service`;
-  if (process.env.TR_DEVMODE) {
-    console.log(`DEV MODE, not starting package (${command})`);
-  } else {
+    `systemctl --user start "transitive-package@${systemd_escape(addedPkg)}.service"`;
+  // if (process.env.TR_DEVMODE) {
+  //   console.log(`DEV MODE, not starting package (${command})`);
+  // } else {
     exec(command, {}, (err, stdout, stderr) => {
       console.log('package installed and started', {err, stdout, stderr});
     });
-  }
+  // }
 };
 
 /** stop and uninstall named package */
@@ -41,7 +38,7 @@ const removePackage = (pkg) => {
   // verify the pkg name is a string, not empty, and doesn't contain dots
   assert(typeof pkg == 'string' && pkg.match(/\w/) && !pkg.match(/\./));
   // stop and remove folder
-  exec(`systemctl --user stop transitive-package@${systemd_escape(pkg)}.service`,
+  exec(`systemctl --user stop "transitive-package@${systemd_escape(pkg)}.service"`,
     {},
     (err, stdout, stderr) => {
       console.log('package stopped, removing files', {err, stdout, stderr});
@@ -63,7 +60,7 @@ const ensureDesiredPackages = (desired = {}) => {
   });
   console.log('Ensure installed packages match: ', desiredPackages);
 
-  const packages = utils.getInstalledPackages();
+  const packages = getInstalledPackages();
   console.log('currently installed: ', packages);
   packages.forEach(pkg => {
     if (desiredPackages[pkg]) {
@@ -101,14 +98,14 @@ const commands = {
   },
   _restartPackage: (sub) => {
     console.log(`Restarting ${sub[0]}.`);
-    exec(`systemctl --user restart transitive-package@${sub[0]}`, console.log);
+    exec(`systemctl --user restart "transitive-package@${systemd_escape(sub[0])}"`, console.log);
   },
   // _exec: (sub, value, cb) => {
   //   exec(value, (err, stdout, stderr) => cb({err, stdout, stderr}));
   // }
   _getStatus: (sub, value, cb) => {
     execAll([
-        `systemctl --user status transitive-package@${sub[0]}`,
+        `systemctl --user status "transitive-package@${systemd_escape(sub[0])}"`,
         `ls ${process.env.HOME}/.transitive/packages/${sub[0]}`,
         `journalctl --user -n 1000 | grep unshare`
         // note that journalctl -u doesn't show all output (stderr?)

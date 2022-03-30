@@ -25,6 +25,8 @@ const installRouter = require('./install');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
+const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
+
 const log = getLogger(__filename);
 log.setLevel('debug');
 
@@ -271,7 +273,7 @@ class _robotAgent extends Capability {
       // TODO: do not hard-code store url (once #82)
       // TODO: add authentication headers (once #84), npm token as Bearer
       const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
-      const response = await fetch(`http://localhost:6000/-/custom/all?q=${selector}`);
+      const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
       const data = await response.json();
       log.trace('availablePackages', data);
       res.set({'Access-Control-Allow-Origin': '*'});

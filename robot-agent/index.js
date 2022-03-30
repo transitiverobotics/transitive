@@ -9,7 +9,7 @@ process.env.TR_DEVMODE && console.log('*** DEV MODE');
   and if not, exit. This is to prevent other packages from installing this
   package once more in their respective node_modules and messing with the
   officially installed version in the above directory.
-  
+
   Using fs.realpathSync here in case the home directory path contains a symlink.
 */
 if (__dirname != fs.realpathSync(
@@ -26,7 +26,7 @@ if (!process.env.TR_USERID) {
   process.exit(2);
 }
 
-const utils = require('./utils');
+const {getInstalledPackages, systemd_escape} = require('./utils');
 const exec = require('child_process').exec;
 const localApi = require('./localApi');
 const ensureROS = require('./ensureROS');
@@ -62,13 +62,13 @@ const updatePackage = (name) => {
 
       if (Object.keys(outdated).length > 0) {
         // package wants to be updated
-        exec(`systemctl --user restart transitive-package@${name}.service`, {},
+        exec(`systemctl --user restart "transitive-package@${systemd_escape(name)}.service"`, {},
           (err, stdout, stderr) => {
             console.log(`package ${name} updated and restarted`, {err, stdout, stderr});
           });
       } else {
         // no update needed just start it (does nothing if it's already running)
-        exec(`systemctl --user start transitive-package@${name}.service`, {},
+        exec(`systemctl --user start "transitive-package@${systemd_escape(name)}.service"`, {},
           (err, stdout, stderr) => {
             err && console.log(`error starting package ${name}`, stderr);
           });
@@ -77,7 +77,7 @@ const updatePackage = (name) => {
 };
 
 const updateAllPackages = () => {
-  const packages = utils.getInstalledPackages();
+  const packages = getInstalledPackages();
   packages.forEach(name => updatePackage(name));
 };
 

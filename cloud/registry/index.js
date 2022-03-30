@@ -183,9 +183,19 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     console.log({package});
 
     if (!package) {
-      data.date = new Date();
       data.versions = Object.values(data.versions); // convert to array
-      data.owner = req.user._id;
+      const versionObj = data.versions[0];
+      Object.assign(data, {
+        owner: req.user._id,
+        version: versionObj.version,
+        author: versionObj.author,
+        keywords: versionObj.keywords,
+        'dist-tags': data['dist-tags'],
+        readme: versionObj.readme,
+        description: data.description,
+        date: new Date(),
+      });
+
       packages.insertOne(data);
 
     } else {

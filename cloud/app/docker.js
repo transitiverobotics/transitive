@@ -6,6 +6,9 @@ const Docker = require('dockerode');
 const { getLogger } = require('@transitive-sdk/utils');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
+// const REGISTRY = process.env.TR_REGISTRY || '172.17.0.1:6000';
+// const REGISTRY_HOST = REGISTRY.split(':')[0];
+const REGISTRY_HOST = '172.17.0.1';
 
 const log = getLogger('docker.js');
 log.setLevel('debug');
@@ -54,9 +57,9 @@ const build = async ({name, version}) => {
 
   // generate .npmrc
   fs.writeFileSync(path.join(dir, '.npmrc'),
-    `@transitive-robotics:registry=http://127.0.0.1:6000\n`);
-  // TODO: don't hard code in case we separate the npm registry from the app
-  // in the cloud onto separate instances
+    `@transitive-robotics:registry=http://registry:6000\n`);
+  // this is what it will be called inside the docker container started here
+  // by dockerrode; see extrahosts below to see where it points.
 
   fs.writeFileSync(path.join(dir, '.dockerignore'), [
       'node_modules',
@@ -95,14 +98,17 @@ const build = async ({name, version}) => {
         'package.json', '.npmrc', '.dockerignore']
     }, {
       networkmode: 'host', // #DEBUG,
-      extrahosts: 'registry.homedesk.local:172.17.0.1', // #DEBUG
+      extrahosts: `registry:${REGISTRY_HOST}`,
       t: tagName
     });
   stream.on('data', chunk =>
     log.debug(JSON.parse(chunk.toString()).stream?.trim()));
   await new Promise((resolve, reject) => {
     docker.modem.followProgress(stream,
-      (err, res) => err ? reject(err) : resolve(res));
+      (err, res) => {
+        log.debug('result from building image', err, res);
+        return err ? reject(err) : resolve(res);
+      });
   });
   log.debug('done building');
 };

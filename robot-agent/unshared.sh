@@ -14,6 +14,7 @@ mkdir -p $HOME/.transitive/tmp
 TMP=$(mktemp -d -p $HOME/.transitive/tmp)
 for folder in usr opt; do
   mkdir -p $TMP/$folder/{workdir,merged}
+  mkdir -p $HOME/.transitive/$folder # in case it doesn't exist
   mount -t overlay overlay -olowerdir=/$folder,upperdir=$HOME/.transitive/$folder,workdir=$TMP/$folder/workdir $TMP/$folder/merged
 done;
 

@@ -22,16 +22,16 @@ const fs = require('fs');
 const os = require('os');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
-const log = require('loglevel');
-log.setLevel('debug');
 
-const { parseMQTTTopic, mqttClearRetained, mqttParsePayload } =
-  require('@transitive-sdk/utils');
-const { MqttSync } = require('@transitive-sdk/utils');
+const { parseMQTTTopic, mqttClearRetained, mqttParsePayload, MqttSync, getLogger,
+loglevel } = require('@transitive-sdk/utils');
 const { handleAgentCommand, ensureDesiredPackages } =
   require('./commands');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
+const log = getLogger('mqtt.js');
+log.setLevel('debug');
+loglevel.setAll('debug');
 
 let data;
 
@@ -40,7 +40,7 @@ const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version || '0.0.0';
 const AGENT_PREFIX = `${PREFIX}/@transitive-robotics/_robot-agent/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
-console.log('using', {AGENT_PREFIX, MQTT_HOST});
+log.debug('using', {AGENT_PREFIX, MQTT_HOST});
 
 const subOptions = {rap: true};
 
@@ -52,19 +52,19 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
   protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
-mqttClient.on('error', console.log);
-mqttClient.on('disconnect', console.log);
+mqttClient.on('error', log.warn);
+mqttClient.on('disconnect', log.warn);
 
 let initialized = false;
 mqttClient.on('connect', function(connackPacket) {
-  console.log(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
+  log.info(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
 
   const mqttSync = new MqttSync({mqttClient});
   mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
-  console.log('wait for heartbeat');
+  log.info('waiting for heartbeat from upstream');
   mqttSync.waitForHeartbeatOnce(() => {
-    log.debug('got heartbeat');
-    ensureDesiredPackages(mqttSync.data.get(`${AGENT_PREFIX}/desiredPackages`));
+    log.info('got heartbeat');
+    ensureDesiredPackages(mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
     mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
       (value, key) => ensureDesiredPackages(value));
   });
@@ -74,7 +74,7 @@ mqttClient.on('connect', function(connackPacket) {
   !initialized && mqttClearRetained(mqttClient,
     [`${AGENT_PREFIX}/info`, `${AGENT_PREFIX}/status`], () => {
 
-      console.log('subscribing to robot-agent commands');
+      log.info('subscribing to robot-agent commands');
 
       // data.subscribe(flatChanges => {
       //   for (let topic in flatChanges) {
@@ -92,7 +92,7 @@ mqttClient.on('connect', function(connackPacket) {
       setInterval(heartbeat, 60 * 1e3);
 
       mqttClient.on('message', (topic, payload, packet) => {
-        console.log(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
+        log.debug(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
         // relay the upstream message to local
 
         const parsedTopic = parseMQTTTopic(topic);
@@ -124,10 +124,10 @@ mqttClient.on('connect', function(connackPacket) {
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
       // mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, console.log);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, console.log);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, log.debug);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
+      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
 
       initialized = true;
     });

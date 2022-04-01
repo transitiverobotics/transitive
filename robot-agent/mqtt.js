@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const os = require('os');
+const assert = require('assert');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
 
@@ -37,10 +38,11 @@ let data;
 
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
-const version = process.env.npm_package_version || '0.0.0';
+const version = process.env.npm_package_version;
 const AGENT_PREFIX = `${PREFIX}/@transitive-robotics/_robot-agent/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 log.debug('using', {AGENT_PREFIX, MQTT_HOST});
+assert(version, 'env var npm_package_version is required');
 
 const subOptions = {rap: true};
 
@@ -59,7 +61,12 @@ let initialized = false;
 mqttClient.on('connect', function(connackPacket) {
   log.info(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
 
-  const mqttSync = new MqttSync({mqttClient});
+  const mqttSync = new MqttSync({mqttClient,
+    migrate: [{
+      topic: `${AGENT_PREFIX}/desiredPackages`,
+      newVersion: version
+    }]
+  });
   mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
   log.info('waiting for heartbeat from upstream');
   mqttSync.waitForHeartbeatOnce(() => {
@@ -76,12 +83,6 @@ mqttClient.on('connect', function(connackPacket) {
 
       log.info('subscribing to robot-agent commands');
 
-      // data.subscribe(flatChanges => {
-      //   for (let topic in flatChanges) {
-      //     mqttClient.publish(`${AGENT_PREFIX}${topic}`,
-      //       JSON.stringify(flatChanges[topic]), {retain: true});
-      //   }
-      // });
       data = mqttSync.data;
       mqttSync.publish(`${AGENT_PREFIX}/info`);
       mqttSync.publish(`${AGENT_PREFIX}/status`);
@@ -105,9 +106,6 @@ mqttClient.on('connect', function(connackPacket) {
             handleAgentCommand(parsedTopic.sub, json, (response) => response &&
               mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
                 JSON.stringify(response)));
-          // } else {
-          //   // everything else is data
-          //   handleAgentData(parsedTopic.sub, json);
           }
         } else {
           // Not for us, relay it locally.

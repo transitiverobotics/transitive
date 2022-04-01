@@ -65,15 +65,17 @@ mqttClient.on('connect', function(connackPacket) {
     migrate: [{
       topic: `${AGENT_PREFIX}/desiredPackages`,
       newVersion: version
-    }]
-  });
-  mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
-  log.info('waiting for heartbeat from upstream');
-  mqttSync.waitForHeartbeatOnce(() => {
-    log.info('got heartbeat');
-    ensureDesiredPackages(mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
-    mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
-      (value, key) => ensureDesiredPackages(value));
+    }],
+    onReady: () => {
+      mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
+      log.info('waiting for heartbeat from upstream');
+      mqttSync.waitForHeartbeatOnce(() => {
+        log.info('got heartbeat');
+        ensureDesiredPackages(mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
+        mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
+          (value, key) => ensureDesiredPackages(value));
+      });
+    }
   });
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a

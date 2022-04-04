@@ -89,7 +89,9 @@ openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj="/C
 
 # send certificate signing request to cloud
 echo "  sending CSR to [host]"
-curl -sf --data-binary @$DIR/certs/client.csr [host]/csr?token=[token] -o $DIR/certs/client.crt
+# url-encode token: https://stackoverflow.com/a/10797966/1087119
+url=$(curl -s -o /dev/null -w %{url_effective} --get --data-urlencode "token=[token]" "[host]/csr")
+curl -sf --data-binary @$DIR/certs/client.csr $url -o $DIR/certs/client.crt
 
 printStep "Installing the agent"
 $NPM install > /dev/null

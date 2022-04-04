@@ -20,7 +20,9 @@ const {randomId} = require('@transitive-sdk/utils');
 const PORT = 6000;
 
 const TR_HOST = process.env.TR_HOST || `${os.hostname()}.local:8000`;
-const PROTOCOL = process.env.PROTOCOL || 'http';
+const TR_SECURE = process.env.TR_SECURE ?
+  JSON.parse(process.env.TR_SECURE) : false;
+const PROTOCOL = TR_SECURE ? 'https' : 'http';
 
 const startServer = ({collections: {tarballs, packages, accounts}}) => {
 

@@ -30,9 +30,11 @@ jobs:
           mkdir -p ~/var/db
           mkdir -p ~/var/static
 
-      - name: Copy env file
+      - name: Copy env file and cat it
         run: |
           cp ~/var/production.env ~/transitive/cloud/.env
+          # for reference in the action: cat the env vars we'll use
+          cat ~/transitive/cloud/.env
 
       - name: Run docker-compose build
         run: |

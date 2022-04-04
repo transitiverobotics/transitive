@@ -55,10 +55,11 @@ const Fleet = (props) => {
   return <div>
     <h5>Devices</h5>
     {_.map(data[id], (deviceData, device) =>
-      <FleetDevice key={device} data={deviceData} device={device} device_url={device_url} />)}
+      <FleetDevice key={device} data={deviceData} device={device}
+        device_url={device_url} />)}
 
       <Code>
-        curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={robot_token}" | bash
+        curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
       </Code>
   </div>
 };

@@ -12,6 +12,7 @@ import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
 
 import {Login, UserContext, UserContextProvider} from './Login.jsx';
 import {Sidebar} from './Sidebar.jsx';
+import {Security} from './Security.jsx';
 import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
 
@@ -122,7 +123,7 @@ const Apps = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/admin" />
-          <Route path="/security" />
+          <Route path="/security" element={<Security />} />
 
           <Route path="/" element={
               <Capability webComponent='robot-agent-fleet'

@@ -27,6 +27,8 @@ const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
 
+const PORT = process.env.TR_CLOUD_PORT || 9000;
+
 const log = getLogger(__filename);
 log.setLevel('debug');
 
@@ -355,8 +357,14 @@ class _robotAgent extends Capability {
     this.router.get('/runningPackages', requireLogin, async (req, res) => {
       res.json(this.runningPackages);
     });
-  }
 
+    this.router.get('/jwtSecret', requireLogin, async (req, res) => {
+      log.debug('get JWT secret for', req.session.user);
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.session.user});
+      res.json({jwtSecret: account.jwtSecret});
+    });
+  }
 };
 
 
@@ -374,7 +382,7 @@ app.use('/install', installRouter);
 //   res.status(404).end();
 // });
 
-// to allow client-side rendering:
+// to allow client-side routing:
 app.use('/*', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -393,7 +401,7 @@ Mongo.init(() => {
     createAccount(process.env.TR_USER, process.env.TR_PASS);
 
   robotAgent.addRoutes();
-  server.listen(9000, () => {
+  server.listen(PORT, () => {
     console.log(`Server started on port ${server.address().port}`);
   });
 });

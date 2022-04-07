@@ -1,4 +1,4 @@
-FROM node:16.14.2 as builder
+FROM node:16.14.2 as base
 
 ARG TR_HOST
 ENV TR_HOST=${TR_HOST:-localhost}
@@ -21,4 +21,10 @@ RUN npm run build
 
 EXPOSE 9000
 
-CMD npm start
+FROM base as dev
+RUN apt-get update && apt-get install -y tmux
+CMD ./tmux.sh && while (true); do sleep 60; date; done
+
+FROM base as prod
+
+CMD ["npm", "start"]

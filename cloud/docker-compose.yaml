@@ -1,3 +1,7 @@
+# Lines commented out with #DEV will get uncommented by docker-compose-dev which
+# is just:
+# `sed 's/#DEV//' docker-compose.yaml | docker-compose -f - $@`
+
 version: "3.9"
 services:
 
@@ -14,9 +18,6 @@ services:
     restart: always
     volumes:
       - ${TR_VAR_DIR:-.}/db:/data/db
-
-    # ports:
-    #   - "27017:27017"
 
   mosquitto:
     build: ./mosquitto
@@ -44,6 +45,7 @@ services:
       context: ./app
       args:
         - TR_HOST=${TR_HOST:-localhost}
+      target: ${TARGET:-prod}
     image: transitive/cloud:latest
     restart: always
     depends_on:
@@ -54,9 +56,9 @@ services:
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
       - ${TR_VAR_DIR:-.}/certs:/app/certs
       - /run/user/0:/run/user/0
-      # - ./app:/app # DEVEL, this might be dangerous as it overwrites the bound app/certs
-      # - ./app/src:/app/src # for development
-      # - ./app/public:/app/public # for development
+      # - ./app:/app # DON'T, this would overwrite the bound app/certs
+      #DEV- ./app/src:/app/src
+      #DEV- ./app/public:/app/public
     env_file:
       - .env
     ports:

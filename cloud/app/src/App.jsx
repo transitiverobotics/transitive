@@ -101,7 +101,9 @@ const Capability = ({webComponent, capability, ...props}) => {
 
   return <div className='capability'>
     <div className='header'>
-      <span style={styles.capName}>{capability}/{webComponent}</span>
+      <span style={styles.capName} title='Name of the capability'>
+        {capability}/{webComponent}
+      </span>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId} />
     </div>
     <div className='body'>

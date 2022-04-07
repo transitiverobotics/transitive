@@ -7,4 +7,4 @@ RUN npm ci --omit dev
 VOLUME /app/greenlock.d
 EXPOSE 8000
 
-CMD npm start
+CMD ["npm", "start"]

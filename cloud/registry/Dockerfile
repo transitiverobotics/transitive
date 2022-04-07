@@ -6,4 +6,4 @@ RUN npm ci --omit dev
 
 EXPOSE 6000
 
-CMD npm start
+CMD ["npm", "start"]

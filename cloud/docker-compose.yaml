@@ -27,6 +27,7 @@ services:
       - ensure_certs
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
+      - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
     ports:
       - 8883:8883
       - 9001:9001

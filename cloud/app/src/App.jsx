@@ -13,10 +13,13 @@ import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
 import {Login, UserContext, UserContextProvider} from './Login.jsx';
 import {Sidebar} from './Sidebar.jsx';
 import {Security} from './Security.jsx';
+import {Embed} from './utils/Embed.jsx';
 import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
 
 const log = getLogger('App.jsx');
+
+const F = React.Fragment;
 
 const styles = {
   wrapper: {
@@ -42,6 +45,9 @@ const styles = {
     flex: '10 1 20em',
     padding: '2em',
   },
+  capName: {
+    float: 'right',
+  }
 };
 
 /** Note, this only works on the cloud app directly when we are logged in with
@@ -84,7 +90,7 @@ const Capability = ({webComponent, capability, ...props}) => {
 
   const ssl = (location.protocol == 'https:');
 
-  return React.createElement(webComponent, {
+  const element = React.createElement(webComponent, {
       jwt: jwtToken,
       id: session.user,
       host: TR_HOST,
@@ -92,6 +98,16 @@ const Capability = ({webComponent, capability, ...props}) => {
       ...session,
       ...props
     }, null);
+
+  return <div className='capability'>
+    <div className='header'>
+      <span style={styles.capName}>{capability}/{webComponent}</span>
+      <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId} />
+    </div>
+    <div className='body'>
+      {element}
+    </div>
+  </div>;
 };
 
 

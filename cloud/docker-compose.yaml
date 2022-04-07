@@ -55,6 +55,8 @@ services:
       - ${TR_VAR_DIR:-.}/certs:/app/certs
       - /run/user/0:/run/user/0
       # - ./app:/app # DEVEL, this might be dangerous as it overwrites the bound app/certs
+      # - ./app/src:/app/src # for development
+      # - ./app/public:/app/public # for development
     env_file:
       - .env
     ports:

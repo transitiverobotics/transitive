@@ -9,12 +9,13 @@ const styles = {
     backgroundColor: '#f0f0f0',
     borderRadius: '4px',
     marginTop: '0.5em',
-    maxWidth: '80vw',
-    overflowWrap: 'break-word'
+    overflowWrap: 'anywhere',
+    whiteSpace: 'pre-wrap'
   }
 }
 
 /** reusable component for showing code */
-export const Code = ({children}) => <div style={styles.code}>
+export const Code = ({children}) => <pre style={styles.code}>
   {children}
-</div>;
+</pre>;
+// {React.Children.map(children, text => text.replace(/\n/g, '<br/>'))}

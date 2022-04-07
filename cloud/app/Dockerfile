@@ -16,7 +16,7 @@ RUN npm run build
 # COPY . /app
 # COPY --from=builder /app/dist /app/dist
 # WORKDIR /app
-RUN rm -rf web_components src
+# RUN rm -rf web_components src
 # RUN npm ci --omit dev
 
 EXPOSE 9000

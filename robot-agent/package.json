@@ -14,7 +14,7 @@
   "author": "Christian Fritz",
   "license": "UNLICENSED",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.4.2",
+    "@transitive-sdk/utils": "^0.4.3",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
     "lodash": "^4.17.21",
     "mqtt": "^4.2.6"

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form }
 from 'react-bootstrap';
 
-import { Heartbeat, ensureProps } from './shared';
-
 const _ = {
   map: require('lodash/map'),
   some: require('lodash/some'),
@@ -11,7 +9,11 @@ const _ = {
 };
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-toFlatObject, getLogger } from '@transitive-sdk/utils-web';
+mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained }
+from '@transitive-sdk/utils-web';
+
+import { Heartbeat, ensureProps } from './shared';
+import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const log = getLogger('robot-agent-device');
 
@@ -141,10 +143,24 @@ const Device = (props) => {
     mqttSync.mqtt.publish(topic, '1');
   };
 
+  /** remove the device from the dashboard (until it republishes status, if at
+  all) */
+  const clear = () => {
+    mqttClearRetained(mqttSync.mqtt, [prefix],
+      () => {
+        console.log('device removed');
+        // redirect to fleet page if given, or to homepage otherwise
+        location.href = props.fleetURL || '/';
+      });
+  };
 
   console.log('packages', packages);
 
   const os = latestVersionData.info?.os;
+
+  const explanation = `This will delete all meta-data for this device. If the
+    agent is still running, the device will come back but will require a
+    restart of the agent in order to get back all meta-data, such as the hostname.`;
 
   return <div>
     <div style={styles.row}>
@@ -157,6 +173,10 @@ const Device = (props) => {
       <Button onClick={restartAgent} variant='outline-warning'>
         Restart agent
       </Button>
+      <ConfirmedButton onClick={clear} variant='outline-secondary'
+        explanation={explanation}>
+        Remove device
+      </ConfirmedButton>
     </div>
 
     <div style={styles.row}>

@@ -96,5 +96,16 @@ curl -sf --data-binary @$DIR/certs/client.csr $url -o $DIR/certs/client.crt
 printStep "Installing the agent"
 $NPM install > /dev/null
 
-printStep "Success!"
-echo "  You can verify that the agent is running using 'systemctl --user status transitive-robot.service'"
+if [[ -d /run/systemd/system ]]; then
+  printStep "Success!"
+  echo "  You can verify that the agent is running using 'systemctl --user status transitive-robot.service'"
+else
+  # no systemd, start the agent right away manually
+  for n in $(cat $HOME/.transitive/.env | grep -v "^#"); do export $n; done
+  cd $HOME/.transitive/node_modules/@transitive-robotics/robot-agent
+  export PATH=$PATH:$HOME/.transitive/usr/sbin:$HOME/.transitive/usr/bin:$HOME/.transitive/sbin:$HOME/.transitive/bin
+  while (true); do
+    $HOME/.transitive/usr/bin/npm start;
+    sleep 2;
+  done
+fi;

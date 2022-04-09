@@ -59,7 +59,9 @@ services:
       - /run/user/0:/run/user/0
       # - ./app:/app # DON'T, this would overwrite the bound app/certs
       #DEV- ./app/src:/app/src
+      #DEV- ./app/web_components:/app/web_components
       #DEV- ./app/public:/app/public
+      #DEV- ./app/assets:/app/assets
     env_file:
       - .env
     ports:

@@ -152,7 +152,9 @@ const Apps = () => {
 
           <Route path="/device/:deviceId" element={
               <Capability webComponent='robot-agent-device'
-                capability='@transitive-robotics/_robot-agent' />
+                capability='@transitive-robotics/_robot-agent'
+                fleetURL='/'
+                />
             }/>
 
           {/** per capability and per device page */}

@@ -26,10 +26,13 @@ cp unshare*.sh ~/.transitive
 
 cp aptLocal.sh dpkgStatus.sh startPackage.sh ~/.transitive/usr/bin
 
-# allow service to run on boot without user logging in
-loginctl enable-linger $USER
-systemctl --user daemon-reload
-systemctl --user enable transitive-robot.service
-systemctl --user restart transitive-robot.service
+if [ -d /run/systemd/system ]; then
+  # allow service to run on boot without user logging in
+  loginctl enable-linger $USER
+  systemctl --user daemon-reload
+  systemctl --user enable transitive-robot.service
+  systemctl --user restart transitive-robot.service
 
-echo robot-agent postinstall done!
+  echo robot-agent postinstall done!
+fi;
+# else: no systemd, the install script will take care of starting the agent right away manually

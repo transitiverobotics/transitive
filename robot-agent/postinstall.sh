@@ -10,6 +10,8 @@ if [ $PWD != ~/.transitive/node_modules/@transitive-robotics/robot-agent ] && [ 
   exit 1;
 fi
 
+# TODO: replace all this with a tar-ball?
+
 # install systemd user service
 mkdir -p $HOME/.config/systemd/user/
 cp *.service $HOME/.config/systemd/user/
@@ -20,11 +22,10 @@ mkdir -p ~/.transitive/run
 mkdir -p ~/.transitive/usr/bin
 
 cp uninstall.sh ~/.transitive/usr/bin
-
 cp unshare*.sh ~/.transitive
 [ ! -e ~/.transitive/etc/env_local ] && touch ~/.transitive/etc/env_local
-
 cp aptLocal.sh dpkgStatus.sh startPackage.sh ~/.transitive/usr/bin
+
 
 if [ -d /run/systemd/system ]; then
   # allow service to run on boot without user logging in

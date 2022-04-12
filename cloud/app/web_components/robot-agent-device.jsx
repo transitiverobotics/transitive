@@ -143,6 +143,11 @@ const Device = (props) => {
     mqttSync.mqtt.publish(topic, '1');
   };
 
+  const restartPackage = (name) => {
+    console.log('sending command to restart package', name);
+    mqttSync.mqtt.publish(`${versionPrefix}/_restartPackage/${name}`, '1');
+  };
+
   /** remove the device from the dashboard (until it republishes status, if at
   all) */
   const clear = () => {
@@ -193,9 +198,8 @@ const Device = (props) => {
                 view
               </Button>
             } {
-              running && <Button variant='link' onClick={() =>
-                console.log('TODO: restart')
-              }>
+              running && <Button variant='link'
+                onClick={() => restartPackage(name)}>
                 restart
               </Button>
             } {

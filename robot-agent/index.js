@@ -26,15 +26,19 @@ if (!process.env.TR_USERID) {
   process.exit(2);
 }
 
-const {getInstalledPackages, systemd_escape} = require('./utils');
-const exec = require('child_process').exec;
+const {exec} = require('child_process');
+const {getInstalledPackages, restartPackage, startPackage} = require('./utils');
+const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
 const ensureROS = require('./ensureROS');
 
-console.log('@transitive-robotics/robot-agent started', new Date());
+const log = getLogger('index.js');
+log.setLevel('debug');
+
+log.debug('@transitive-robotics/robot-agent started', new Date());
 
 // note that we here assume that we are run by the systemd user service that is
-// installed by this package during postinstall
+// installed by this package during postinstall or inside a while loop
 const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
 /** self-update this package */
@@ -51,6 +55,8 @@ const selfUpdate = (cb) => {
     });
 };
 
+
+
 /** update package "name" */
 const updatePackage = (name) => {
   console.log(`checking for updates for package ${name}`);
@@ -62,16 +68,10 @@ const updatePackage = (name) => {
 
       if (Object.keys(outdated).length > 0) {
         // package wants to be updated
-        exec(`systemctl --user restart "transitive-package@${systemd_escape(name)}.service"`, {},
-          (err, stdout, stderr) => {
-            console.log(`package ${name} updated and restarted`, {err, stdout, stderr});
-          });
+        restartPackage(name, true);
       } else {
         // no update needed just start it (does nothing if it's already running)
-        exec(`systemctl --user start "transitive-package@${systemd_escape(name)}.service"`, {},
-          (err, stdout, stderr) => {
-            err && console.log(`error starting package ${name}`, stderr);
-          });
+        startPackage(name);
       }
     });
 };
@@ -86,7 +86,8 @@ const update = () => {
   if (!process.env.TR_DEVMODE) {
     selfUpdate(() => ensureROS(updateAllPackages));
   } else {
-    ensureROS();
+    // ensureROS();
+    ensureROS(updateAllPackages);
   }
 }
 

@@ -39,9 +39,7 @@ Some users may wonder how Transitive Robotics handles dependencies given that th
 
 :::
 
-Each capability runs in its own sandbox environment on the robot and is started by a separate systemd user service `transitive-package@PACKAGE_NAME`.
-
-Once the chosen capability is installed and started running, it will show up as "running" on the device page. If the capability provides a front-end component it will be shown on the device page as well. The display of the front-end component (also referred to as widget), is primarily for demonstration purposes. Their intended purpose is for embedding in your own robotic web application.
+Each capability runs in its own sandbox environment on the robot. Capabilities are started by the robot-agent but can keep running uninterrupted even if the robot-agent stops or restarts. Once the chosen capability is installed and started running, it will show up as "running" on the device page. If the capability provides a front-end component it will be shown on the device page as well. The display of the front-end component (also referred to as widget), is primarily for demonstration purposes. Their intended purpose is for embedding in your own robotic web application.
 
 ### Embedding a capability's widget in your own web application
 

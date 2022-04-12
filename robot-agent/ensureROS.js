@@ -95,6 +95,8 @@ module.exports = (callback) => {
         startCore(roscorePath);
         callback && callback();
       }
+    } else {
+      callback && callback();
     }
   });
 };

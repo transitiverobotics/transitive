@@ -6,6 +6,7 @@ Description=Transitive Robotics Robot Agent Service
 # specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
 [Service]
 EnvironmentFile=%h/.transitive/.env
+EnvironmentFile=-%h/.transitive/.env_user
 # WorkingDirectory=%h/.transitive
 # ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
 WorkingDirectory=%h/.transitive/node_modules/@transitive-robotics/robot-agent

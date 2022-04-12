@@ -100,12 +100,17 @@ if [[ -d /run/systemd/system ]]; then
   printStep "Success!"
   echo "  You can verify that the agent is running using 'systemctl --user status transitive-robot.service'"
 else
+  printStep "Starting the agent, since systemd is not running"
   # no systemd, start the agent right away manually
   for n in $(cat $HOME/.transitive/.env | grep -v "^#"); do export $n; done
+  if [[ -f $HOME/.transitive/.env_user ]]; then
+    for n in $(cat $HOME/.transitive/.env_user | grep -v "^#"); do export $n; done
+  fi;
   cd $HOME/.transitive/node_modules/@transitive-robotics/robot-agent
   export PATH=$PATH:$HOME/.transitive/usr/sbin:$HOME/.transitive/usr/bin:$HOME/.transitive/sbin:$HOME/.transitive/bin
   while (true); do
-    $HOME/.transitive/usr/bin/npm start;
+    $NPM start;
     sleep 2;
+    echo "Restarting the agent"
   done
 fi;

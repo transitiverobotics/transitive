@@ -31,8 +31,8 @@ const { handleAgentCommand, ensureDesiredPackages } =
 
 const {startLocalMQTTBroker} = require('./localMQTT');
 const log = getLogger('mqtt.js');
-log.setLevel('debug');
-loglevel.setAll('debug');
+// log.setLevel('debug');
+// loglevel.setAll('debug');
 
 let data;
 

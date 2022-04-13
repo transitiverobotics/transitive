@@ -58,7 +58,7 @@ const startPackage = (name) => {
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
-      const logFile = `/tmp/_tr_logs/${name}.log`;
+      const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
       // TODO: add a log-rotate or truncate for these log files

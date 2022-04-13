@@ -210,11 +210,11 @@ const Device = (props) => {
             }
           </ListGroup.Item>) :
 
-          <ListGroup.Item>No apps running.</ListGroup.Item>
+          <ListGroup.Item>No capabilities running.</ListGroup.Item>
         }
 
         <ListGroup.Item>
-          <DropdownButton title="Install apps" variant='link'>
+          <DropdownButton title="Install capabilities" variant='link'>
             {availablePackages.map(pkg => <Dropdown.Item
                 key={pkg._id}
                 onClick={() => install(pkg)}>

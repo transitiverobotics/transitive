@@ -1,5 +1,15 @@
+#!/bin/bash
 
-docker build . -t robot
+if [[ $# > 0 ]]; then
+  TAGNAME=robot_${1/:/-}
+  BUILDARGS="--build-arg BASE_IMAGE=$1"
+else
+  TAGNAME=robot
+  BUILDARGS=""
+fi;
+
+docker build $BUILDARGS -t $TAGNAME .
+
 mkdir -p /tmp/transitive-docker-robot
 docker run -it --rm \
 --env-file ../../cloud/.env \
@@ -7,4 +17,4 @@ docker run -it --rm \
 --hostname robot_$(date -Iseconds | tr -d ':-' | cut -c -15) \
 -v /tmp/transitive-docker-robot:/root/.transitive \
 --name robot \
-robot bash
+$TAGNAME bash

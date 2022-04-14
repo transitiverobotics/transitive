@@ -85,9 +85,10 @@ if [[ ! -f $FLAG_FILE ]]; then
   # generate certificate signing request for MQTT broker
   echo "  generating CSR"
   mkdir -p $DIR/certs
-  openssl rand -out .rnd -writerand ~/.rnd # seems to be required on some systems
-  openssl genrsa -out $DIR/certs/client.key -rand .rnd 2048 2>/dev/null
-  openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj="/CN=[id]:$HASH"
+  # openssl rand -out .rnd -writerand ~/.rnd # seems to be required on some systems
+  # openssl genrsa -out $DIR/certs/client.key -rand .rnd 2048 2>/dev/null
+  openssl genrsa -out $DIR/certs/client.key 2048 2>/dev/null
+  openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj "/CN=[id]:$HASH"
 
   # send certificate signing request to cloud
   echo "  sending CSR to [host]"

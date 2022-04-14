@@ -22,6 +22,7 @@ indent() {
 
 getROSRelease() {
   case $(lsb_release -sc) in
+    xenial) echo kinetic;;
     focal) echo noetic;;
     bionic) echo melodic;;
     *) echo melodic;;
@@ -62,7 +63,7 @@ echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc
 
 
 if [[ -e /etc/apt/trusted.gpg ]]; then cp {,$DIR}/etc/apt/trusted.gpg; fi
-cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d
+cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d || true
 # For now, always get latest ROS repo keys, to mitigate stuff like:
 # https://discourse.ros.org/t/ros-gpg-key-expiration-incident/20669
 printStep "Import ROS repo keys"

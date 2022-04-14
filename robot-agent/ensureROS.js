@@ -7,7 +7,8 @@ const net = require('net');
 
 const rosDistros = {
   focal: 'noetic',
-  bionic: 'melodic'
+  bionic: 'melodic',
+  xenial: 'kinetic'
 };
 
 let ubuntuRelease;

@@ -3,7 +3,7 @@
 - OS:
   - Ubuntu 18.04 and higher
 - ROS:
-  - The TR agent does not require ROS to be installed. Most capabilities target ROS1 (melodic or noetic), but may also work without any ROS installed on the system.
+  - The TR agent does not require ROS to be installed. Most capabilities target ROS1 (kinetic, melodic, or noetic), but may also work without any ROS installed on the system.
 - Hardware architectures:
   - x86_64 (Intel, AMD), and
   - arm64 (e.g., NVIDIA Jetson).

@@ -4,6 +4,7 @@ const http = require('http');
 const exec = require('child_process').exec;
 
 const constants = require('./constants');
+const {weHaveSudo} = require('./utils');
 
 const SOCKET_FILE = `${constants.TRANSITIVE_DIR}/run/localApi.socket`;
 
@@ -22,12 +23,22 @@ const readRequest = (req) => new Promise((resolve, reject) => {
 
 const handlers = {
 
-  /** Example invocation:
+  /** Install the given list of apt packages. Example invocation:
   curl --unix-socket localApi.socket -i -d '{"command": "install", "packages": ["ros-noetic-wireless-msgs"]}' http://ignore
   */
   install: ({packages}, res) => {
     console.log('install packages', packages);
-    exec(`${constants.TRANSITIVE_DIR}/usr/bin/aptLocal.sh ${packages.join(' ')}`,
+    const aptCmd = (process.getuid() == 0 ?
+      // we are root, let's use it
+      'apt-get update && apt-get install -y' :
+      (weHaveSudo() ?
+        // we have passwordless sudo, let's use that
+        'sudo apt-get update && sudo apt-get install -y' :
+        // we have neither, use aptLocal.sh
+        `${constants.TRANSITIVE_DIR}/usr/bin/aptLocal.sh`
+      )
+    );
+    exec(`${aptCmd} ${packages.join(' ')}`,
       (err, stdout, stderr) => {
         if (err) {
           res.statusCode = 500;

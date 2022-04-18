@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# WARNING: DO NOT RUN THIS SCRIPT DIRECTLY! Run it in a `unshare -m`.
+
 echo "preparing sandbox for $TRPACKAGE ($USER)"
 
 RODIR=/tmp/_tr_ro
@@ -39,8 +41,8 @@ rm -f $TRHOME/$USER/.transitive
 ln -s /home $TRHOME/$USER/.transitive
 
 # fonts
-rm -f /home/$USER/.fonts
-ln -sf /home/usr/share/fonts /home/$USER/.fonts
+rm -f /$HOME/.fonts
+ln -sf /home/usr/share/fonts /$HOME/.fonts
 
 # Shed fake root. This will make us nobody. If we need to be the original user
 # instead we can try revertuid (see tmp/experiments/revertuid)

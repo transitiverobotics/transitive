@@ -25,7 +25,7 @@ Using a docker image derived from Ubuntu 18+ (e.g., `ros:melodic`), install depe
 #### Run
 
 - Since Transitive uses linux namespaces to sanbox capabilities, you need to run your container with `--privileged`.
-- Inside your container, `$HOME/.transitive` needs should be a bind-mounted folder from your host. For instance, run `mkdir /tmp/transitive-docker` and run your container with `-v /tmp/transitive-docker:/root/.transitive`, if running as root inside your container. (This is required for two reasons: to give Transitive a place where it can permanently store files, and to allow usage of this folder for creating an overlayfs mount onto /usr inside the container.)
+- Inside your container, `$HOME/.transitive` needs to be a bind-mounted folder from your host. For instance, run `mkdir /tmp/transitive-docker` and run your container with `-v /tmp/transitive-docker:/root/.transitive`, if running as root inside your container. (This is required for two reasons: to give Transitive a place where it can permanently store files, and to allow usage of this folder for creating an overlayfs mount onto /usr inside the container.)
 - Make sure, `/etc/machine-id` is not empty, e.g., run `hostname > /etc/machine-id` as part of your entry point.
 
 

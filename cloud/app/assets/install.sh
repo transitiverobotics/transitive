@@ -86,7 +86,8 @@ if [[ ! -f $FLAG_FILE ]]; then
   echo "  generating CSR"
   mkdir -p $DIR/certs
   # openssl rand -out .rnd -writerand ~/.rnd # seems to be required on some systems
-  # openssl genrsa -out $DIR/certs/client.key -rand .rnd 2048 2>/dev/null
+  openssl rand 2048 > $HOME/.rnd
+  # openssl genrsa -out $DIR/certs/client.key -rand $DIR/.rnd 2048 2>/dev/null
   openssl genrsa -out $DIR/certs/client.key 2048 2>/dev/null
   openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj "/CN=[id]:$HASH"
 

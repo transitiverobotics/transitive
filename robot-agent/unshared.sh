@@ -44,6 +44,13 @@ ln -s /home $TRHOME/$USER/.transitive
 rm -f /$HOME/.fonts
 ln -sf /home/usr/share/fonts /$HOME/.fonts
 
-# Shed fake root. This will make us nobody. If we need to be the original user
-# instead we can try revertuid (see tmp/experiments/revertuid)
-unshare -U bash -c "cd && $*"
+# Shed fake root.
+if [[ $SUDO ]]; then
+  # when using SUDO we need to use `su`, otherwise we don't have write permissions
+  # in the fake /home/transitive
+  su $USER bash -c "cd && $*"
+else
+  # when being root or in an `unshare -r` we become nobody. If we need to be the
+  # original user instead we can try revertuid (see tmp/experiments/revertuid).
+  unshare -U bash -c "cd && $*"
+fi;

@@ -71,8 +71,10 @@ const build = async ({name, version}) => {
   const certsFolder = `${pkgFolder}/cloud/certs`;
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
+      'RUN apt-get update',
       'COPY * /app/',
       'WORKDIR /app',
+      'ENV TRANSITIVE_IS_CLOUD=1',
       'RUN npm install',
       `RUN mkdir ${certsFolder}`,
       `RUN ln -s /app/client.crt ${certsFolder}`,

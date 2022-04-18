@@ -62,7 +62,6 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
       // TODO: add a log-rotate or truncate for these log files
-
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/usr/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -77,6 +76,20 @@ const startPackage = (name) => {
   });
 };
 
+
+/** check whether we, the running process, have password-less sudo rights */
+let _weHaveSudo = null;
+const weHaveSudo = () => {
+  if (_weHaveSudo == null) {
+    try {
+      execSync('sudo -n whoami');
+      _weHaveSudo = true;
+    } catch (err) {
+      _weHaveSudo = false;
+    }
+  }
+  return _weHaveSudo;
+};
 
 module.exports = {
   getInstalledPackages: () => {
@@ -97,5 +110,6 @@ module.exports = {
 
   restartPackage,
   killPackage,
-  startPackage
+  startPackage,
+  weHaveSudo
 };

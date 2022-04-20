@@ -6,6 +6,13 @@ echo "preparing sandbox for $TRPACKAGE ($USER)"
 
 RODIR=/tmp/_tr_ro
 TRHOME=/tmp/_tr_home
+if [[ -z $USER ]]; then
+  if [[ $SUDO_USER ]]; then
+    USER=$SUDO_USER;
+  else
+    USER=$(id -un);
+  fi;
+fi
 
 mkdir -p $RODIR
 # hide some folders by bind-mounting an empty read-only folder on top of them
@@ -45,9 +52,10 @@ rm -f /$HOME/.fonts
 ln -sf /home/usr/share/fonts /$HOME/.fonts
 
 # Shed fake root.
-if [[ $SUDO ]]; then
+if [[ $SUDO_COMMAND ]]; then
   # when using SUDO we need to use `su`, otherwise we don't have write permissions
   # in the fake /home/transitive
+  chown -R $SUDO_UID:$SUDO_GID $TRHOME/$USER
   su $USER bash -c "cd && $*"
 else
   # when being root or in an `unshare -r` we become nobody. If we need to be the

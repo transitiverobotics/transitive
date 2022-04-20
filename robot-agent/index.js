@@ -26,7 +26,7 @@ if (!process.env.TR_USERID) {
   process.exit(2);
 }
 
-const {exec} = require('child_process');
+const {exec, execSync} = require('child_process');
 const {getInstalledPackages, restartPackage, startPackage} = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
@@ -47,7 +47,21 @@ const selfUpdate = (cb) => {
   exec(`${constants.NPM} update --no-save`, {cwd: constants.TRANSITIVE_DIR},
     (err, stdout, stderr) => {
       if (!err) {
-        console.log('self-update completed:', stdout);
+        // check package version after update
+        const after = execSync('npm pkg get version', {
+            cwd: `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`,
+            encoding: 'utf-8'
+          }).trim().replace(/"/g, '');
+        if (after != process.env.npm_package_version) {
+          console.log(`self-update to ${after} completed:`, stdout);
+          // In NO_SYSTEMD mode we need to see whether we actually updated
+          // (there was a newer version) and if so kill ourselves and hope to be
+          // reborn (we should be running in a while loop).
+          process.env.NO_SYSTEMD && process.exit(0);
+        } else {
+          console.log(
+            `no update necessary (running ${process.env.npm_package_version})`);
+        }
         cb();
       } else {
         console.log('self-update failed', {err, stderr});

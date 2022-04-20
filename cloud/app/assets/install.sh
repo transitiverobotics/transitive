@@ -120,9 +120,13 @@ else
   if [[ -f $HOME/.transitive/.env_user ]]; then
     for n in $(cat $HOME/.transitive/.env_user | grep -v "^#"); do export $n; done
   fi;
-  cd $HOME/.transitive/node_modules/@transitive-robotics/robot-agent
+
   export PATH=$PATH:$HOME/.transitive/usr/sbin:$HOME/.transitive/usr/bin:$HOME/.transitive/sbin:$HOME/.transitive/bin
+  export NO_SYSTEMD=1
   while (true); do
+    cd $HOME/.transitive/node_modules/@transitive-robotics/robot-agent
+    # Yes this^ needs to be in the loop, because after a self-update we need to
+    # re-enter that directory (it gets rewritten during npm update).
     $NPM start;
     sleep 2;
     echo "Restarting the agent"

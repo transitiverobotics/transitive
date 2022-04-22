@@ -20,10 +20,11 @@ RestartSec=2
 # RestartForceExitStatus=3 4
 
 # Hardening, see `man systemd.exec`
-SystemCallArchitectures=native
 #MemoryDenyWriteExecute=true
 # ^ doesn't work with nodejs, which uses a JIT
-NoNewPrivileges=true
+
+#SystemCallArchitectures=native
+#NoNewPrivileges=true
 
 [Install]
 WantedBy=default.target

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# WARNING: DO NOT RUN THIS SCRIPT DIRECTLY! Run it in a `unshare -m`.
+# WARNING: DO NOT RUN THIS SCRIPT DIRECTLY! Run it in an `unshare -m`.
 
 echo "preparing sandbox for $TRPACKAGE ($USER)"
 

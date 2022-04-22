@@ -5,12 +5,12 @@ Description=Transitive Robotics Robot Agent Service
 # Cannot use env variables like $USER but systemd provides some very useful
 # specifies: https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers
 [Service]
-EnvironmentFile=%h/.transitive/.env
-EnvironmentFile=-%h/.transitive/.env_user
+# EnvironmentFile=%h/.transitive/.env
+# EnvironmentFile=-%h/.transitive/.env_user
 # WorkingDirectory=%h/.transitive
 # ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
 WorkingDirectory=%h/.transitive/node_modules/@transitive-robotics/robot-agent
-ExecStart=/bin/bash -c "PATH=$PATH:%h/.transitive/usr/sbin:%h/.transitive/usr/bin:%h/.transitive/sbin:%h/.transitive/bin %h/.transitive/usr/bin/npm start"
+ExecStart=/bin/bash -c "%h/.transitive/usr/bin/npm start"
 
 Restart=always
 RestartSec=2

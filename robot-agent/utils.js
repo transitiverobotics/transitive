@@ -63,7 +63,7 @@ const startPackage = (name) => {
       const out = fs.openSync(logFile, 'a');
       // TODO: add a log-rotate or truncate for these log files
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
-        [`/home/usr/bin/startPackage.sh ${name}`],
+        [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
           detached: true,
           cwd: `${os.homedir()}/.transitive`,

@@ -39,7 +39,7 @@ const checkCoreRunning = (callback) => {
 /** install ros core */
 const install = () => {
   console.log(
-    execSync(`${process.env.HOME}/.transitive/usr/bin/aptLocal.sh ros-${rosDistro}-roslaunch`)
+    execSync(`${process.env.HOME}/.transitive/bin/aptLocal.sh ros-${rosDistro}-roslaunch`)
     .toString()
   );
 };

@@ -35,7 +35,7 @@ const handlers = {
         // we have passwordless sudo, let's use that
         'sudo apt-get update && sudo apt-get install -y' :
         // we have neither, use aptLocal.sh
-        `${constants.TRANSITIVE_DIR}/usr/bin/aptLocal.sh`
+        `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh`
       )
     );
     exec(`${aptCmd} ${packages.join(' ')}`,

@@ -20,6 +20,7 @@ NODEDEB=/tmp/transitive_nodejs16.deb
 DIR=~/.transitive
 NODE=$DIR/usr/bin/node
 NPM="$NODE $DIR/usr/bin/npm"
+FLAG_FILE=$DIR/.installation_complete
 
 err_report() {
   printf "\n${RED}The install script failed on line $1$NORMAL\n"
@@ -36,47 +37,52 @@ printStep() {
 #   exit 1;
 # fi;
 
+if [[ ! -e $FLAG_FILE ]]; then
+  echo
+  echo "Installing Transitive Robotics robot-agent"
 
-echo
-echo "Installing Transitive Robotics robot-agent"
+  # Install node.js
+  printStep "Installing node.js"
+  if [ ! -e $NODEDEB ]; then
+    echo "  downloading node.js"
+    curl -f --progress-bar $NODEURL -J -o $NODEDEB
+  else
+    echo "  node.js already downloaded, reusing existing"
+  fi;
 
-# Install node.js
-printStep "Installing node.js"
-if [ ! -e $NODEDEB ]; then
-  echo "  downloading node.js"
-  curl -f --progress-bar $NODEURL -J -o $NODEDEB
+  # unpack into our folder
+  mkdir -p $DIR
+  cd $DIR
+  echo "  unpacking nodejs into $DIR"
+  dpkg -x $NODEDEB .
+
+  # Record the fact that we have locally installed node.js. This is important
+  # so that packages cannot request a lower version to be installed over it. See
+  # aptLocal.sh.
+  mkdir -p var/lib/dpkg/status.d
+  dpkg-deb -e $NODEDEB var/lib/dpkg/status.d/nodejs
+  echo "Status: install ok installed" >> var/lib/dpkg/status.d/nodejs/control
+  echo "" >> var/lib/dpkg/status.d/nodejs/control
+
+  printStep "Downloading files"
+  curl -sf [host]/files/package.json -o package.json
+  curl -sf [host]/files/.npmrc -o .npmrc
+  curl -sf [host]/files/.env -o .env
+
+  echo "TR_USERID=[id]" >> .env
+  echo "TR_INSTALL_HOST=[host]" >> .env
+  echo "TR_ROBOT_TOKEN=[token]" >> .token
+
+
+  printStep "Installing the agent"
+  $NPM install > /dev/null
+
+  printStep "Success!"
+  touch $FLAG_FILE
+
 else
-  echo "  node.js already downloaded, reusing existing"
+  echo "Agent already installed, not reinstalling."
 fi;
-
-# unpack into our folder
-mkdir -p $DIR
-cd $DIR
-echo "  unpacking nodejs into $DIR"
-dpkg -x $NODEDEB .
-
-# Record the fact that we have locally installed node.js. This is important
-# so that packages cannot request a lower version to be installed over it. See
-# aptLocal.sh.
-mkdir -p var/lib/dpkg/status.d
-dpkg-deb -e $NODEDEB var/lib/dpkg/status.d/nodejs
-echo "Status: install ok installed" >> var/lib/dpkg/status.d/nodejs/control
-echo "" >> var/lib/dpkg/status.d/nodejs/control
-
-printStep "Downloading files"
-curl -sf [host]/files/package.json -o package.json
-curl -sf [host]/files/.npmrc -o .npmrc
-curl -sf [host]/files/.env -o .env
-
-echo "TR_USERID=[id]" >> .env
-echo "TR_INSTALL_HOST=[host]" >> .env
-echo "TR_ROBOT_TOKEN=[token]" >> .token
-
-
-printStep "Installing the agent"
-$NPM install > /dev/null
-
-printStep "Success!"
 
 
 if [[ -d /run/systemd/system ]]; then
@@ -85,7 +91,7 @@ if [[ -d /run/systemd/system ]]; then
   echo "  You can verify that the agent is running using 'systemctl --user status transitive-robot.service'"
 else
   printStep "Installation complete"
-  echo "  The agent is installed, but you don't seem to run systemd."
-  echo "  You are responsible for starting the agent yourself. To do that run"
-  echo "  cd $HOME/.transitive && bash start_agent.sh"
+  echo "  Starting agent since systemd is not running."
+  cd $HOME/.transitive
+  bash start_agent.sh
 fi;

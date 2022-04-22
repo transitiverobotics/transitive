@@ -1,14 +1,14 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "1.6.19",
+  "version": "1.6.27",
   "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
     "test": "mocha -w *.test.js",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
-    "dev": "DIR=$PWD; (cd ~/.transitive && env $(cat .env | grep -v ^# | xargs) TR_DEVMODE=TRUE node $DIR/index.js)",
-    "start": "DIR=$PWD; (cd ~/.transitive && node $DIR/index.js)"
+    "dev": "DIR=$PWD; (cd ~/.transitive && env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js)",
+    "start": "DIR=$PWD; (cd ~/.transitive && bash generate_certs.sh && PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js)"
   },
   "keywords": [],
   "author": "Christian Fritz",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@transitive-sdk/utils": "^0.4.5",
     "aedes": "chfritz/aedes#add_preunsubscribe_handler",
+    "dotenv": "^16.0.0",
     "lodash": "^4.17.21",
     "mqtt": "^4.2.6"
   },

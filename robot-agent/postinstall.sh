@@ -25,7 +25,8 @@ cp uninstall.sh ~/.transitive/usr/bin
 cp unshare*.sh ~/.transitive
 [ ! -e ~/.transitive/etc/env_local ] && touch ~/.transitive/etc/env_local
 cp aptLocal.sh dpkgStatus.sh startPackage.sh ~/.transitive/usr/bin
-
+cp start_agent.sh ~/.transitive/
+cp generate_certs.sh ~/.transitive/
 
 if [ -d /run/systemd/system ]; then
   # allow service to run on boot without user logging in

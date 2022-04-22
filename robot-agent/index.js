@@ -1,5 +1,11 @@
-const constants = require('./constants');
+
+
 const fs = require('fs');
+const dotenv = require('dotenv');
+const constants = require('./constants');
+
+dotenv.config({path: './.env'});
+dotenv.config({path: './.env_user'});
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
 

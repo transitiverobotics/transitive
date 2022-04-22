@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [[ $# > 0 ]]; then
   TAGNAME=robot_${1/:/-}
   BUILDARGS="--build-arg BASE_IMAGE=$1"

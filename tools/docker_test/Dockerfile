@@ -6,6 +6,7 @@ RUN apt-get update
 RUN apt-get install -y iputils-ping curl git lsb-release gnupg
 RUN apt-get install -y vim
 
+
 COPY . /docker
 WORKDIR /docker
 ENTRYPOINT ["./entrypoint.sh"]

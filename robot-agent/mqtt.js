@@ -34,6 +34,9 @@ const log = getLogger('mqtt.js');
 // log.setLevel('debug');
 // loglevel.setAll('debug');
 
+// TODO: get this from utils
+const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
+
 let data;
 
 // prefix for all our mqtt topics, i.e., our namespace
@@ -97,27 +100,31 @@ mqttClient.on('connect', function(connackPacket) {
       mqttClient.on('message', (topic, payload, packet) => {
         log.debug(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
         // relay the upstream message to local
-
-        const parsedTopic = parseMQTTTopic(topic);
-        // TODO: ensure no one tries to publish a capability with this name -> registry
-        if (parsedTopic.capability == '@transitive-robotics/_robot-agent') {
-          // it's for us, the robot-agent
-          const json = mqttParsePayload(payload);
-          if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
-            // commands start with `_`
-            handleAgentCommand(parsedTopic.sub, json, (response) => response &&
-              mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
-                JSON.stringify(response)));
-          }
-        } else {
-          // Not for us, relay it locally.
-          /* We do NOT want to retain package-specific messages because we do not
-            subscribe to them all the time and could be missing "clear" messages,
-            which would cause discrepancies between the master data (in the cloud)
-            and our local copy. Instead, we just un-subscribe and resubscribe to
-          upstream and get retained messages from there when we connect. */
-          packet.retain = false;
+        if (topic == HEARTBEAT_TOPIC) {
+          // relay heartbeat locally:
           localBroker && localBroker.publish(packet, () => {});
+        } else {
+          const parsedTopic = parseMQTTTopic(topic);
+          // TODO: ensure no one tries to publish a capability with this name -> registry
+          if (parsedTopic.capability == '@transitive-robotics/_robot-agent') {
+            // it's for us, the robot-agent
+            const json = mqttParsePayload(payload);
+            if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
+              // commands start with `_`
+              handleAgentCommand(parsedTopic.sub, json, (response) => response &&
+                mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
+                  JSON.stringify(response)));
+            }
+          } else {
+            // Not for us, relay it locally.
+            /* We do NOT want to retain package-specific messages because we do not
+              subscribe to them all the time and could be missing "clear" messages,
+              which would cause discrepancies between the master data (in the cloud)
+              and our local copy. Instead, we just un-subscribe and resubscribe to
+            upstream and get retained messages from there when we connect. */
+            packet.retain = false;
+            localBroker && localBroker.publish(packet, () => {});
+          }
         }
       });
 
@@ -128,6 +135,7 @@ mqttClient.on('connect', function(connackPacket) {
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
+      mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
 
       initialized = true;
     });

@@ -16,7 +16,6 @@ const log = getLogger('localMQTT');
 
 const PORT = 1883;
 
-
 // subscription options for upstream client: required to see the retain flag
 const subOptions = {rap: true};
 
@@ -103,13 +102,19 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
 
   aedes.authorizePublish = (client, packet, callback) => {
     // overwrite packet: force client to its namespace
-    packet.topic = `${prefix}/${client.id}/${packet.topic}`;
+    if (!packet.topic.startsWith('$SYS')) {
+      const slash = packet.topic.startsWith('/') ? '' : '/';
+      packet.topic = `${prefix}/${client.id}${slash}${packet.topic}`;
+    }
     callback(null)
   }
 
   aedes.authorizeSubscribe = (client, subscription, callback) => {
     // overwrite subscription: force client to its namespace
-    subscription.topic = `${prefix}/${client.id}/${subscription.topic}`;
+    if (!subscription.topic.startsWith('$SYS')) {
+      const slash = subscription.topic.startsWith('/') ? '' : '/';
+      subscription.topic = `${prefix}/${client.id}${slash}${subscription.topic}`;
+    }
     callback(null, subscription);
   }
 
@@ -118,7 +123,8 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
   aedes.preUnsubscribe = (client, packet, callback) => {
     for (let i in packet.unsubscriptions) {
       !packet.unsubscriptions[i].startsWith(`${prefix}/${client.id}`) &&
-        (packet.unsubscriptions[i] = `${prefix}/${client.id}/${packet.unsubscriptions[i]}`);
+        (packet.unsubscriptions[i] =
+          `${prefix}/${client.id}/${packet.unsubscriptions[i]}`);
     }
     callback(client, packet);
   }

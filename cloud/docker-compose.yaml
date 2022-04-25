@@ -46,7 +46,6 @@ services:
       context: ./app
       args:
         - TR_HOST=${TR_HOST:-localhost}
-      target: ${TARGET:-prod}
     image: transitive/cloud:latest
     restart: always
     depends_on:
@@ -57,11 +56,12 @@ services:
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
       - ${TR_VAR_DIR:-.}/certs:/app/certs
       - /run/user/0:/run/user/0
-      # - ./app:/app # DON'T, this would overwrite the bound app/certs
+      # - ./app:/app # DON'T! this would overwrite the bound app/certs
       #DEV- ./app/src:/app/src
       #DEV- ./app/web_components:/app/web_components
       #DEV- ./app/public:/app/public
       #DEV- ./app/assets:/app/assets
+      #DEV- ../../transitive-caps/:/app/transitive-caps
     env_file:
       - .env
     ports:

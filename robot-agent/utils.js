@@ -91,7 +91,19 @@ const weHaveSudo = () => {
   return _weHaveSudo;
 };
 
+const fileExists = (filePath) => {
+  try {
+    fs.accessSync(filePath);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 module.exports = {
+
+  /** find list of installed packages, defined as those that have a folder in
+    packages/ with a package.json in it. */
   getInstalledPackages: () => {
     const basePath = `${constants.TRANSITIVE_DIR}/packages`;
     const list = getSubDirs(basePath);
@@ -105,7 +117,8 @@ module.exports = {
         return [dir];
       }
     });
-    return [].concat(...lists); // flatten
+    const flat = [].concat(...lists); // flatten
+    return flat.filter(dir => fileExists(`${dir}/package.json`));
   },
 
   restartPackage,

@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
 const fetch = require('node-fetch');
@@ -29,7 +30,7 @@ const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
 
 const PORT = process.env.TR_CLOUD_PORT || 9000;
 
-const log = getLogger(__filename);
+const log = getLogger('server');
 log.setLevel('debug');
 
 // ----------------------------------------------------------------------
@@ -37,24 +38,33 @@ log.setLevel('debug');
 const app = express();
 
 /* log all requests when debugging */
-app.use((req, res, next) => {
-  log.debug(req.method, req.originalUrl);
-  next();
-});
+// app.use((req, res, next) => {
+//   log.debug(req.method, req.originalUrl);
+//   next();
+// });
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
-app.use('/caps', express.static(docker.RUN_DIR));
 
-// for DEV: ignore version number and serve (latest) from relative path
+// for DEV: ignore version number and serve (latest) from relative path, see
+// docker-compose or create symlink `ln -s ../../transitive-caps .`
 app.use('/caps/:scope/:capabilityName/:version/dist/:asset', (req, res, next) => {
-  const filePath = path.resolve(__dirname, '../../../transitive-caps/',
+  const filePath = path.resolve('transitive-caps/',
     req.params.capabilityName, 'dist',
     // path.basename(req.url),
     req.params.asset);
-  log.debug('capability bundle from dev environment:', filePath);
-  res.sendFile(filePath);
+  log.debug('checking for dev bundle', filePath);
+  fs.access(filePath, (err) => {
+    if (err) {
+      next();
+    } else {
+      log.debug('capability bundle from dev environment:', filePath);
+      res.sendFile(filePath);
+    }
+  });
 });
+
+app.use('/caps', express.static(docker.RUN_DIR));
 
 app.use(express.json());
 
@@ -102,7 +112,8 @@ capRouter.get('/:scope/:capabilityName/*', (req, res) => {
 
 /** authenticate the username based on the JWT given as password */
 app.post('/auth/user', async (req, res) => {
-  console.log('/auth/user', req.body);
+  // log.debug('/auth/user', req.body);
+
   //   clientid: 'qEmYn5tibovKgGvSm',
   //   password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6ImhlYWx0aC1tb25pdG9yaW5nIiwidXNlcklkIjoicG9ydGFsVXNlci1xRW1ZbjV0aWJvdktnR3ZTbSIsInZhbGlkaXR5Ijo0MzIwMCwiaWF0IjoxNjM3MDk1Nzg5fQ.H6-3I5z-BwFeUJ3A-j1_2NE9YFa7AGAz5nTWkMPuY9k',
   //   username: '{id, payload: {device, capability, userId, validity}}'
@@ -182,7 +193,7 @@ app.post('/auth/acl', (req, res) => {
       );
 
     // log.debug('/auth/acl', payload, parsedTopic);
-    log.debug('/auth/acl', req.body.topic, readAccess, allowed);
+    // log.debug('/auth/acl', req.body.topic, readAccess, allowed);
 
     (allowed ? res.send('ok') :
       res.status(401).end('not authorized for topic or token expired')

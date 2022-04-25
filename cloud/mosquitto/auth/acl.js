@@ -5,7 +5,7 @@ function checkAcl(username, topic, acc) {
   if (topic == '$SYS/broker/uptime') return true;
 
   var usernameParts = username.split(':');
-  var topicParts = topic.split('/');
+  var topicParts = topic.split('/'); // note: no slashes allowed in meta fields
   var rtv = (usernameParts[0] == 'cap' ?
     // it's a cloud capability: give access to namespace
     usernameParts[1] == topicParts[3] + '/' + topicParts[4]

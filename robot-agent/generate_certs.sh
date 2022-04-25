@@ -18,7 +18,7 @@ else
 
   echo "  computing hashed machine-id"
   DEVICEID=$(cat /etc/machine-id)
-  [[ -z $DEVICEID ]] && ID=$(hostname)
+  [[ -z $DEVICEID ]] && DEVICEID=$(hostname)
 
   # compute sha256sum of machine-id (or hostname), take first 10 chars of it's
   # base64 encoding, with special characters removed

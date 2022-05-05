@@ -78,10 +78,13 @@ const config = {
           href: 'https://portal.transitiverobotics.com',
           label: 'Portal',
           position: 'left',
-        },
-        {
+        }, {
           href: 'https://github.com/transitiverobotics',
           label: 'GitHub',
+          position: 'right',
+        }, {
+          href: 'https://www.npmjs.com/org/transitive-sdk',
+          label: 'npm',
           position: 'right',
         },
       ],
@@ -117,19 +120,24 @@ const config = {
               label: 'Twitter',
               href: 'https://twitter.com/transitiverob',
             },
+            {
+              label: 'LinkedIn',
+              href: 'https://www.linkedin.com/company/transitive-robotics',
+            },
           ],
         },
         {
           title: 'More',
-          items: [
-            {
+          items: [{
               label: 'Blog',
               to: '/blog',
-            },
-            {
+            }, {
               label: 'GitHub',
               href: 'https://github.com/transitiverobotics',
-            },
+            }, {
+              label: 'npm',
+              href: 'https://www.npmjs.com/org/transitive-sdk',
+            }
           ],
         },
       ],

@@ -12,12 +12,19 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 
 // const F = React.Fragment;
 
-const styles= {
-  capability: {width: '20em'},
+const styles = {
   main: {
     margin: '1em',
     maxWidth: '100em'
-  }
+  },
+  list: {
+    display: 'flex',
+    flexWrap: 'wrap'
+  },
+  capability: {
+    margin: '0.25em',
+    flex: '0 0 20em'
+  },
 };
 
 const Capabilities = () => {
@@ -38,7 +45,8 @@ const Capabilities = () => {
 
   console.log({capabilities});
   const Debug = () => <pre>{JSON.stringify(capabilities, true, 2)}</pre>;
-  const List = () => <div>{capabilities.map(cap =>
+  const List = () => <div style={styles.list}>
+    {capabilities.map(cap =>
       <div key={cap._id} style={styles.capability} className="card">
         <div className="card__header">
           <h6>{cap.versions[0].transitiverobotics.title}</h6>
@@ -52,7 +60,8 @@ const Capabilities = () => {
           >View</Link>
         </div>
       </div>
-    )}</div>;
+    )}
+  </div>;
 
   return <List/>;
 };

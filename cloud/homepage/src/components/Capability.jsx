@@ -15,10 +15,10 @@ const styles = {
     flexWrap: 'wrap',
   },
   text: {
-    flex: '6 0 30em'
+    flex: '6 1 30em'
   },
   images: {
-    flex: '4 0 20em'
+    flex: '4 1 20em'
   },
   image: {
     width: '100%',
@@ -43,7 +43,7 @@ const Capability = (props) => {
     return <div>Fetching capability description..</div>;
   }
 
-console.log({capability});
+  console.log({capability});
   return <div style={styles.wrapper}>
     <h2>{capability.versions[capability.version].transitiverobotics?.title || name}</h2>
 

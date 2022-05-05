@@ -18,11 +18,13 @@ else
 
   echo "  computing hashed machine-id"
   DEVICEID=$(cat /etc/machine-id)
-  [[ -z $DEVICEID ]] && DEVICEID=$(hostname)
+  # if machine has no id yet, create a random one
+  [[ -z $DEVICEID ]] && DEVICEID=$(openssl rand -base64 20)
 
-  # compute sha256sum of machine-id (or hostname), take first 10 chars of it's
+  # compute sha256sum of machine-id (or random id), take first 10 chars of it's
   # base64 encoding, with special characters removed
-  HASH=$($NODE -e "h = require('crypto').createHash('sha256'); h.update(process.argv[1]); b = Buffer.from(h.digest()); console.log(b.toString('base64').replace(/[/+=]/g, '').slice(0,10));" $DEVICEID)
+  # HASH=$($NODE -e "h = require('crypto').createHash('sha256'); h.update(process.argv[1]); b = Buffer.from(h.digest()); console.log(b.toString('base64').replace(/[/+=]/g, '').slice(0,10));" $DEVICEID)
+  HASH=$(echo $DEVICEID | sha256sum | cut -c -10)
   echo "  deterministic device id: $HASH"
   echo "TR_DEVICEID=$HASH" >> .env
 

@@ -33,22 +33,24 @@ set -m # start a new process group so we can kill it with -PID
 echo "starting while loop for $1: pid = $$"
 while :
 do
+  # be sure we are in the base directory before running update
+  cd $BASE
 
-   npm update --no-save
-   # Note: npm update also installs missing packages, see,
-   # https://stackoverflow.com/a/19824154/1087119
-   # But we still need to run `npm install` to make sure all dependencies
-   # are installed as well (e.g., if compilation of native code failed last time)
-   npm install --no-save
+  npm update --no-save
+  # Note: npm update also installs missing packages, see,
+  # https://stackoverflow.com/a/19824154/1087119
+  # But we still need to run `npm install` to make sure all dependencies
+  # are installed as well (e.g., if compilation of native code failed last time)
+  npm install --no-save
 
-   cd "$BASE/node_modules/$1"
-   export PASSWORD=$(cat ../../../password)
-   npm start &
-   pid=$!
-   echo "node process pid: $pid"
+  cd "$BASE/node_modules/$1"
+  export PASSWORD=$(cat ../../../password)
+  npm start &
+  pid=$!
+  echo "node process pid: $pid"
 
-   wait
-   pid=
-   sleep 1
-   echo "Restarting $1"
+  wait
+  pid=
+  sleep 1
+  echo "Restarting $1"
 done

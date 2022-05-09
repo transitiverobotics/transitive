@@ -5,7 +5,7 @@ WORKDIR /app
 RUN npm ci
 RUN npm run build
 
-RUN apt update && apt install -y brotli
+RUN apt-get update && apt-get install -y brotli
 RUN cd /app/build/assets/js && brotli *
 
 FROM node:16.14.2

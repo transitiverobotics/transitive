@@ -20,6 +20,9 @@ const log = getLogger('robot-agent-device');
 const styles = {
   row: {
     marginBottom: '2em'
+  },
+  agentVersion: {
+    fontSize: 'smaller'
   }
 };
 
@@ -171,7 +174,10 @@ const Device = (props) => {
     <div style={styles.row}>
       {os && <OSInfo os={os}/>}
       {latestVersionData.status?.heartbeat &&
-        <Heartbeat heartbeat={latestVersionData.status.heartbeat} />}
+        <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
+      } <span style={styles.agentVersion} title='Transitive agent version'>
+        v{latestVersion}
+      </span>
     </div>
 
     <div style={styles.row}>

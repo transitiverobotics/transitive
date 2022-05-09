@@ -46,6 +46,7 @@ services:
       context: ./app
       args:
         - TR_HOST=${TR_HOST:-localhost}
+      target: prod
       #DEVtarget: dev
     image: transitive/cloud:latest
     restart: always

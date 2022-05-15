@@ -66,6 +66,7 @@ app.use('/caps/:scope/:capabilityName/:version/dist/:asset', (req, res, next) =>
 
 app.use('/caps', express.static(docker.RUN_DIR));
 
+
 app.use(express.json());
 
 const server = http.createServer(app);
@@ -405,6 +406,7 @@ process.on('uncaughtException', (err) => {
 /** ---------------------------------------------------------------------------
   MAIN
 */
+log.info('Starting cloud app');
 Mongo.init(() => {
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
@@ -413,6 +415,6 @@ Mongo.init(() => {
 
   robotAgent.addRoutes();
   server.listen(PORT, () => {
-    console.log(`Server started on port ${server.address().port}`);
+    log.info(`Server started on port ${server.address().port}`);
   });
 });

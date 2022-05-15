@@ -130,7 +130,7 @@ cat > $DIR/etc/env_local << EOF
 # environment variables for using debian packages installed via aptLocal.sh
 # i.e., locally in ~/.transitive
 
-export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/usr/lib/$(uname -m)-linux-gnu/:$DIR/usr/lib/:$DIR/opt/ros/$ROS_RELEASE/lib/
+export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/lib/$(uname -m)-linux-gnu:$DIR/usr/lib/$(uname -m)-linux-gnu/:$DIR/usr/lib/:$DIR/opt/ros/$ROS_RELEASE/lib/
 
 export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:$DIR/opt/ros/$ROS_RELEASE/share
 

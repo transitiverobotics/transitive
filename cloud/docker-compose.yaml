@@ -3,8 +3,13 @@
 # `sed 's/#DEV//' docker-compose.yaml | docker-compose -f - $@`
 
 version: "3.9"
-services:
 
+networks:
+  caps:
+    attachable: true
+
+
+services:
   # a minimal container that ensures certificates are present in the shared,
   # mounted volume
   ensure_certs:
@@ -31,6 +36,9 @@ services:
     ports:
       - 8883:8883
       - 9001:9001
+    networks:
+      - default
+      - caps
 
   homepage:
     build: ./homepage
@@ -63,11 +71,16 @@ services:
       #DEV- ./app/web_components:/app/web_components
       #DEV- ./app/public:/app/public
       #DEV- ./app/assets:/app/assets
+      #DEV- ./app/docker.js:/app/docker.js
+      #DEV- ./app/server.js:/app/server.js
       #DEV- ../../transitive-caps/:/app/transitive-caps
     env_file:
       - .env
     ports:
       - 9000:9000
+    networks:
+      - default
+      - caps
 
   proxy:
     build: ./proxy

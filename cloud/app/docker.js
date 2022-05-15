@@ -1,19 +1,33 @@
 const fs = require('fs');
 const os = require('os');
+const dns = require('dns');
 const path = require('path');
 const { execSync } = require('child_process');
 const Docker = require('dockerode');
 const { getLogger } = require('@transitive-sdk/utils');
+
+const { getNextInRange } = require('./utils');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 // const REGISTRY = process.env.TR_REGISTRY || '172.17.0.1:6000';
 // const REGISTRY_HOST = REGISTRY.split(':')[0];
 const REGISTRY_HOST = '172.17.0.1';
 
+// window of port numbers from which to give out ports to cap containers
+const EXPOSED_PORT_WINDOW = [11000, 12000];
+
 const log = getLogger('docker.js');
 log.setLevel('debug');
 
 const docker = new Docker();
+
+/** lookup IP of mqtt server */
+// const MQTT_URL = process.env.MQTT_URL || 'mqtts://localhost';
+// const mqttURL = new URL(MQTT_URL);
+// let mosquittoIP;
+// dns.resolve(mqttURL.hostname, (err, results) =>
+//   !err && results && (mosquittoIP = results[0]));
+
 
 /** Ensure the given version of the given package is running. If not, start
   it in a docker container. */
@@ -132,19 +146,39 @@ const start = async ({name, version}) => {
     log.debug('image exists');
   }
 
-  log.debug('starting container');
+  const inUse = await getUsedPorts();
+  const exposedPort = getNextFreePort(inUse, EXPOSED_PORT_WINDOW);
+
+  log.debug('starting container for', tagName);
   docker.run(tagName, [], null, {
-    name: tagName.replace(/[\/:]/g, '.'),
-    HostConfig: {
-      AutoRemove: true,
-      NetworkMode: 'host', // TODO
-      // expose app run folder to host, we are hosting the js bundle here
-      Binds: [`${runDir}:/app/run`]
-    },
-    Labels: {
-      'transitive-type': 'capability'
-    }
-  });
+      name: tagName.replace(/[\/:]/g, '.'),
+      Env: [
+        `MQTT_URL=${process.env.MQTT_URL}`,
+        `PUBLIC_PORT=${exposedPort}`,
+      ],
+      HostConfig: {
+        AutoRemove: true,
+        // expose app run folder to host, we are hosting the js bundle here
+        Binds: [
+          `${runDir}:/app/run`,
+          `${process.env.TR_VAR_DIR}/caps/common:/persistent/common`,
+          `${process.env.TR_VAR_DIR}/caps/${name}:/persistent/self`,
+        ],
+        // ExtraHosts: ["host.docker.internal:host-gateway"]
+        // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
+        // ExtraHosts: ['mqtt:host-gateway'],
+        NetworkMode: 'cloud_caps',
+        PortBindings: {
+          "1000/tcp": [{"HostPort": exposedPort}],
+          "1000/udp": [{"HostPort": exposedPort}]
+        },
+      },
+      Labels: {
+        'transitive-type': 'capability'
+      }
+    }, (err, data, container) => {
+      log.debug(tagName, 'ended:', err, data?.StatusCode);
+    });
 };
 
 /** stop the container for the given version of the given package name */
@@ -155,6 +189,16 @@ const stop = async ({name, version}) => {
   if (list.length > 0) {
     await docker.getContainer(list[0].Id).stop();
   }
+};
+
+/** get all public ports currently already in use by docker containers */
+const getUsedPorts = async () => {
+  const list = await docker.listContainers();
+  const allPorts = list.map(c => c.Ports).flat();
+  const ports = allPorts.map(port => port.PublicPort);
+  const set = new Set(ports);
+  const rtv = Array.from(set);
+  return rtv;
 };
 
 module.exports = { ensureRunning, stop, RUN_DIR };

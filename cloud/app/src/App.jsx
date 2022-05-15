@@ -44,6 +44,8 @@ const styles = {
     margin: '0',
     flex: '10 1 20em',
     padding: '2em',
+    height: '100vh',
+    overflow: 'auto',
   },
   capName: {
     float: 'right',

@@ -50,7 +50,7 @@
     "babel-loader": "^8.2.2",
     "css-loader": "^5.0.1",
     "extract-loader": "^5.1.0",
-    "mocha": "^8.3.2",
+    "jest": "^28.1.0",
     "react": "^17.0.2",
     "react-bootstrap": "^2.1.2",
     "react-dom": "^17.0.2",

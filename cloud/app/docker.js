@@ -147,7 +147,7 @@ const start = async ({name, version}) => {
   }
 
   const inUse = await getUsedPorts();
-  const exposedPort = getNextFreePort(inUse, EXPOSED_PORT_WINDOW);
+  const exposedPort = getNextInRange(inUse, EXPOSED_PORT_WINDOW);
 
   log.debug('starting container for', tagName);
   docker.run(tagName, [], null, {

@@ -8,6 +8,7 @@ const fetch = require('node-fetch');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const HttpProxy = require('http-proxy');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
@@ -64,7 +65,21 @@ app.use('/caps/:scope/:capabilityName/:version/dist/:asset', (req, res, next) =>
   });
 });
 
+// Serve dist/ folders of capabilities, copied into run folder during
+// startup of the container (see docker.js).
 app.use('/caps', express.static(docker.RUN_DIR));
+
+// http proxy for reverse proxying to web servers run by caps
+const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
+app.use('/caps/:scope/:capName/:version', (req, res, next) => {
+  // construct docker container name from named cap and version
+  // e.g., transitive-robotics.configuration-management.0.1.5-0.cloud_caps
+  // (cloud_caps is the name of the docker network)
+  const host =
+    `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
+  log.debug('proxying to', host);
+  capsProxy.web(req, res, {target: `http://${host}:8085`});
+});
 
 
 app.use(express.json());

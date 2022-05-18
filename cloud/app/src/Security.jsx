@@ -15,16 +15,18 @@ const styles = {
 
 export const Security = () => {
   const {session} = useContext(UserContext);
-  const [jwtSecret, setJwtSecret] = useState();
+  const [account, setAccount] = useState();
 
   useEffect(() => {
-      session && fetchJson('/@transitive-robotics/_robot-agent/jwtSecret',
-        (err, res) => err ? console.error(err) : setJwtSecret(res.jwtSecret));
+      session && fetchJson('/@transitive-robotics/_robot-agent/security',
+        (err, res) => err ? console.error(err) : setAccount(res));
     }, [session]);
 
-  if (!jwtSecret) {
+  if (!account) {
     return <div>Fetching data..</div>;
   }
+
+  console.log(account);
 
   return <div style={styles.wrapper}>
     <h2>Security</h2>
@@ -45,8 +47,15 @@ export const Security = () => {
         JWT secret
       </Form.Label>
       <Col sm="10">
-        <Form.Control plaintext readOnly defaultValue={jwtSecret} />
+        <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
       </Col>
+
+      {/* #HERE: list them and give options to delete them
+
+        */ account.capTokens && <pre>
+          {JSON.stringify(account.capTokens, true, 2)}
+        </pre>}
+
     </Form.Group>
 
     <Dropdown.Divider />

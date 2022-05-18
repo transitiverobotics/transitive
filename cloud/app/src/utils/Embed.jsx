@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-import { Form } from 'react-bootstrap';
+import { Form, InputGroup, FormControl, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import _ from 'lodash';
 
+import {fetchJson} from '@transitive-sdk/utils-web';
+
 import {Fold} from './Fold';
 import {Code} from './Code';
+
+const styles = {
+  form: {maxWidth: '40em'}
+};
 
 /** reusable embedding instructions */
 export const Embed = ({name, jwt, deviceId, extra, style}) => {
@@ -13,12 +19,17 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
     return <span></span>;
   }
 
+  const [tokenName, setTokenName] = useState('');
+  const [password, setPassword] = useState('');
+  const [link, setLink] = useState();
+
   const jwtPayload = JSON.parse(atob(jwt.split('.')[1]));
   const url = new URL(location.href);
   // TODO: also allow hostname here instead of deviceId
   const params = `userId=${jwtPayload.id}&deviceId=${deviceId}`;
+  const host = `${url.protocol}//${url.host}`;
   const bundleURL =
-    `${url.protocol}//${url.host}/bundle/${jwtPayload.capability}/${name}.js?${params}`;
+    `${host}/bundle/${jwtPayload.capability}/${name}.js?${params}`;
   const jwtPayloadExample = Object.assign(jwtPayload, {
     userId: '[a string that uniquely identifies the current user]',
     validity: '[number of seconds this authentication should remain valid]',
@@ -27,6 +38,19 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
 
   const optionalExtraParam = extra &&
     _.map(extra, (value, key) => `\n  ${key}=${JSON.stringify(value)}`) || '';
+
+  const createToken = () => {
+    console.log({tokenName, password});
+    fetchJson('/@transitive-robotics/_robot-agent/createCapsToken',
+      (err, res) => {
+        if (err) {
+          alert(err);
+        } else {
+          setLink(`${host}/sac/${jwtPayload.id}/${deviceId}/${jwtPayload.capability}/${name}?token=${tokenName}`);
+        }
+      },
+      {body: {jwt, tokenName, password}});
+  };
 
   return <Fold title='Embedding instructions' style={style}>
     <Form.Text style={{color: 'inherit'}}>
@@ -49,6 +73,30 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
         <Code>
           {`<script src="${bundleURL}"></script>\n<${name} id="${jwtPayload.id}"${optionalExtraParam} jwt="${jwt}"/>`}
         </Code>
+      </div>
+
+      <div>
+        You can also share this widget on a stand-alone, password-protected page.
+        To do that, set a name and password, then click "Get link".
+        <InputGroup className="mb-3" size="sm" style={styles.form}>
+          <FormControl
+            placeholder="Name"
+            aria-label="Name"
+            value={tokenName}
+            onChange={e => setTokenName(e.target.value)}
+            />
+          <FormControl
+            type="password"
+            placeholder="Set password"
+            aria-label="Set password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            />
+          <Button variant="secondary" id="b-addon2" onClick={createToken}>
+            Get link
+          </Button>
+        </InputGroup>
+        {link && <a href={link}>Link</a>}
       </div>
     </Form.Text>
   </Fold>;

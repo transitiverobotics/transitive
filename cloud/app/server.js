@@ -47,29 +47,50 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 
+/** lookup which version of the named capability is running on the named device
+*/
+const getVersion = (userId, deviceId, capability) => {
+  if (!robotAgent) {
+    log.warn('robotAgent not yet running, cannot look up running version yet');
+    return;
+  }
+  if (deviceId == "_fleet") {
+    // Serve the latest version run by any device
+    return robotAgent.getLatestRunningVersion(userId, capability);
+    // TODO: if no device is running this capability, serve the latest version.
+    // This is required to allow capabilities that are cloud+UI only.
+  } else {
+    const runningPkgs = robotAgent.getDevicePackages(userId, deviceId);
+    return runningPkgs && runningPkgs[capability];
+  }
+};
+
 // for DEV: ignore version number and serve (latest) from relative path, see
 // docker-compose or create symlink `ln -s ../../transitive-caps .`
-app.use('/caps/:scope/:capabilityName/:version/dist/:asset', (req, res, next) => {
+app.use('/caps/:scope/:capabilityName/:version/', (req, res, next) => {
   const filePath = path.resolve('transitive-caps/',
-    req.params.capabilityName, 'dist',
-    // path.basename(req.url),
-    req.params.asset);
+    req.params.capabilityName,
+    req.path.slice(1) // drop initial slash
+  );
   log.debug('checking for dev bundle', filePath);
   fs.access(filePath, (err) => {
     if (err) {
       next();
     } else {
+      // TODO: this also triggers if filePath is a parent directory of a
+      // non-existing file; it does the right thing and falls back to the
+      // /caps route, but the log message is misleading
       log.debug('capability bundle from dev environment:', filePath);
       res.sendFile(filePath);
     }
   });
 });
 
-// Serve dist/ folders of capabilities, copied into run folder during
-// startup of the container (see docker.js).
+/** Serve dist/ folders of capabilities, copied into run folder during
+  startup of the container (see docker.js). */
 app.use('/caps', express.static(docker.RUN_DIR));
 
-// http proxy for reverse proxying to web servers run by caps
+/** http proxy for reverse proxying to web servers run by caps */
 const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
 app.use('/caps/:scope/:capName/:version', (req, res, next) => {
   // construct docker container name from named cap and version
@@ -86,34 +107,24 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
-// app.get('/bundle/:capability/:jsFile', (req, res) => {
 /** Serve the js bundles of capabilities */
 const capRouter = express.Router();
-app.use('/bundle', capRouter);
+app.use('/running', capRouter);
 capRouter.use('/@transitive-robotics/_robot-agent',
-  express.static(path.resolve(__dirname, 'dist')));
+  express.static(path.resolve(__dirname)));
 
 capRouter.get('/:scope/:capabilityName/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query, req.params);
   const capability = `${req.params.scope}/${req.params.capabilityName}`;
   const filePath = req.params[0]; // the part that matched the *
-  let version;
-  if (req.query.deviceId == "_fleet") {
-    // Serve the latest version run by any device
-    version = robotAgent.getLatestRunningVersion(req.query.userId, capability);
-    // TODO: if no device is running this capability, serve the latest version.
-    // This is required to allow capabilities that are cloud+UI only.
-  } else {
-    const runningPkgs = robotAgent &&
-      robotAgent.getDevicePackages(req.query.userId, req.query.deviceId);
-    version = runningPkgs && runningPkgs[capability];
-  }
+  const version = getVersion(req.query.userId, req.query.deviceId, capability);
   console.log({version});
+
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
     // package exposes its distribution files bundles: in production from docker,
     // in dev symlinked in folder).
-    res.redirect(`/caps/${capability}/${version}/dist/${filePath}`);
+    res.redirect(`/caps/${capability}/${version}/${filePath}`);
   } else {
     res.status(404).end('package not running on this device');
   }
@@ -177,6 +188,7 @@ app.post('/auth/user', async (req, res) => {
   }
 });
 
+
 app.post('/auth/acl', (req, res) => {
   if (req.body.topic == HEARTBEAT_TOPIC) {
     res.send('ok');
@@ -198,7 +210,10 @@ app.post('/auth/acl', (req, res) => {
     const allowed = id == parsedTopic.organization &&
       payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
       ( ( payload.device == parsedTopic.device &&
-            ( payload.capability == parsedTopic.capability ||
+            ( (payload.capability == parsedTopic.capability &&
+                !payload.topics || payload.topics.includes(parsedTopic.sub[0])
+              // if payload.topics exists it is a limitation of topics to allow
+            ) ||
               // all valid JWTs for a device also grant read access to _robot-agent
               (readAccess &&
                 parsedTopic.capability == '@transitive-robotics/_robot-agent'))
@@ -219,6 +234,46 @@ app.post('/auth/acl', (req, res) => {
     res.status(400).end('unable to parse authentication request')
   }
 });
+
+/** Trades our token for a JWT with the permissions that were granted to
+  this token when it was created. */
+app.post('/getJWTFromToken', async (req, res) => {
+  log.debug('get JWT from simple access token', req.body);
+  const {token, org, password} = req.body;
+  if (!token || !org || !password) {
+    res.status(400).end('missing parameters');
+    return;
+  }
+
+  const accounts = Mongo.db.collection('accounts');
+  const account = await accounts.findOne({_id: org});
+
+  // check token
+  if (!account.capTokens[token]) {
+    log.debug('invalid token');
+    res.status(401).end('not authorized or invalid token');
+    return;
+  }
+
+  const permissions = account.capTokens[token];
+  if (password != permissions.password) {
+    log.debug('wrong password');
+    res.status(401).end('not authorized or invalid token');
+    return;
+  }
+  delete permissions.password;
+
+  const payload = Object.assign({}, permissions, {
+    id: org,
+    userId: token,
+    validity: 3600 * 24,
+  });
+
+  const json = {token: jwt.sign(payload, account.jwtSecret)};
+  log.debug('responding with', json);
+  res.json(json);
+});
+
 
 
 /** simple middleware to check whether the user is logged in */
@@ -381,15 +436,64 @@ class _robotAgent extends Capability {
       res.json({token});
     });
 
+    this.router.post('/createCapsToken', requireLogin, async (req, res) => {
+      log.debug('createCapsToken', req.body);
+      if (!req.body.jwt) {
+        res.status(400).end('missing jwt');
+        return;
+      }
+
+      if (!req.body.tokenName) {
+        res.status(400).end('missing tokenName');
+        return;
+      }
+
+      if (!req.body.password) {
+        res.status(400).end('missing password');
+        return;
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.session.user});
+      let payload;
+      try {
+        payload = await jwt.verify(req.body.jwt, account.jwtSecret);
+      } catch (e) {
+        res.status(401).json({});
+        return;
+      }
+
+      // add to account
+      log.debug(payload);
+      delete payload.id;
+      delete payload.validity;
+      delete payload.iat;
+      payload.password = req.body.password;
+      const modifier = {[`capTokens.${req.body.tokenName}`]: payload};
+      const updateResult = await accounts.updateOne(
+        {_id: req.session.user}, {$set: modifier});
+      log.debug({updateResult});
+
+      res.json({});
+    });
+
     this.router.get('/runningPackages', requireLogin, async (req, res) => {
       res.json(this.runningPackages);
     });
 
-    this.router.get('/jwtSecret', requireLogin, async (req, res) => {
+    this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get JWT secret for', req.session.user);
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user});
-      res.json({jwtSecret: account.jwtSecret});
+
+      for (let token in account.capTokens) {
+        delete account.capTokens[token].password;
+      }
+
+      res.json({
+        jwtSecret: account.jwtSecret,
+        capTokens: account.capTokens || {}
+      });
     });
   }
 };

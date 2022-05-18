@@ -94,7 +94,7 @@ const build = async ({name, version}) => {
       `RUN ln -s /app/client.crt ${certsFolder}`,
       `RUN ln -s /app/client.key ${certsFolder}`,
       `WORKDIR /app/${pkgFolder}`,
-      `CMD cp -a dist /app/run && npm run cloud`
+      `CMD cp -a dist /app/run && cp -a package.json /app/run && npm run cloud`,
       // this ^ will be used by cloud-agent to serve capability's web components
     ].join('\n'));
 

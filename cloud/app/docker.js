@@ -129,6 +129,7 @@ const build = async ({name, version}) => {
   log.debug('done building');
 };
 
+const portsUsedByUs = [];
 /** start the given version of the given package, build it first if it doesn't
   yet exist */
 const start = async ({name, version}) => {
@@ -148,14 +149,16 @@ const start = async ({name, version}) => {
 
   const inUse = await getUsedPorts();
   const exposedPort = getNextInRange(inUse, EXPOSED_PORT_WINDOW);
+  portsUsedByUs.push(exposedPort);
 
-  log.debug('starting container for', tagName);
+  log.debug('starting container for', tagName, 'port:', exposedPort);
   docker.run(tagName, [], null, {
       name: tagName.replace(/[\/:]/g, '.'),
       Env: [
         `MQTT_URL=${process.env.MQTT_URL}`,
         `PUBLIC_PORT=${exposedPort}`,
       ],
+      ExposedPorts: {'1000/tcp': {}},
       HostConfig: {
         AutoRemove: true,
         // expose app run folder to host, we are hosting the js bundle here
@@ -169,8 +172,7 @@ const start = async ({name, version}) => {
         // ExtraHosts: ['mqtt:host-gateway'],
         NetworkMode: 'cloud_caps',
         PortBindings: {
-          "1000/tcp": [{"HostPort": exposedPort}],
-          "1000/udp": [{"HostPort": exposedPort}]
+          "1000/tcp": [{"HostPort": String(exposedPort)}]
         },
       },
       Labels: {
@@ -196,7 +198,7 @@ const getUsedPorts = async () => {
   const list = await docker.listContainers();
   const allPorts = list.map(c => c.Ports).flat();
   const ports = allPorts.map(port => port.PublicPort);
-  const set = new Set(ports);
+  const set = new Set(ports.concat(portsUsedByUs));
   const rtv = Array.from(set);
   return rtv;
 };

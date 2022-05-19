@@ -151,7 +151,7 @@ app.post('/auth/user', async (req, res) => {
   const token = req.body.password;
   const payload = decodeJWT(token);
   const parsedUsername = JSON.parse(req.body.username);
-  console.log('  ', payload, parsedUsername);
+  // log.debug('  ', payload, parsedUsername);
 
   try {
     // First verify that the user's signed JWT has the same payload as username.
@@ -160,7 +160,7 @@ app.post('/auth/user', async (req, res) => {
     assert.deepEqual(payload, parsedUsername.payload);
 
     const account = await accounts.findOne({_id: parsedUsername.id});
-    console.log(account);
+    // log.debug(account);
     if (!account) {
       res.status(401).send(
         'no such account, please verify the id provided to the web component');
@@ -172,18 +172,18 @@ app.post('/auth/user', async (req, res) => {
     }
 
     await jwt.verify(token, account.jwtSecret);
-    console.log('verified token');
+    log.debug('verified token');
 
     if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
       // The token is expired
-      console.log(`JWT is expired ${JSON.stringify(payload)}`);
+      log.debug(`JWT is expired ${JSON.stringify(payload)}`);
       res.status(401).send(`JWT is expired ${JSON.stringify(payload)}`);
       return;
     }
 
     res.send('ok');
   } catch (e) {
-    console.log(`user authentication failed`, e);
+    log.debug(`user authentication failed`, e);
     res.status(401).send(e);
   }
 });

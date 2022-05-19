@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  } from 'react-bootstrap';
+import { ListGroup, Badge } from 'react-bootstrap';
 
 import { Heartbeat, ensureProps } from './shared';
 
@@ -21,12 +21,20 @@ const FleetDevice = ({data, device, device_url}) => {
   const latestVersion = Object.keys(agentData).sort(versionCompare).at(-1);
   const {status, info} = agentData[latestVersion];
 
-  return <div>
-    {info?.os?.hostname} {status.heartbeat &&
-      <Heartbeat heartbeat={status.heartbeat} />
-    } <a href={`${device_url}/${device}`}>view</a>
-  </div>
+  return <ListGroup.Item
+    className="d-flex justify-content-between align-items-start"
+    action href={`${device_url}/${device}`}
+  >
+    <div className="ms-2 me-auto">
+      <span className="fw-bold">{info?.os?.hostname}</span>
+      {info?.labels?.map(label =>
+        <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
+      }
+    </div>
+    {status.heartbeat && <Heartbeat heartbeat={status.heartbeat} />}
+  </ListGroup.Item>;
 };
+
 
 /** Component showing the fleet from the robot-agent perspective */
 const Fleet = (props) => {
@@ -54,13 +62,17 @@ const Fleet = (props) => {
 
   return <div>
     <h5>Devices</h5>
-    {_.map(data[id], (deviceData, device) =>
-      <FleetDevice key={device} data={deviceData} device={device}
-        device_url={device_url} />)}
-
-      <Code>
-        curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
-      </Code>
+      <ListGroup variant="flush">
+        {_.map(data[id], (deviceData, device) =>
+            <FleetDevice key={device} data={deviceData} device={device}
+              device_url={device_url} />)
+        }
+        <ListGroup.Item>
+          <Code>
+            curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
+          </Code>
+        </ListGroup.Item>
+      </ListGroup>
   </div>
 };
 

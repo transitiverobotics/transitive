@@ -150,6 +150,8 @@ const staticInfo = () => {
     networkInterfaces: os.networkInterfaces(),
   }};
 
+  process.env.TR_LABELS && (info.labels = process.env.TR_LABELS.split(','));
+
   exec('lsb_release -a', (err, stdout, stderr) => {
     !err && (info.os.lsb_release = stdout.trim());
 

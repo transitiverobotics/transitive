@@ -13,13 +13,15 @@ fi;
 docker build $BUILDARGS -t $TAGNAME .
 
 . ../../cloud/.env
-mkdir -p /tmp/transitive-docker-robot
+DIR=/tmp/transitive-docker-robot
+mkdir -p $DIR
+echo "TR_LABELS=docker" > $DIR/.env_user
 
 docker run -it --rm \
 --env-file ../../cloud/.env \
 --privileged \
 --hostname robot_$(date -Iseconds | tr -d ':-' | cut -c -15) \
--v /tmp/transitive-docker-robot:/home/testuser/.transitive \
+-v $DIR:/home/testuser/.transitive \
 --name robot \
 --add-host={,registry.,portal.,data.,auth.,install.,repo.,mqtt.}${HOST}:host-gateway \
 $TAGNAME bash

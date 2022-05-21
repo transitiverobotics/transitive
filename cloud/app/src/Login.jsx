@@ -36,13 +36,14 @@ export const UserContextProvider = ({children}) => {
       },
       {body: {name: user, password}});
 
-  const logout = () => fetchJson('@transitive-robotics/_robot-agent/logout',
+  const logout = () => fetchJson('/@transitive-robotics/_robot-agent/logout',
     (err, res) => {
       if (err) {
         console.error(err);
       } else {
         refresh();
         console.log('logged out');
+        window.location.href = '/';
       }
     },
     {method: 'post'});

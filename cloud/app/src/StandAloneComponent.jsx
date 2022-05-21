@@ -4,10 +4,11 @@ import {useParams} from "react-router-dom";
 
 import { Form, Button } from 'react-bootstrap';
 
-import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
+import {getLogger, fetchJson, parseCookie, decodeJWT} from '@transitive-sdk/utils-web';
 const log = getLogger('StandAloneComponent');
 
 import { ensureWebComponentIsLoaded } from './utils/utils';
+import { TOKEN_COOKIE } from '../common.js';
 
 const styles = {
   passwordForm: {
@@ -24,12 +25,16 @@ const styles = {
 /** to serve stand-alone pages for capability widgets */
 export const StandAloneComponent = (props = {}) => {
 
+  const cookie = parseCookie(document.cookie);
+  log.debug('cookie', cookie);
+
   const params = useParams();
   const {org, device, scope, capName, widget} = params;
   const query = new URLSearchParams(location.search);
   const token = query.get('token');
 
-  const [jwtToken, setJwtToken] = useState();
+  const [jwtToken, setJwtToken] = useState(
+    cookie[TOKEN_COOKIE] ? JSON.parse(cookie[TOKEN_COOKIE]).token : undefined);
   const [error, setError] = useState();
 
   log.debug('StandAloneComponent', params);
@@ -41,7 +46,7 @@ export const StandAloneComponent = (props = {}) => {
   const getJWT = () => {
     // Trades our token for a JWT with the permissions that were granted to
     // this token when it was created
-    fetchJson('/getJWTFromToken',
+    fetchJson('/caps/getJWTFromToken',
       (err, res) => {
         if (err) {
           console.error(err);
@@ -59,7 +64,17 @@ export const StandAloneComponent = (props = {}) => {
     // them here to distinguish.
   }
 
-  if (!jwtToken) {
+  const jwtIsValid = () => {
+    if (!jwtToken) return false;
+    const payload = decodeJWT(jwtToken);
+    log.debug({payload});
+    return (payload.iat + payload.validity > Date.now()/1e3 &&
+      payload.device == device &&
+      payload.id == org &&
+      payload.capability == capability);
+  }
+
+  if (!jwtIsValid()) {
     return <div style={styles.passwordForm}>
       <Form.Group className="mb-3" controlId="formBasicPassword">
         <Form.Label>Enter password for <tt>{token}</tt></Form.Label>

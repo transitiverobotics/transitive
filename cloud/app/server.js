@@ -16,7 +16,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
 const { Capability } = require('@transitive-sdk/utils/cloud');
 
 const {createAccount} = require('./accounts');
-const { COOKIE_NAME } = require('./common.js');
+const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 
 // const WebRTCVideo = require('./caps/webrtc_video');
 // const RemoteTeleop = require('./caps/remote_teleop');
@@ -34,18 +34,31 @@ const PORT = process.env.TR_CLOUD_PORT || 9000;
 const log = getLogger('server');
 log.setLevel('debug');
 
-// ----------------------------------------------------------------------
+log.debug({COOKIE_NAME, TOKEN_COOKIE});
 
-const app = express();
+const addSessions = (router, collectionName, secret) => {
+  router.use(session({
+    secret,
+    name: collectionName,
+    resave: false,
+    saveUninitialized: true,
+    store: MongoStore.create({
+      clientPromise: new Promise((resolve) => resolve(Mongo.client)),
+      dbName: Mongo.db.databaseName,
+      collectionName
+    })
+  }));
+};
 
-/* log all requests when debugging */
-// app.use((req, res, next) => {
-//   log.debug(req.method, req.originalUrl);
-//   next();
-// });
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'dist')));
+/** simple middleware to check whether the user is logged in */
+const requireLogin = (req, res, next) => {
+  log.debug(req.session);
+  if (!req.session || !req.session.user) {
+    res.status(401).end('Not authorized. You need to be logged in.');
+  } else {
+    next();
+  }
+};
 
 /** lookup which version of the named capability is running on the named device
 */
@@ -65,55 +78,127 @@ const getVersion = (userId, deviceId, capability) => {
   }
 };
 
-// for DEV: ignore version number and serve (latest) from relative path, see
-// docker-compose or create symlink `ln -s ../../transitive-caps .`
-app.use('/caps/:scope/:capabilityName/:version/', (req, res, next) => {
-  const filePath = path.resolve('transitive-caps/',
-    req.params.capabilityName,
-    req.path.slice(1) // drop initial slash
-  );
-  log.debug('checking for dev bundle', filePath);
-  fs.access(filePath, (err) => {
-    if (err) {
-      next();
-    } else {
-      // TODO: this also triggers if filePath is a parent directory of a
-      // non-existing file; it does the right thing and falls back to the
-      // /caps route, but the log message is misleading
-      log.debug('capability bundle from dev environment:', filePath);
-      res.sendFile(filePath);
-    }
-  });
-});
+// ----------------------------------------------------------------------
 
-/** Serve dist/ folders of capabilities, copied into run folder during
-  startup of the container (see docker.js). */
-app.use('/caps', express.static(docker.RUN_DIR));
+const app = express();
 
-/** http proxy for reverse proxying to web servers run by caps */
-const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
-app.use('/caps/:scope/:capName/:version', (req, res, next) => {
-  // construct docker container name from named cap and version
-  // e.g., transitive-robotics.configuration-management.0.1.5-0.cloud_caps
-  // (cloud_caps is the name of the docker network)
-  const host =
-    `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
-  log.debug('proxying to', host);
-  capsProxy.web(req, res, {target: `http://${host}:8085`});
-});
+/* log all requests when debugging */
+// app.use((req, res, next) => {
+//   log.debug(req.method, req.originalUrl);
+//   next();
+// });
 
-
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.json());
 
-const server = http.createServer(app);
+
+// router for standalone-component pages
+const capsRouter = express.Router();
+app.use('/caps', capsRouter);
+
+const addCapsRoutes = () => {
+  log.debug('adding caps router');
+
+  addSessions(capsRouter, 'tokenSessions', process.env.TR_CAPSESSION_SECRET);
+
+  const requireToken = (req, res, next) => {
+    log.debug('tokenSession', req.session);
+    if (!req.session || !req.session.token) {
+      res.status(401).end('Not authorized. You need to be logged in by token.');
+    } else {
+      next();
+    }
+  };
+
+  /** Trades our token for a JWT with the permissions that were granted to
+  this token when it was created. */
+  capsRouter.post('/getJWTFromToken', async (req, res) => {
+    log.debug('tokenSession', req.session);
+
+    log.debug('get JWT from simple access token', req.body);
+    const {token, org, password} = req.body;
+    if (!token || !org || !password) {
+      res.status(400).end('missing parameters');
+      return;
+    }
+
+    const accounts = Mongo.db.collection('accounts');
+    const account = await accounts.findOne({_id: org});
+
+    // check token
+    if (!account.capTokens[token]) {
+      log.debug('invalid token');
+      res.status(401).end('not authorized or invalid token');
+      return;
+    }
+
+    const permissions = account.capTokens[token];
+    if (password != permissions.password) {
+      log.debug('wrong password');
+      res.status(401).end('not authorized or invalid token');
+      return;
+    }
+    delete permissions.password;
+
+    const payload = Object.assign({}, permissions, {
+      id: org,
+      userId: token,
+      validity: 3600 * 24,
+    });
+
+    const json = {token: jwt.sign(payload, account.jwtSecret)};
+    log.debug('responding with', json, 'and setting cookie', TOKEN_COOKIE);
+    req.session.token = json.token;
+    res.cookie(TOKEN_COOKIE, JSON.stringify(json)).json(json);
+  });
+
+
+  /** Serve dist/ folders of capabilities, copied into run folder during
+  startup of the container (see docker.js). */
+  capsRouter.use('/', express.static(docker.RUN_DIR));
+
+  /** for DEV: ignore version number and serve (latest) from relative path, see
+  docker-compose or create symlink `ln -s ../../transitive-caps .` */
+  capsRouter.use('/:scope/:capabilityName/:version/', (req, res, next) => {
+    const filePath = path.resolve('transitive-caps/',
+      req.params.capabilityName,
+      req.path.slice(1) // drop initial slash
+    );
+    log.debug('checking for dev bundle', filePath);
+    fs.access(filePath, (err) => {
+      if (err) {
+        next();
+      } else {
+        // TODO: this also triggers if filePath is a parent directory of a
+        // non-existing file; it does the right thing and falls back to the
+        // /caps route, but the log message is misleading
+        log.debug('capability bundle from dev environment:', filePath);
+        res.sendFile(filePath);
+      }
+    });
+  });
+
+
+  /** http proxy for reverse proxying to web servers run by caps */
+  const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
+  capsRouter.use('/:scope/:capName/:version', (req, res, next) => {
+    // construct docker container name from named cap and version
+    // e.g., transitive-robotics.configuration-management.0.1.5-0.cloud_caps
+    // (cloud_caps is the name of the docker network)
+    const host =
+      `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
+    log.debug('proxying to', host);
+    capsProxy.web(req, res, {target: `http://${host}:8085`});
+  });
+};
+
 
 /** Serve the js bundles of capabilities */
-const capRouter = express.Router();
-app.use('/running', capRouter);
-capRouter.use('/@transitive-robotics/_robot-agent',
+app.use('/running/@transitive-robotics/_robot-agent',
   express.static(path.resolve(__dirname)));
 
-capRouter.get('/:scope/:capabilityName/*', (req, res) => {
+app.get('/running/:scope/:capabilityName/*', (req, res) => {
   console.log(`getting ${req.path}`, req.query, req.params);
   const capability = `${req.params.scope}/${req.params.capabilityName}`;
   const filePath = req.params[0]; // the part that matched the *
@@ -235,55 +320,7 @@ app.post('/auth/acl', (req, res) => {
   }
 });
 
-/** Trades our token for a JWT with the permissions that were granted to
-  this token when it was created. */
-app.post('/getJWTFromToken', async (req, res) => {
-  log.debug('get JWT from simple access token', req.body);
-  const {token, org, password} = req.body;
-  if (!token || !org || !password) {
-    res.status(400).end('missing parameters');
-    return;
-  }
 
-  const accounts = Mongo.db.collection('accounts');
-  const account = await accounts.findOne({_id: org});
-
-  // check token
-  if (!account.capTokens[token]) {
-    log.debug('invalid token');
-    res.status(401).end('not authorized or invalid token');
-    return;
-  }
-
-  const permissions = account.capTokens[token];
-  if (password != permissions.password) {
-    log.debug('wrong password');
-    res.status(401).end('not authorized or invalid token');
-    return;
-  }
-  delete permissions.password;
-
-  const payload = Object.assign({}, permissions, {
-    id: org,
-    userId: token,
-    validity: 3600 * 24,
-  });
-
-  const json = {token: jwt.sign(payload, account.jwtSecret)};
-  log.debug('responding with', json);
-  res.json(json);
-});
-
-
-
-/** simple middleware to check whether the user is logged in */
-const requireLogin = (req, res, next) => {
-  if (!req.session || !req.session.user) {
-    res.status(401).end('Not authorized. You need to be logged in.');
-  } else {
-    next();
-  }
-};
 
 /* -------------------------------------------------------------------------
   Cloud Agent
@@ -364,17 +401,7 @@ class _robotAgent extends Capability {
       res.json(data);
     });
 
-
-    this.router.use(session({
-      secret: process.env.TR_SESSION_SECRET,
-      resave: false,
-      saveUninitialized: true,
-      store: MongoStore.create({
-        clientPromise: new Promise((resolve) => resolve(Mongo.client)),
-        dbName: Mongo.db.databaseName
-      })
-    }));
-
+    addSessions(this.router, 'sessions', process.env.TR_SESSION_SECRET);
 
     this.router.get('/test', requireLogin, async (req, res) => {
       req.session.count = (req.session.count || 0) + 1;
@@ -382,7 +409,6 @@ class _robotAgent extends Capability {
       res.json({msg: 'ok', session: req.session,
         mongo: Mongo.db.databaseName});
     });
-
 
     this.router.post('/login', async (req, res) => {
       log.debug('login', req.body);
@@ -517,6 +543,9 @@ app.use('/install', installRouter);
 app.use('/*', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+
+const server = http.createServer(app);
+
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
@@ -532,7 +561,9 @@ Mongo.init(() => {
   process.env.TR_USER && process.env.TR_PASS &&
     createAccount(process.env.TR_USER, process.env.TR_PASS);
 
+  addCapsRoutes();
   robotAgent.addRoutes();
+
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);
   });

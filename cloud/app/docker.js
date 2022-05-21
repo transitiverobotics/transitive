@@ -33,10 +33,7 @@ const docker = new Docker();
   it in a docker container. */
 const ensureRunning = async ({name, version}) => {
   const list = await docker.listContainers();
-  const isRunning = list.some(cont => cont.Image == `${name}:${version}`);
-  // const list = await docker.listContainers({filter:
-  //   {Image: [`${name}:${version}`]}});
-  // const isRunning = list.length > 0;
+  const isRunning = list.some(cont => cont.Image == getTagName({name, version}));
   if (!isRunning) {
     await start({name, version});
   }

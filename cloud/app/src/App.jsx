@@ -144,7 +144,7 @@ const CapabilityWidget = ({type}) => {
     {widgets && Object.keys(widgets).length > 0 && <div>
       <hr/>
         <h5>Additional widgets provided by this capability</h5>
-        {_.map(widgets, (def, name) => <div>
+        {_.map(widgets, (def, name) => <div key={name}>
             <h6>{def.title}</h6>
             <Capability webComponent={name}
               capability={capability}

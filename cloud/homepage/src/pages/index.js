@@ -64,12 +64,19 @@ const styles = {
     fontSize: 'smaller',
     textAlign: 'center',
     paddingTop: '1em'
+  },
+  rainbowText: {
+    background: 'linear-gradient(90deg, #048fdf, #00a564)',
+    '-webkit-text-fill-color': 'transparent',
+    '-webkit-background-clip': 'text'
   }
 };
 
 
 const elements = [
-  { title: <h1><b>Full-stack robotic capabilities</b></h1>,
+  { title: <h1 style={styles.rainbowText}>
+      <b>Full-stack robotic capabilities</b>
+    </h1>,
     text: <F>
       <p>
         Build and scale your robotics applications faster and cheaper with

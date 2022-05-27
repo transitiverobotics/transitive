@@ -100,10 +100,14 @@ export const Sidebar = () => {
   };
 
   return <div style={styles.wrapper}>
-    <Link to="/" style={styles.brand}>
-      <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
-      portal
-    </Link>
+    <div style={styles.brand}>
+      <a href={location.href.replace('portal.', '')}>
+        <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
+      </a>
+      <Link to='/'>
+        portal
+      </Link>
+    </div>
 
     <div style={styles.views}>
       <h5>Fleet Widgets</h5>

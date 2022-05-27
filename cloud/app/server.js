@@ -153,6 +153,13 @@ const addCapsRoutes = () => {
     res.cookie(TOKEN_COOKIE, JSON.stringify(json)).json(json);
   });
 
+  /** if the client already has a JWT, it can set it for the session here */
+  capsRouter.post('/setSessionJWT', async (req, res) => {
+    log.debug('setting session JWT', req.body);
+    const {token} = req.body;
+    res.cookie(TOKEN_COOKIE, JSON.stringify({token}))
+      .json({msg: 'JWT set for session'});
+  });
 
   /** Serve dist/ folders of capabilities, copied into run folder during
   startup of the container (see docker.js). */

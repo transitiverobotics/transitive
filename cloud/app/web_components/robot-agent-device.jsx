@@ -154,12 +154,13 @@ const Device = (props) => {
   /** remove the device from the dashboard (until it republishes status, if at
   all) */
   const clear = () => {
-    mqttClearRetained(mqttSync.mqtt, [prefix],
-      () => {
-        console.log('device removed');
-        // redirect to fleet page if given, or to homepage otherwise
-        location.href = props.fleetURL || '/';
-      });
+    // TODO: indicate progress/loading while waiting for callback, which depends
+    // on getting a heartbeat from broker, which can take a while (~10 seconds)
+    mqttSync.clear([prefix], () => {
+      console.log('device removed');
+      // redirect to fleet page if given, or to homepage otherwise
+      location.href = props.fleetURL || '/';
+    });
   };
 
   console.log('packages', packages);

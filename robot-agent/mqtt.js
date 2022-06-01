@@ -135,7 +135,7 @@ mqttClient.on('connect', function(connackPacket) {
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
-      mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
+      // mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
 
       initialized = true;
     });

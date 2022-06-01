@@ -14,4 +14,4 @@ function newWindow() {
 tmux -f tmux.conf new-session -s "cloud" -d
 sleep 1
 newWindow "cloud:build" "npm run build-dev"
-newWindow "cloud:run" "node server"
+newWindow "cloud:run" "npm start"

@@ -15,7 +15,7 @@ const styles = {
     justifyContent: 'space-between',
     width: '100%',
     height: '100%',
-    color: '#aaa'
+    color: '#bbb'
   },
   logo: {
     height: '1.2em',
@@ -37,7 +37,7 @@ const styles = {
     marginLeft: '1em'
   },
   pageLink: {
-    background: '#4442',
+    background: '#4444',
     // lineHeight: '2em',
     margin: '0.2em 0 0.2em 0',
     // padding: '.25em 0.25em .25em 1em',
@@ -47,7 +47,8 @@ const styles = {
   },
   pageLinkActive: {
     background: 'linear-gradient(45deg, #23559c25, #18901335)',
-    color: '#fff'
+    color: '#fff',
+    fontWeight: 'bold'
   },
   loggedIn: {
     paddingRight: '1em'

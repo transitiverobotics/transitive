@@ -1,5 +1,5 @@
 .capability .body {
-  padding: 0.5em;
+  padding: 0.5em 1em 0.5em 1em;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
 }

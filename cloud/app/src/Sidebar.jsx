@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem } from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
@@ -15,6 +15,7 @@ const styles = {
     justifyContent: 'space-between',
     width: '100%',
     height: '100%',
+    color: '#aaa'
   },
   logo: {
     height: '1.2em',
@@ -34,7 +35,47 @@ const styles = {
   },
   subsection: {
     marginLeft: '1em'
+  },
+  pageLink: {
+    background: '#4442',
+    // lineHeight: '2em',
+    margin: '0.2em 0 0.2em 0',
+    // padding: '.25em 0.25em .25em 1em',
+    borderRadius: '1.25em 0 0 1.25em',
+    whiteSpace: 'nowrap',
+    textAlign: 'left',
+  },
+  pageLinkActive: {
+    background: 'linear-gradient(45deg, #23559c25, #18901335)',
+    color: '#fff'
+  },
+  loggedIn: {
+    paddingRight: '1em'
+  },
+  link: {
+    color: 'inherit'
+  },
+  scope: {
+    marginTop: '1em'
   }
+};
+
+
+const PageLink = ({to, children}) => {
+  const location = useLocation();
+  const style = Object.assign({}, styles.pageLink);
+  location.pathname == to && Object.assign(style, styles.pageLinkActive);
+
+  // <Button as={Link} to={to} style={style}>
+  //   {children}
+  // </Button>
+  return <div className='d-grid'>
+    <Nav.Item style={style}>
+      <Nav.Link as={Link} to={to} style={styles.link}>
+        {children}
+      </Nav.Link>
+    </Nav.Item>
+  </div>;
 };
 
 /** The sidebar */
@@ -59,16 +100,17 @@ export const Sidebar = () => {
   // };
 
   const UserMenu = () => <div>
-    <div>
+    <div style={styles.loggedIn}>
       Logged in as {session.user}
+      <Link onClick={logout} to='#' style={{
+        float: 'right'
+      }}>logout</Link>
     </div>
     <div>
-      <Link to='/security'>Security</Link>
-    </div>
-    <div>
-      <Link onClick={logout} to='#'>Logout</Link>
+      <PageLink to='/security'>Security</PageLink>
     </div>
   </div>;
+
 
   /** List links to the fleet views of other running packages */
   const OtherFleetCaps = () => {
@@ -76,20 +118,19 @@ export const Sidebar = () => {
       .match(/(?<scope>[^\/]*)\/(?<name>[^\/@]*)@(?<version>.*)/)
       .groups);
     const byScope = _.groupBy(list, 'scope');
-    console.log({byScope});
 
     return _.map(byScope, (sublist, scope) =>
-      <div key={scope}>
-        <h6>{scope}</h6>
+      <div key={scope} style={styles.scope}>
+        {scope}:
         <div style={styles.subsection}>
           {_.map(_.groupBy(
                 _.filter(sublist, ({name}) => !name.startsWith('_')),
                 'name'),
               (versions, name) =>
               <div key={name}>
-                <Link to={`/fleet/${scope}/${name}`}>
+                <PageLink to={`/fleet/${scope}/${name}`}>
                   {name}
-                </Link>
+                </PageLink>
                 {/* if necessary, we can show the running versions
                   ({versions.map(({version}) => version).join(', ')}) */}
               </div>)
@@ -99,19 +140,17 @@ export const Sidebar = () => {
     );
   };
 
-  return <div style={styles.wrapper}>
+  return <div style={styles.wrapper} className='sidebar'>
     <div style={styles.brand}>
       <a href={location.href.replace('portal.', '')}>
         <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
       </a>
-      <Link to='/'>
-        portal
-      </Link>
+      portal
     </div>
 
     <div style={styles.views}>
       <h5>Fleet Widgets</h5>
-      <Link to='/'>General</Link>
+      <PageLink to='/'>General</PageLink>
       <OtherFleetCaps />
     </div>
 
@@ -119,7 +158,7 @@ export const Sidebar = () => {
       { isLoggedIn ?
         <UserMenu />
         :
-        <Link to="/login">Login</Link>
+        <PageLink to="/login">Login</PageLink>
       }
     </div>
   </div>;

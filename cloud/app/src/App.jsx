@@ -30,7 +30,7 @@ const styles = {
     margin: '0',
     padding: '1em 0 0 1em',
     flex: '1 0 10rem',
-    background: 'linear-gradient(45deg, #111, #333)',
+    background: 'linear-gradient(-90deg, #000, #012)',
     color: '#fff',
     borderRight: `1px solid ${grays[12]}`,
     position: 'relative',
@@ -44,9 +44,17 @@ const styles = {
     padding: '2em',
     height: '100vh',
     overflow: 'auto',
+    background: '#eee',
+  },
+  cap: {
+    background: '#fff',
+    borderRadius: '6px',
   },
   capName: {
     float: 'right',
+  },
+  additional: {
+    marginTop: '2em'
   }
 };
 
@@ -86,7 +94,7 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
   }
 
   if (!jwtToken) {
-    return <div>Authenicating...</div>;
+    return <div>Authenticating...</div>;
   }
 
   const ssl = (location.protocol == 'https:');
@@ -100,7 +108,7 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
       ...props
     }, null);
 
-  return <div className='capability'>
+  return <div className='capability' style={styles.cap}>
     <div className='header'>
       <span style={styles.capName} title='Name of the capability'>
         {capability}/{webComponent}
@@ -122,30 +130,37 @@ const CapabilityWidget = ({type}) => {
   const {session} = useContext(UserContext);
   const capability = `${scope}/${capabilityName}`;
   const webComponent = `${capabilityName}-${type}`;
+  const [pkg, setPkg] = useState({});
 
-  const [widgets, setWidgets] = useState({});
+  const pkgUrl = session?.user &&
+    `/running/${capability}/package.json?userId=${session.user}&deviceId=${deviceId || '_fleet'}`;
 
   // fetch info about additional widgets of this capability from it's
   // package.json
   useEffect(() => {
-      session?.user &&
-        fetchJson(`/running/${capability}/package.json?userId=${session.user}&deviceId=${deviceId}`,
-          (err, json) => {
-            log.debug('package.json', json.transitiverobotics);
-            json.transitiverobotics.widgets &&
-              setWidgets(json.transitiverobotics.widgets);
-          });
+       pkgUrl && fetchJson(pkgUrl, (err, json) => {
+        if (err) {
+          log.debug(err);
+          setPkg({});
+        } else {
+          log.debug('package.json', json?.transitiverobotics);
+          setPkg(json?.transitiverobotics || {});
+        }
+      });
     }, [session, scope, capabilityName]);
 
+  log.debug({scope, capability, pkg});
+
   return <div>
-    <h4>{capability}</h4>
+    <h4>{pkg?.title || capability}</h4>
     <Capability webComponent={webComponent} capability={capability}/>
 
-    {widgets && Object.keys(widgets).length > 0 && <div>
-      <hr/>
-        <h5>Additional widgets provided by this capability</h5>
-        {_.map(widgets, (def, name) => <div key={name}>
-            <h6>{def.title}</h6>
+    {pkg?.widgets && Object.keys(pkg.widgets).length > 0 && <div>
+        <h6 style={styles.additional}>
+          Additional widgets provided by this capability
+        </h6>
+        {_.map(pkg.widgets, (def, name) => <div key={name}>
+            <h7>{def.title}</h7>
             <Capability webComponent={name}
               capability={capability}
               jwtExtras={def.topics ? {topics: def.topics} : {}}

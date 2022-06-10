@@ -413,7 +413,7 @@ class _robotAgent extends Capability {
         });
       });
 
-      log.debug(`total counts for ${orgId}`, counts);
+      stripeUtils.updateSubscriptions(orgId, counts);
     });
   }
 

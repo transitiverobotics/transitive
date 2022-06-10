@@ -64,9 +64,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
-      - ${TR_VAR_DIR:-.}/certs:/app/certs
+      # - ${TR_VAR_DIR:-.}/certs:/app/certs
       - /run/user/0:/run/user/0
-      # - ./app:/app # DON'T! this would overwrite the bound app/certs
+      # DEV- ./app:/app # Not working, still, even after removing certs folder
       #DEV- ./app/src:/app/src
       #DEV- ./app/web_components:/app/web_components
       #DEV- ./app/public:/app/public
@@ -74,6 +74,7 @@ services:
       #DEV- ./app/docker.js:/app/docker.js
       #DEV- ./app/server.js:/app/server.js
       #DEV- ./app/common.js:/app/common.js
+      #DEV- ./app/stripeUtils.js:/app/stripeUtils.js
       #DEV- ../../transitive-caps/:/app/transitive-caps
     env_file:
       - .env

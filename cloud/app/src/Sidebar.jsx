@@ -109,6 +109,9 @@ export const Sidebar = () => {
     </div>
     <div>
       <PageLink to='/security'>Security</PageLink>
+      <a href='/@transitive-robotics/_robot-agent/stripe/create-customer-portal-session'>
+        Billing
+      </a>
     </div>
   </div>;
 

@@ -10,6 +10,7 @@ RUN npm ci
 
 COPY . /app
 RUN npm run build
+RUN ln -s /etc/mosquitto/certs
 
 # FROM node:16.14.2
 #

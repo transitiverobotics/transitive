@@ -9,10 +9,12 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const HttpProxy = require('http-proxy');
+const { CronJob } = require('cron');
+const _ = require('lodash');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
-const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare } =
-  require('@transitive-sdk/utils');
+const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
+mergeVersions } = require('@transitive-sdk/utils');
 const { Capability } = require('@transitive-sdk/utils/cloud');
 
 const {createAccount} = require('./accounts');
@@ -24,12 +26,14 @@ const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 
 const docker = require('./docker');
 const installRouter = require('./install');
+const stripeUtils = require('./stripeUtils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
 
 const PORT = process.env.TR_CLOUD_PORT || 9000;
+
 
 const log = getLogger('server');
 log.setLevel('debug');
@@ -343,6 +347,7 @@ class _robotAgent extends Capability {
 
   constructor() {
     super(() => {
+      // log.debug('ready');
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
       this.mqtt.subscribe(`/+/+/+/#`);
@@ -353,7 +358,7 @@ class _robotAgent extends Capability {
         this.addDevicePackageVersion(parsed);
         const key = `${parsed.capability}@${parsed.version}`;
 
-        if (!this.runningPackages[key] && !key.startsWith('@transitive-robotics/_')) {
+        if (!this.runningPackages[key] && !parsed.capabilityName.startsWith('_')) {
 
           if (process.env.NODOCKER) {
             log.debug('NODOCKER: not starting docker container for', key);
@@ -365,9 +370,51 @@ class _robotAgent extends Capability {
           this.runningPackages[key] = new Date();
         }
       });
-    });
 
-    this.router.use(express.json());
+      // here: use status from _robot-agent instead (and mqttsync)
+      this.mqttSync.subscribe(
+        `/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages`,
+        () => this.mqttSync.waitForHeartbeatOnce(
+          () => this.updateSubscriptions())
+      );
+    });
+  }
+
+  /** Ensure that customers have subscriptions in Stripe for all the paid caps
+  they are running, incl. quantity. This function should be called regularly,
+  maybe once an hour. */
+  async updateSubscriptions() {
+    // first make sure list of products in Stripe is up to date
+    await updateProducts();
+
+    const running = this.data.filter(['+', '+', '@transitive-robotics',
+      '_robot-agent', '+', 'status', 'runningPackages']);
+    // log.debug('updateSubscriptions, running', running);
+
+    _.forEach(running, (orgRunning, orgId) => {
+      const counts = {};
+      _.forEach(orgRunning, (deviceRunning, deviceId) => {
+
+        const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
+        const merged = mergeVersions(allVersions, 'status/runningPackages');
+        // log.debug('updateSubscriptions, merged', deviceId, JSON.stringify(merged, true, 2));
+
+        const pkgRunning = merged.status.runningPackages;
+
+        _.forEach(pkgRunning, (scopeRunning, scope) => {
+          _.forEach(scopeRunning, (capRunning, capName) => {
+            if (_.some(capRunning, (value) => value)) {
+              const capability = `${scope}/${capName}`;
+              // log.debug(`updateSubscriptions: cap ${capability} is running`);
+              !counts[capability] && (counts[capability] = 0);
+              counts[capability]++;
+            }
+          });
+        });
+      });
+
+      log.debug(`total counts for ${orgId}`, counts);
+    });
   }
 
   /** remember that the given device runs the given version of the capability */
@@ -397,6 +444,7 @@ class _robotAgent extends Capability {
 
   /** define routes for this app */
   addRoutes() {
+    this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
       // TODO: do not hard-code store url (once #82)
       // TODO: add authentication headers (once #84), npm token as Bearer
@@ -416,6 +464,7 @@ class _robotAgent extends Capability {
       res.json({msg: 'ok', session: req.session,
         mongo: Mongo.db.databaseName});
     });
+
 
     this.router.post('/login', async (req, res) => {
       log.debug('login', req.body);
@@ -444,7 +493,7 @@ class _robotAgent extends Capability {
       }
 
       // Write the verified username to the session to indicate logged in status
-      req.session.user = account._id;
+      req.session.user = account;
       res.cookie(COOKIE_NAME,
         JSON.stringify({user: account._id, robot_token: account.robotToken}))
         .json({status: 'ok'});
@@ -462,12 +511,13 @@ class _robotAgent extends Capability {
       log.debug('get JWT token', req.body);
 
       const accounts = Mongo.db.collection('accounts');
-      const account = await accounts.findOne({_id: req.session.user});
+      const account = await accounts.findOne({_id: req.session.user._id});
 
       const token = jwt.sign(req.body, account.jwtSecret);
       log.debug('responding with', {token});
       res.json({token});
     });
+
 
     this.router.post('/createCapsToken', requireLogin, async (req, res) => {
       log.debug('createCapsToken', req.body);
@@ -487,7 +537,7 @@ class _robotAgent extends Capability {
       }
 
       const accounts = Mongo.db.collection('accounts');
-      const account = await accounts.findOne({_id: req.session.user});
+      const account = await accounts.findOne({_id: req.session.user._id});
       let payload;
       try {
         payload = await jwt.verify(req.body.jwt, account.jwtSecret);
@@ -504,7 +554,7 @@ class _robotAgent extends Capability {
       payload.password = req.body.password;
       const modifier = {[`capTokens.${req.body.tokenName}`]: payload};
       const updateResult = await accounts.updateOne(
-        {_id: req.session.user}, {$set: modifier});
+        {_id: req.session.user._id}, {$set: modifier});
       log.debug({updateResult});
 
       res.json({});
@@ -517,7 +567,7 @@ class _robotAgent extends Capability {
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get JWT secret for', req.session.user);
       const accounts = Mongo.db.collection('accounts');
-      const account = await accounts.findOne({_id: req.session.user});
+      const account = await accounts.findOne({_id: req.session.user._id});
 
       for (let token in account.capTokens) {
         delete account.capTokens[token].password;
@@ -528,6 +578,10 @@ class _robotAgent extends Capability {
         capTokens: account.capTokens || {}
       });
     });
+
+    this.router.get('/stripe/create-customer-portal-session',
+      requireLogin,
+      stripeUtils.createPortalSession);
   }
 };
 
@@ -539,6 +593,21 @@ app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
 
 // routes used during the installation process of a new robot
 app.use('/install', installRouter);
+
+/** receive webhook events from Stripe */
+app.use('/stripe/webhooks', stripeUtils.handleWebhook);
+
+/** fetch the latest info about packages from registry, and update Stripe */
+const updateProducts = async () => {
+  const selector = JSON.stringify({'versions.transitiverobotics.price': {$exists: 1}});
+  const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
+  const allPackages = await response.json();
+
+  // log.debug(JSON.stringify(allPackages, true, 2));
+  const latest = allPackages.map(data => data.versions.find(({version}) =>
+    version == data.version));
+  await stripeUtils.updateProducts(latest);
+};
 
 // for debugging
 // app.use('*', (req, res, next) => {
@@ -574,4 +643,8 @@ Mongo.init(() => {
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);
   });
+
+  // once an hour update products
+  // new CronJob('0 0 * * * *', updateProducts, null, true);
+  // updateProducts();
 });

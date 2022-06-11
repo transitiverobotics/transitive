@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Card, Button, Form } from 'react-bootstrap';
 
 import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-sdk/utils-web';
@@ -9,6 +9,19 @@ const { COOKIE_NAME } = require('../common.js');
 loglevel.setLevel('debug');
 window.loglevel = loglevel;
 const log = getLogger('Login');
+
+const styles = {
+  wrapper: {
+    margin: 'auto',
+    padding: '2em',
+    maxWidth: '30em',
+    height: '30em',
+    marginTop: 'calc(50vh - 15em)'
+  },
+  loggedIn: {
+    margin: 'auto'
+  }
+};
 
 export const UserContext = React.createContext({});
 export const UserContextProvider = ({children}) => {
@@ -23,7 +36,7 @@ export const UserContextProvider = ({children}) => {
   useEffect(refresh, []);
 
   /** execute the login */
-  const login = (user, password, redirect = undefined) =>
+  const login = (user, password) =>
     fetchJson(`/@transitive-robotics/_robot-agent/login`,
       (err, res) => {
         if (err) {
@@ -31,7 +44,6 @@ export const UserContextProvider = ({children}) => {
         } else {
           console.log('logged in');
           refresh();
-          props.redirect && (window.location.href = props.redirect);
         }
       },
       {body: {name: user, password}});
@@ -43,7 +55,7 @@ export const UserContextProvider = ({children}) => {
       } else {
         refresh();
         console.log('logged out');
-        window.location.href = '/';
+        location.href = '/';
       }
     },
     {method: 'post'});
@@ -55,32 +67,25 @@ export const UserContextProvider = ({children}) => {
 
 
 /** Login component; updates the context on login/logout events */
-export const Login = ({redirect}) => {
+export const Login = ({}) => {
 
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const {session, login, logout} = useContext(UserContext);
 
-  if (session) {
-    return <div>
-      You are logged in as {session.user}.
-      <Button variant="primary" onClick={logout}>
-        Log out
-      </Button>
-    </div>;
-  }
+  session && setTimeout(() => location.href = '/', 500);
 
-  return <div>
-    Login
+  const form = <Card.Body>
+    <Card.Title>Login</Card.Title>
     <Form>
-      <Form.Group controlId="formBasicEmail">
+      <Form.Group className="mb-3" controlId="formBasicEmail">
         <Form.Label>Username</Form.Label>
         <Form.Control type="text" placeholder="Enter username"
           value={userName} onChange={e => setUserName(e.target.value)}
           autoComplete="username"/>
       </Form.Group>
 
-      <Form.Group controlId="formBasicPassword">
+      <Form.Group className="mb-3" controlId="formBasicPassword">
         <Form.Label>Password</Form.Label>
         <Form.Control type="password" placeholder="Password"
           value={password}
@@ -88,10 +93,18 @@ export const Login = ({redirect}) => {
           autoComplete="current-password"/>
       </Form.Group>
       <Button variant="primary" disabled={!userName || !password}
-        onClick={() => login(userName, password, redirect)}
+        onClick={() => login(userName, password)}
+        type="submit"
       >
         Log in
       </Button>
     </Form>
-  </div>;
+  </Card.Body>;
+
+  return <Card style={styles.wrapper}>
+    <Card.Img variant="top" src="logo_text.svg" />
+    {session ?
+      <div style={styles.loggedIn}>Logging in as {session.user}...</div> :
+      form }
+  </Card>
 };

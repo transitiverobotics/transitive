@@ -62,7 +62,7 @@ const styles = {
     username/password, which allows us to get JWTs. This is not a model of
   how to do this with capabilities in other web applications */
 const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
-  const {session} = useContext(UserContext);
+  const {session, logout} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
   const {deviceId = '_fleet'} = useParams();
 
@@ -75,6 +75,7 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
           (err, res) => {
             if (err) {
               console.error(err);
+              logout();
             } else {
               setJwtToken(res.token);
             }
@@ -90,6 +91,7 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
     }, [webComponent, capability, session]);
 
   if (!session) {
+    // shouldn't happen but just in case
     return <div>Log in to see device details</div>;
   }
 
@@ -184,7 +186,6 @@ const Portal = () =>
 
     <div style={styles.body}>
       <Routes>
-        <Route path="/login" element={<Login />} />
         <Route path="/admin" />
         <Route path="/security" element={<Security />} />
 
@@ -214,13 +215,19 @@ const Portal = () =>
   </div>;
 
 
-const Apps = () => <Router>
-  <Routes>
-    <Route path="/sac/:org/:device/:scope/:capName/:widget"
-      element={<StandAloneComponent />} />
-    <Route path="/*" element={<Portal />} />
-  </Routes>
-</Router>;
+const Apps = () => {
+
+  const {session, login, logout} = useContext(UserContext);
+
+  return <Router>
+    <Routes>
+      <Route path="/sac/:org/:device/:scope/:capName/:widget"
+        element={<StandAloneComponent />} />
+
+      <Route path="/*" element={session ? <Portal /> : <Login />} />
+    </Routes>
+  </Router>;
+};
 
 
 export default () => {

@@ -50,7 +50,7 @@ export const Security = () => {
         <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
       </Col>
 
-      {/* #HERE: list them and give options to delete them
+      {/* TODO: list them and give options to delete them
 
         */ account.capTokens && <pre>
           {JSON.stringify(account.capTokens, true, 2)}

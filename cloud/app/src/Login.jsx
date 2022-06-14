@@ -20,12 +20,17 @@ const styles = {
   },
   loggedIn: {
     margin: 'auto'
+  },
+  error: {
+    padding: '0.5em',
+    color: '#b00',
   }
 };
 
 export const UserContext = React.createContext({});
 export const UserContextProvider = ({children}) => {
   const [session, setSession] = useState();
+  const [error, setError] = useState();
   const refresh = () => {
     log.debug('parsing cookie');
     const cookie = parseCookie(document.cookie);
@@ -41,7 +46,9 @@ export const UserContextProvider = ({children}) => {
       (err, res) => {
         if (err) {
           console.error(err);
+          setError('Failed to log in, please check your credentials.');
         } else {
+          setError(null);
           console.log('logged in');
           refresh();
         }
@@ -60,7 +67,7 @@ export const UserContextProvider = ({children}) => {
     },
     {method: 'post'});
 
-  return <UserContext.Provider value={{session, login, logout}}>
+  return <UserContext.Provider value={{session, login, logout, error}}>
     {children}
   </UserContext.Provider>;
 };
@@ -71,7 +78,7 @@ export const Login = ({}) => {
 
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
-  const {session, login, logout} = useContext(UserContext);
+  const {session, login, logout, error} = useContext(UserContext);
 
   session && setTimeout(() => location.href = '/', 500);
 
@@ -94,15 +101,15 @@ export const Login = ({}) => {
       </Form.Group>
       <Button variant="primary" disabled={!userName || !password}
         onClick={() => login(userName, password)}
-        type="submit"
       >
         Log in
       </Button>
+      {error && <div style={styles.error}>{error}</div>}
     </Form>
   </Card.Body>;
 
   return <Card style={styles.wrapper}>
-    <Card.Img variant="top" src="logo_text.svg" />
+    <Card.Img variant="top" src="/logo_text.svg" />
     {session ?
       <div style={styles.loggedIn}>Logging in as {session.user}...</div> :
       form }

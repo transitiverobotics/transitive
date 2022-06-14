@@ -84,7 +84,11 @@ export const Login = ({}) => {
 
   const form = <Card.Body>
     <Card.Title>Login</Card.Title>
-    <Form>
+    <Form action="#" onSubmit={(e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      login(userName, password);
+    }}>
       <Form.Group className="mb-3" controlId="formBasicEmail">
         <Form.Label>Username</Form.Label>
         <Form.Control type="text" placeholder="Enter username"
@@ -101,6 +105,7 @@ export const Login = ({}) => {
       </Form.Group>
       <Button variant="primary" disabled={!userName || !password}
         onClick={() => login(userName, password)}
+        type='submit'
       >
         Log in
       </Button>

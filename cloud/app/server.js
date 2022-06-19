@@ -56,7 +56,7 @@ const addSessions = (router, collectionName, secret) => {
 
 /** simple middleware to check whether the user is logged in */
 const requireLogin = (req, res, next) => {
-  log.debug(req.session);
+  // log.debug(req.session);
   if (!req.session || !req.session.user) {
     res.status(401).end('Not authorized. You need to be logged in.');
   } else {

@@ -378,7 +378,10 @@ class _robotAgent extends Capability {
       this.mqttSync.subscribe(
         `/+/+/@transitive-robotics/_robot-agent/+/status/+`,
         () => this.mqttSync.waitForHeartbeatOnce(
-          () => this.updateSubscriptions())
+          () => {
+            this.updateSubscriptions();
+            new CronJob('0 0 * * * *', this.updateProducts.bind(this), null, true);
+          })
       );
     });
   }

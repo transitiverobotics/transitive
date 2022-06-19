@@ -337,6 +337,10 @@ app.post('/auth/acl', (req, res) => {
   Cloud Agent
 */
 
+// After 24h of a robot not reporting a heartbeat we'll pause billing for any
+// premium capabilities it might be running
+const RUNNING_THRESHOLD = 24 * 60 * 60 * 1000;
+
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
 
@@ -371,9 +375,8 @@ class _robotAgent extends Capability {
         }
       });
 
-      // here: use status from _robot-agent instead (and mqttsync)
       this.mqttSync.subscribe(
-        `/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages`,
+        `/+/+/@transitive-robotics/_robot-agent/+/status/+`,
         () => this.mqttSync.waitForHeartbeatOnce(
           () => this.updateSubscriptions())
       );
@@ -385,7 +388,7 @@ class _robotAgent extends Capability {
   maybe once an hour. */
   async updateSubscriptions() {
     // first make sure list of products in Stripe is up to date
-    await updateProducts();
+    const products = await updateProducts();
 
     const running = this.data.filter(['+', '+', '@transitive-robotics',
       '_robot-agent', '+', 'status', 'runningPackages']);
@@ -394,6 +397,18 @@ class _robotAgent extends Capability {
     _.forEach(running, (orgRunning, orgId) => {
       const counts = {};
       _.forEach(orgRunning, (deviceRunning, deviceId) => {
+
+        // Remove any by robots that have been offline for more than
+        // a threshold
+        const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
+          '_robot-agent']);
+        const mergedAgent = mergeVersions(agent, 'status');
+        log.debug({mergedAgent});
+        const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
+        if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
+          log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
+          return;
+        }
 
         const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
         const merged = mergeVersions(allVersions, 'status/runningPackages');
@@ -413,7 +428,7 @@ class _robotAgent extends Capability {
         });
       });
 
-      stripeUtils.updateSubscriptions(orgId, counts);
+      stripeUtils.updateSubscriptions(orgId, counts, products);
     });
   }
 
@@ -599,14 +614,16 @@ app.use('/stripe/webhooks', stripeUtils.handleWebhook);
 
 /** fetch the latest info about packages from registry, and update Stripe */
 const updateProducts = async () => {
-  const selector = JSON.stringify({'versions.transitiverobotics.price': {$exists: 1}});
+  const selector = JSON.stringify({'transitiverobotics.price': {$exists: 1}});
   const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
   const allPackages = await response.json();
 
   // log.debug(JSON.stringify(allPackages, true, 2));
-  const latest = allPackages.map(data => data.versions.find(({version}) =>
-    version == data.version));
-  await stripeUtils.updateProducts(latest);
+  // const latest = allPackages.map(data => data.versions.find(({version}) =>
+  //   version == data.version));
+  const list = await stripeUtils.updateProducts(allPackages);
+
+  return list;
 };
 
 // for debugging

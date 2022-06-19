@@ -196,6 +196,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
         readme: versionObj.readme,
         description: data.description,
         date: new Date(),
+        transitiverobotics: versionObj.transitiverobotics
       });
 
       packages.insertOne(data);
@@ -232,6 +233,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
           readme: versionObj.readme,
           description: data.description,
           date: new Date(),
+          transitiverobotics: versionObj.transitiverobotics
         },
         $push: {
           versions: versionObj

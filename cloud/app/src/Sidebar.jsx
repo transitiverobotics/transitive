@@ -146,7 +146,7 @@ export const Sidebar = () => {
 
   return <div style={styles.wrapper} className='sidebar'>
     <div style={styles.brand}>
-      <a href={location.href.replace('portal.', '')}>
+      <a href={location.origin.replace('portal.', '')}>
         <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
       </a>
       portal

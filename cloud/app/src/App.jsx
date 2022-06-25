@@ -162,7 +162,7 @@ const CapabilityWidget = ({type}) => {
           Additional widgets provided by this capability
         </h6>
         {_.map(pkg.widgets, (def, name) => <div key={name}>
-            <h7>{def.title}</h7>
+            <h6>{def.title}</h6>
             <Capability webComponent={name}
               capability={capability}
               jwtExtras={def.topics ? {topics: def.topics} : {}}

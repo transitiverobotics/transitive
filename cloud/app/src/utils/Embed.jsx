@@ -78,25 +78,34 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
       <div>
         You can also share this widget on a stand-alone, password-protected page.
         To do that, set a name and password, then click "Get link".
-        <InputGroup className="mb-3" size="sm" style={styles.form}>
-          <FormControl
-            placeholder="Name"
-            aria-label="Name"
-            value={tokenName}
-            onChange={e => setTokenName(e.target.value)}
-            />
-          <FormControl
-            type="password"
-            placeholder="Set password"
-            aria-label="Set password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            />
-          <Button variant="secondary" id="b-addon2" onClick={createToken}>
-            Get link
-          </Button>
-        </InputGroup>
-        {link && <a href={link}>Link</a>}
+        <Form action="#" onSubmit={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          createToken();
+        }}>
+
+          <InputGroup className="mb-3" size="sm" style={styles.form}>
+            <FormControl
+              placeholder="Name"
+              aria-label="Name"
+              value={tokenName}
+              autoComplete="username"
+              onChange={e => setTokenName(e.target.value)}
+              />
+            <FormControl
+              type="password"
+              placeholder="Set password"
+              autoComplete="new-password"
+              aria-label="Set password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              />
+            <Button variant="secondary" id="b-addon2" onClick={createToken}>
+              Get link
+            </Button>
+          </InputGroup>
+          {link && <a href={link}>Link</a>}
+        </Form>
       </div>
     </Form.Text>
   </Fold>;

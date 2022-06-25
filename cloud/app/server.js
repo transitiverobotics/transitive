@@ -380,7 +380,7 @@ class _robotAgent extends Capability {
         () => this.mqttSync.waitForHeartbeatOnce(
           () => {
             this.updateSubscriptions();
-            new CronJob('0 0 0 * * *', this.updateSubscriptions.bind(this), null, true);
+            new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
           })
       );
     });

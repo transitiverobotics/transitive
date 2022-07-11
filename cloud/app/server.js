@@ -372,6 +372,7 @@ class _robotAgent extends Capability {
           }
 
           this.runningPackages[key] = new Date();
+          // TODO: update this from time to time from docker listContainers
         }
       });
 

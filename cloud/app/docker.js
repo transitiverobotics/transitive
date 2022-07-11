@@ -63,6 +63,8 @@ const build = async ({name, version}) => {
     transitive_package: name,
     dependencies: {[name]: `${version}`}
   };
+  const pkgFolder = `node_modules/${name}/`;
+
   fs.writeFileSync(path.join(dir, 'package.json'),
     JSON.stringify(packageJson, true, 2));
 
@@ -77,8 +79,14 @@ const build = async ({name, version}) => {
       'Dockerfile'
     ].join('\n'));
 
+  fs.writeFileSync(path.join(dir, 'run.sh'), [
+      `cp -a /app/${pkgFolder}/dist /app/${pkgFolder}/package.json /app/run`,
+      // this ^ will be used by cloud-agent to serve capability's web components
+      `cd /app/${pkgFolder}/`,
+      'exec npm run cloud'
+    ].join(' && '));
+
   // generate Dockerfile
-  const pkgFolder = `node_modules/${name}/`;
   const certsFolder = `${pkgFolder}/cloud/certs`;
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
@@ -90,9 +98,10 @@ const build = async ({name, version}) => {
       `RUN mkdir ${certsFolder}`,
       `RUN ln -s /app/client.crt ${certsFolder}`,
       `RUN ln -s /app/client.key ${certsFolder}`,
-      `WORKDIR /app/${pkgFolder}`,
-      `CMD cp -a dist /app/run && cp -a package.json /app/run && npm run cloud`,
-      // this ^ will be used by cloud-agent to serve capability's web components
+      // `WORKDIR /app/${pkgFolder}`,
+      `RUN chmod +x /app/run.sh`,
+      // `CMD cp -a dist /app/run && cp -a package.json /app/run && npm run cloud`,
+      'CMD ["./run.sh"]'
     ].join('\n'));
 
   /** now build the equivalent of this docker-compose:
@@ -108,7 +117,7 @@ const build = async ({name, version}) => {
   const stream = await docker.buildImage({
       context: dir,
       src: ['Dockerfile', 'client.key', 'client.crt',
-        'package.json', '.npmrc', '.dockerignore']
+        'package.json', '.npmrc', '.dockerignore', 'run.sh']
     }, {
       networkmode: 'host', // #DEBUG,
       extrahosts: `registry:${REGISTRY_HOST}`,

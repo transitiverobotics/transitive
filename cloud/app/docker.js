@@ -157,8 +157,9 @@ const start = async ({name, version}) => {
   const exposedPort = getNextInRange(inUse, EXPOSED_PORT_WINDOW);
   portsUsedByUs.push(exposedPort);
 
+  const devNull = fs.createWriteStream('/dev/null');
   log.debug('starting container for', tagName, 'port:', exposedPort);
-  docker.run(tagName, [], null, {
+  docker.run(tagName, [], devNull, {
       name: tagName.replace(/[\/:]/g, '.'),
       Env: [
         `MQTT_URL=${process.env.MQTT_URL}`,

@@ -14,8 +14,7 @@ const _ = require('lodash');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions } = require('@transitive-sdk/utils');
-const { Capability } = require('@transitive-sdk/utils/cloud');
+mergeVersions, forMatchIterator, Capability } = require('@transitive-sdk/utils');
 
 const {createAccount} = require('./accounts');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
@@ -34,11 +33,8 @@ const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
 
 const PORT = process.env.TR_CLOUD_PORT || 9000;
 
-
 const log = getLogger('server');
-log.setLevel('debug');
-
-log.debug({COOKIE_NAME, TOKEN_COOKIE});
+log.setLevel('info');
 
 const addSessions = (router, collectionName, secret) => {
   router.use(session({
@@ -66,19 +62,22 @@ const requireLogin = (req, res, next) => {
 
 /** lookup which version of the named capability is running on the named device
 */
-const getVersion = (userId, deviceId, capability) => {
+const getVersion = (userId, deviceId, scope, capName) => {
   if (!robotAgent) {
     log.warn('robotAgent not yet running, cannot look up running version yet');
     return;
   }
+
   if (deviceId == "_fleet") {
     // Serve the latest version run by any device
-    return robotAgent.getLatestRunningVersion(userId, capability);
+    return robotAgent.getLatestRunningVersion(userId, scope, capName);
     // TODO: if no device is running this capability, serve the latest version.
     // This is required to allow capabilities that are cloud+UI only.
   } else {
     const runningPkgs = robotAgent.getDevicePackages(userId, deviceId);
-    return runningPkgs && runningPkgs[capability];
+    const running = runningPkgs?.[scope][capName];
+    log.debug({running});
+    return running && _.findKey(running, (isTrue) => isTrue);
   }
 };
 
@@ -95,7 +94,6 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.json());
-
 
 // router for standalone-component pages
 const capsRouter = express.Router();
@@ -132,14 +130,14 @@ const addCapsRoutes = () => {
 
     // check token
     if (!account.capTokens[token]) {
-      log.debug('invalid token');
+      log.info('invalid token');
       res.status(401).end('not authorized or invalid token');
       return;
     }
 
     const permissions = account.capTokens[token];
     if (password != permissions.password) {
-      log.debug('wrong password');
+      log.info('wrong password');
       res.status(401).end('not authorized or invalid token');
       return;
     }
@@ -181,10 +179,10 @@ const addCapsRoutes = () => {
       if (err) {
         next();
       } else {
-        // TODO: this also triggers if filePath is a parent directory of a
+        // This also triggers if filePath is a parent directory of a
         // non-existing file; it does the right thing and falls back to the
-        // /caps route, but the log message is misleading
-        log.debug('capability bundle from dev environment:', filePath);
+        // /caps route
+        log.info('trying to send capability bundle from dev:', filePath);
         res.sendFile(filePath);
       }
     });
@@ -209,12 +207,13 @@ const addCapsRoutes = () => {
 app.use('/running/@transitive-robotics/_robot-agent',
   express.static(path.resolve(__dirname)));
 
-app.get('/running/:scope/:capabilityName/*', (req, res) => {
-  console.log(`getting ${req.path}`, req.query, req.params);
-  const capability = `${req.params.scope}/${req.params.capabilityName}`;
+app.get('/running/:scope/:capName/*', (req, res) => {
+  log.debug(`getting ${req.path}`, req.query, req.params);
+  const {scope, capName} = req.params;
+  const capability = `${scope}/${capName}`;
   const filePath = req.params[0]; // the part that matched the *
-  const version = getVersion(req.query.userId, req.query.deviceId, capability);
-  console.log({version});
+  const version = getVersion(req.query.userId, req.query.deviceId, scope, capName);
+  log.debug('running', {version});
 
   if (version) {
     // redirect to the folder in dist (symlinked to the place where the named
@@ -272,14 +271,14 @@ app.post('/auth/user', async (req, res) => {
 
     if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
       // The token is expired
-      log.debug(`JWT is expired ${JSON.stringify(payload)}`);
+      log.info(`JWT is expired ${JSON.stringify(payload)}`);
       res.status(401).send(`JWT is expired ${JSON.stringify(payload)}`);
       return;
     }
 
     res.send('ok');
   } catch (e) {
-    log.debug(`user authentication failed`, e);
+    log.info(`user authentication failed`, e);
     res.status(401).send(e);
   }
 });
@@ -351,39 +350,35 @@ class _robotAgent extends Capability {
 
   constructor() {
     super(() => {
-      // log.debug('ready');
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
-      this.mqtt.subscribe(`/+/+/+/#`);
-      this.mqtt.on('message', (topic) => {
-        if (topic.startsWith('$SYS')) return;
-
-        const parsed = parseMQTTTopic(topic);
-        this.addDevicePackageVersion(parsed);
-        const key = `${parsed.capability}@${parsed.version}`;
-
-        if (!this.runningPackages[key] && !parsed.capabilityName.startsWith('_')) {
-
-          if (process.env.NODOCKER) {
-            log.debug('NODOCKER: not starting docker container for', key);
-          } else {
-            log.debug('starting docker container for', key);
-            docker.ensureRunning({name: parsed.capability, version: parsed.version});
-          }
-
-          this.runningPackages[key] = new Date();
-          // TODO: update this from time to time from docker listContainers
-        }
-      });
-
       this.mqttSync.subscribe(
-        `/+/+/@transitive-robotics/_robot-agent/+/status/+`,
-        () => this.mqttSync.waitForHeartbeatOnce(
-          () => {
-            this.updateSubscriptions();
-            new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
-          })
-      );
+        '/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages');
+      this.data.subscribePathFlat(
+        '/+org/+device/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
+        (value, topic, matched, tags) => {
+
+          if (!value) return;
+
+          // this.addDevicePackageVersion(parsed);
+          const {scope, capName, version} = matched;
+          const name = `${scope}/${capName}`;
+          const key = `${name}:${version}`;
+
+          if (!matched.capName.startsWith('_')) {
+            if (process.env.NODOCKER) {
+              log.info('NODOCKER: not starting docker container for', key);
+            } else {
+              log.info('ensureRunning docker container for', key);
+              docker.ensureRunning({name, version});
+            }
+          }
+        });
+
+      this.mqttSync.waitForHeartbeatOnce(() => {
+        this.updateSubscriptions();
+        new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
+      });
     });
   }
 
@@ -436,29 +431,45 @@ class _robotAgent extends Capability {
     });
   }
 
-  /** remember that the given device runs the given version of the capability */
-  addDevicePackageVersion({organization, device, capability, version}) {
-    !this.devicePackageVersions[organization] &&
-      (this.devicePackageVersions[organization] = {});
-    !this.devicePackageVersions[organization][device] &&
-      (this.devicePackageVersions[organization][device] = {});
-    this.devicePackageVersions[organization][device][capability] = version;
-  }
-
   /** get list of all packages running on a device, incl. their versions */
   getDevicePackages(organization, device) {
-    return this.devicePackageVersions[organization][device] || {};
+    // return this.devicePackageVersions[organization][device] || {};
+    const agentObj = this.data.get([
+      organization, device, '@transitive-robotics', '_robot-agent']);
+    const status = mergeVersions(agentObj, 'status').status;
+    return status?.runningPackages;
   }
 
   /** get the latest version of the named capability running on any device
   by the given organziation */
-  getLatestRunningVersion(organization, capability) {
-    const devices = this.devicePackageVersions[organization];
-    const versions = Object.values(devices)
-        .map(device => device[capability] || '0.0.0-0');
-    log.debug({versions});
-    versions.sort(versionCompare);
-    return versions.at(-1);
+  getLatestRunningVersion(organization, scope, capName) {
+    const latestRunning = this.getLatestRunningVersions(organization);
+    return latestRunning[scope][capName];
+  }
+
+  /** get the latest running version of each package run by this org */
+  getLatestRunningVersions(organization) {
+    const runningPackages = {};
+    const org = this.data.get([organization]);
+
+    // for each device, mergeVersions of _robot-agent, then get running
+    _.each(org, device => {
+      const versions = device['@transitive-robotics']['_robot-agent'];
+      const running = mergeVersions(versions, 'status').status.runningPackages;
+
+      forMatchIterator(running, ['+scope', '+capName', '+version'],
+        (value, topic, {scope, capName, version}) => {
+          value && _.set(runningPackages, [scope, capName], version);
+        });
+    });
+
+    // this.data.forPathMatch([organization, '+device',
+    //     '@transitive-robotics', '_robot-agent', '+', 'status',
+    //     'runningPackages', '+scope', '+capName', '+version'],
+    //   (value, topic, {agentVersion, scope, capName, version}) => {
+    //     value && _.set(runningPackages, [scope, capName], version);
+    //   });
+    return runningPackages;
   }
 
   /** define routes for this app */
@@ -500,14 +511,14 @@ class _robotAgent extends Capability {
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.body.name});
       if (!account) {
-        log.debug('no such account', req.body.name);
+        log.info('no such account', req.body.name);
         return fail('invalid credentials');
         // on purpose not disclosing that the account doesn't exist
       }
 
       const valid = await bcrypt.compare(req.body.password, account.bcryptPassword);
       if (!valid) {
-        log.debug('wrong password for account', req.body.name);
+        log.info('wrong password for account', req.body.name);
         return fail('invalid credentials');
       }
 
@@ -580,7 +591,7 @@ class _robotAgent extends Capability {
     });
 
     this.router.get('/runningPackages', requireLogin, async (req, res) => {
-      res.json(this.runningPackages);
+      res.json(this.getLatestRunningVersions(req.session.user._id));
     });
 
     this.router.get('/security', requireLogin, async (req, res) => {
@@ -635,6 +646,17 @@ const updateProducts = async () => {
 //   console.log('Unknown path', req.method, req.url);
 //   res.status(404).end();
 // });
+
+app.get('/admin/setLogLevel', (req, res) => {
+  if (!req.query.level) {
+    res.status(400).end('missing level');
+  } else {
+    log.setLevel(req.query.level);
+    const msg = `Set log level to ${req.query.level}`;
+    console.log(msg);
+    res.end(msg);
+  }
+});
 
 // to allow client-side routing:
 app.use('/*', (req, res) =>

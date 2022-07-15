@@ -118,27 +118,15 @@ export const Sidebar = () => {
 
   /** List links to the fleet views of other running packages */
   const OtherFleetCaps = () => {
-    const list = _.uniq(Object.keys(runningPackages)).map(name => name
-      .match(/(?<scope>[^\/]*)\/(?<name>[^\/@]*)@(?<version>.*)/)
-      .groups);
-    const byScope = _.groupBy(list, 'scope');
-
-    return _.map(byScope, (sublist, scope) =>
+    return _.map(runningPackages, (capNames, scope) =>
       <div key={scope} style={styles.scope}>
         {scope}:
         <div style={styles.subsection}>
-          {_.map(_.groupBy(
-                _.filter(sublist, ({name}) => !name.startsWith('_')),
-                'name'),
-              (versions, name) =>
-              <div key={name}>
-                <PageLink to={`/fleet/${scope}/${name}`}>
-                  {name}
-                </PageLink>
-                {/* if necessary, we can show the running versions
-                  ({versions.map(({version}) => version).join(', ')}) */}
-              </div>)
-          }
+          {_.map(capNames, (version, name) => <div key={name}>
+            <PageLink to={`/fleet/${scope}/${name}`} title={version}>
+              {name}
+            </PageLink>
+          </div>)}
         </div>
       </div>
     );

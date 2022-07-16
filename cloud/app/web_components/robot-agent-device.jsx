@@ -151,6 +151,11 @@ const Device = (props) => {
     mqttSync.mqtt.publish(`${versionPrefix}/_restartPackage/${name}`, '1');
   };
 
+  const stopPackage = (name) => {
+    console.log('sending command to stop package', name);
+    mqttSync.mqtt.publish(`${versionPrefix}/_stopPackage/${name}`, '1');
+  };
+
   /** remove the device from the dashboard (until it republishes status, if at
   all) */
   const clear = () => {
@@ -208,6 +213,11 @@ const Device = (props) => {
               running && <Button variant='link'
                 onClick={() => restartPackage(name)}>
                 restart
+              </Button>
+            } {
+              running && <Button variant='link'
+                onClick={() => stopPackage(name)}>
+                stop
               </Button>
             } {
               desired ? <Button variant='link' onClick={() => uninstall(name)}>

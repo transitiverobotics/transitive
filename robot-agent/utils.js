@@ -8,10 +8,31 @@ const constants = require('./constants');
 const log = getLogger('utils');
 log.setLevel('debug');
 
+const basePath = `${constants.TRANSITIVE_DIR}/packages`;
+const LOG_COUNT = 3;
+
 /** given a path, list all sub-directories by name */
 const getSubDirs = (path) => fs.readdirSync(path, {withFileTypes: true})
     .filter(f => f.isDirectory())
     .map(f => f.name);
+
+/** find list of installed packages, defined as those that have a folder in
+packages/ with a package.json in it. */
+const getInstalledPackages = () => {
+  const list = getSubDirs(basePath);
+
+  const lists = list.map(dir => {
+    if (dir.startsWith('@')) {
+      // it's a scope, not a package, list packages in that scope
+      const sublist = getSubDirs(`${basePath}/${dir}`);
+      return sublist.map(subdir => `${dir}/${subdir}`);
+    } else {
+      return [dir];
+    }
+  });
+  const flat = [].concat(...lists); // flatten
+  return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
+};
 
 /** restart the named package by sending a SIGUSR1 to its startPackage.sh process
   e.g., name = '@transitive-robotics/health-monitoring'
@@ -61,7 +82,7 @@ const startPackage = (name) => {
       const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
-      // TODO: add a log-rotate or truncate for these log files
+
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -100,29 +121,37 @@ const fileExists = (filePath) => {
   }
 }
 
+/** rotate given (log) file */
+const logRotate = (file, {count}) => {
+  if (!fileExists(file)) return;
+
+  for (let i = count - 1; i > 0; i--) {
+    try {
+      fs.copyFileSync(`${file}.${i}`, `${file}.${i+1}`);
+    } catch (e) {};
+  }
+  fs.copyFileSync(file, `${file}.1`);
+  // Now truncate the current file. Don't delete! That would break the logging
+  // stream.
+  fs.truncateSync(file);
+};
+
+/** rotate the log files for all installed packages */
+const rotateAllLogs = () => {
+  const list = getInstalledPackages();
+  list.forEach(dir => {
+    const logFile = `${basePath}/${dir}/log`;
+    logRotate(logFile, {count: LOG_COUNT}, (err) =>
+      err && log.error(`error rotating log file for ${dir}`, err)
+    );
+  });
+};
+
 module.exports = {
-
-  /** find list of installed packages, defined as those that have a folder in
-    packages/ with a package.json in it. */
-  getInstalledPackages: () => {
-    const basePath = `${constants.TRANSITIVE_DIR}/packages`;
-    const list = getSubDirs(basePath);
-
-    const lists = list.map(dir => {
-      if (dir.startsWith('@')) {
-        // it's a scope, not a package, list packages in that scope
-        const sublist = getSubDirs(`${basePath}/${dir}`);
-        return sublist.map(subdir => `${dir}/${subdir}`);
-      } else {
-        return [dir];
-      }
-    });
-    const flat = [].concat(...lists); // flatten
-    return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
-  },
-
+  getInstalledPackages,
   restartPackage,
   killPackage,
   startPackage,
-  weHaveSudo
+  weHaveSudo,
+  rotateAllLogs,
 };

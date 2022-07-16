@@ -32,8 +32,12 @@ if (!process.env.TR_USERID) {
   process.exit(2);
 }
 
+// --------------------------------------------------------------------------
+
 const {exec, execSync} = require('child_process');
-const {getInstalledPackages, restartPackage, startPackage} = require('./utils');
+const { CronJob } = require('cron');
+const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs} =
+  require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
 const ensureROS = require('./ensureROS');
@@ -47,11 +51,15 @@ log.debug('@transitive-robotics/robot-agent started', new Date());
 // installed by this package during postinstall or inside a while loop
 const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
+
 /** self-update this package */
 const selfUpdate = (cb) => {
   console.log('checking for updates');
-  exec(`${constants.NPM} update --no-save`, {cwd: constants.TRANSITIVE_DIR},
-    (err, stdout, stderr) => {
+  // The `rm` here is to clear out old npm folders from a potentially failed
+  // update (or whatever else leaves these beind, see
+  // https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
+  exec(`rm -rf node_modules/.*-* node_modules/*/.*-* && ${constants.NPM} update --no-save`,
+    {cwd: constants.TRANSITIVE_DIR}, (err, stdout, stderr) => {
       if (!err) {
         // check package version after update
         const after = execSync('npm pkg get version', {
@@ -112,6 +120,9 @@ const update = () => {
 }
 
 setInterval(update, UPDATE_INTERVAL);
+// rotate all log files at 1am
+rotateAllLogs();
+new CronJob('0 0 1 * * *', rotateAllLogs, null, true);
 
 update();
 

@@ -24,6 +24,8 @@ pid=
 # i.e., not just the `npm start` command, but also the `node` process started by
 # it. See https://unix.stackexchange.com/a/14853/53593.
 trap '[[ $pid ]] && kill -SIGTERM -$pid && echo SIGUSR1: restarting -$pid' SIGUSR1
+# need to also trap TERM so we can terminate the new process group started below
+trap '[[ $pid ]] && kill -SIGTERM -$pid && echo SIGTERM: stopping -$pid and exiting ; exit' SIGTERM
 # trap '[[ $pid ]] && kill -SIGTERM -$pid && echo EXIT: stopping -$pid' EXIT
 
 BASE=$PWD
@@ -35,6 +37,11 @@ while :
 do
   # be sure we are in the base directory before running update
   cd $BASE
+
+  # Clear out old npm folders from a potentially failed update (or whatever
+  # else leaves these beind, see
+  # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
+  rm -rf node_modules/.*-* node_modules/*/.*-*
 
   npm update --no-save
   # Note: npm update also installs missing packages, see,

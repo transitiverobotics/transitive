@@ -8,14 +8,17 @@ const constants = require('./constants');
 const {getInstalledPackages, restartPackage, startPackage, killPackage } =
   require('./utils');
 
-const { DataCache, toFlatObject } = require('@transitive-sdk/utils');
+const { DataCache, toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const dataCache = new DataCache();
+
+const log = getLogger('commands');
+log.setLevel('debug');
 
 
 /** install new package. Note: addedPkg may include a scope,
   e.g., @transitive-robotics/test1 */
 const addPackage = (addedPkg) => {
-  console.log(`adding package ${addedPkg}`);
+  log.debug(`adding package ${addedPkg}`);
   const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
   fs.mkdirSync(dir, {recursive: true});
   fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
@@ -26,7 +29,7 @@ const addPackage = (addedPkg) => {
 
 /** stop and uninstall named package */
 const removePackage = (pkg) => {
-  console.log(`removing package ${pkg}`);
+  log.debug(`removing package ${pkg}`);
   // verify the pkg name is a string, not empty, and doesn't contain dots
   assert(typeof pkg == 'string' && pkg.match(/\w/) && !pkg.match(/\./));
   // stop and remove folder
@@ -34,7 +37,7 @@ const removePackage = (pkg) => {
     if (exitcode) {
       console.warn(`stopping package failed (exit code: ${exitcode})`);
     } else {
-      console.log('package stopped, removing files');
+      log.debug('package stopped, removing files');
     }
     exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
   });
@@ -42,7 +45,7 @@ const removePackage = (pkg) => {
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
 const ensureDesiredPackages = (desired = {}) => {
-  console.log('ensureDesiredPackages', desired);
+  log.debug('ensureDesiredPackages', desired);
   // const desired = dataCache.get('desiredPackages');
   const desiredPackages = toFlatObject(desired);
   // remove the initial '/' from the keys:
@@ -52,10 +55,10 @@ const ensureDesiredPackages = (desired = {}) => {
       desiredPackages[key.slice(1)] = value;
     }
   });
-  console.log('Ensure installed packages match: ', desiredPackages);
+  log.debug('Ensure installed packages match: ', desiredPackages);
 
   const packages = getInstalledPackages();
-  console.log('currently installed: ', packages);
+  log.debug('currently installed: ', packages);
   packages.forEach(pkg => {
     if (desiredPackages[pkg]) {
       // TODO: later, check whether the version has changed; for now all
@@ -67,7 +70,7 @@ const ensureDesiredPackages = (desired = {}) => {
   });
 
   // what remains in `desired` is added new, install and start
-  console.log('add: ', desiredPackages);
+  log.debug('add: ', desiredPackages);
   Object.keys(desiredPackages).forEach(addPackage);
 };
 
@@ -87,13 +90,18 @@ const execAll = ([head, ...tail], cb) => {
   underscore */
 const commands = {
   _restart: () => {
-    console.log("Received restart command.");
+    log.info("Received restart command.");
     process.exit(0);
   },
   _restartPackage: (sub) => {
     const pkg = sub.join('/')
-    console.log(`Restarting ${pkg}.`);
+    log.debug(`Restarting ${pkg}.`);
     restartPackage(pkg);
+  },
+  _stopPackage: (sub) => {
+    const pkg = sub.join('/')
+    log.debug(`Stopping ${pkg}.`);
+    killPackage(pkg);
   },
   // _exec: (sub, value, cb) => {
   //   exec(value, (err, stdout, stderr) => cb({err, stdout, stderr}));
@@ -127,7 +135,7 @@ const commands = {
 module.exports = {
   /** handle, i.e., parse and execute a command sent to the agent via mqtt */
   // handleAgentData: (subPath, value) => {
-  //   console.log('handle agent data', subPath, value, dataCache.get());
+  //   log.debug('handle agent data', subPath, value, dataCache.get());
   //   if (subPath[0][0] != '_') {
   //     dataCache.update(subPath, value);
   //   }
@@ -135,7 +143,7 @@ module.exports = {
   handleAgentCommand: (subPath, value, cb) => {
     const cmd = commands[subPath[0]];
     if (cmd) {
-      console.log('Executing command', subPath);
+      log.debug('Executing command', subPath);
       cmd(subPath.slice(1), value, cb);
     } else {
       console.error('Received unknown command', command);

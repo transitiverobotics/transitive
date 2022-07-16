@@ -147,6 +147,20 @@ const rotateAllLogs = () => {
   });
 };
 
+/** A more reliable way to kill all running packages/capabilities, even when
+  * they are not cooperating */
+const killAllPackages = () => {
+  const pids = execSync('ps -C unshare.sh -o pid=', {encoding: 'utf-8'})
+      .split('\n').filter(x => x);
+  pids.forEach(pid => {
+    try {
+      execSync(`kill -- -${pid}`);
+    } catch (e) {
+      log.warn(`error killing process group ${pid}`, e);
+    }
+  });
+};
+
 module.exports = {
   getInstalledPackages,
   restartPackage,
@@ -154,4 +168,5 @@ module.exports = {
   startPackage,
   weHaveSudo,
   rotateAllLogs,
+  killAllPackages,
 };

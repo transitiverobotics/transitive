@@ -5,8 +5,8 @@ const { exec } = require('child_process');
 const _ = require('lodash');
 
 const constants = require('./constants');
-const {getInstalledPackages, restartPackage, startPackage, killPackage } =
-  require('./utils');
+const { getInstalledPackages, restartPackage, startPackage, killPackage,
+killAllPackages } = require('./utils');
 
 const { DataCache, toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const dataCache = new DataCache();
@@ -89,16 +89,20 @@ const execAll = ([head, ...tail], cb) => {
 /** commands that the agent accepts over mqtt; all need to be prefixed with an
   underscore */
 const commands = {
-  _restart: () => {
+  restart: () => {
     log.info("Received restart command.");
     process.exit(0);
   },
-  _restartPackage: (sub) => {
+  stopAll: () => {
+    log.info("Stop all packages");
+    killAllPackages();
+  },
+  restartPackage: (sub) => {
     const pkg = sub.join('/')
     log.debug(`Restarting ${pkg}.`);
     restartPackage(pkg);
   },
-  _stopPackage: (sub) => {
+  stopPackage: (sub) => {
     const pkg = sub.join('/')
     log.debug(`Stopping ${pkg}.`);
     killPackage(pkg);
@@ -116,7 +120,7 @@ const commands = {
   //       // note that journalctl -u doesn't show all output (stderr?)
   //     ], cb);
   // },
-  _getLog: (sub, value, cb) => {
+  getLog: (sub, value, cb) => {
     execAll([
         `grep ${process.pid} /var/log/syslog | tail -n 1000`,
       ], cb);
@@ -140,11 +144,11 @@ module.exports = {
   //     dataCache.update(subPath, value);
   //   }
   // },
-  handleAgentCommand: (subPath, value, cb) => {
-    const cmd = commands[subPath[0]];
+  handleAgentCommand: (command, rest, value, cb) => {
+    const cmd = commands[command];
     if (cmd) {
-      log.debug('Executing command', subPath);
-      cmd(subPath.slice(1), value, cb);
+      log.debug('Executing command', command, rest);
+      cmd(rest, value, cb);
     } else {
       console.error('Received unknown command', command);
     }

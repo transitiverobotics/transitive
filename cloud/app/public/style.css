@@ -29,3 +29,7 @@
 .capability .body:hover + .header {
   background-color: #444;
 }
+
+.nav-item:hover {
+  background-color: #311 !important;
+}

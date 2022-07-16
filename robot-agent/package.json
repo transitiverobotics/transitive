@@ -19,7 +19,6 @@
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",
     "lodash": "^4.17.21",
-    "logrotate-stream": "^0.2.8",
     "mqtt": "^4.2.6"
   },
   "devDependencies": {

@@ -83,8 +83,9 @@ mqttClient.on('connect', function(connackPacket) {
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
   // "publication", of which this may be a "clear on start" functionality
+  const allVersionsPrefix = `${PREFIX}/@transitive-robotics/_robot-agent`;
   !initialized && mqttClearRetained(mqttClient,
-    [`${AGENT_PREFIX}/info`, `${AGENT_PREFIX}/status`], () => {
+    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
 
       log.info('subscribing to robot-agent commands');
 
@@ -104,17 +105,29 @@ mqttClient.on('connect', function(connackPacket) {
           // relay heartbeat locally:
           localBroker && localBroker.publish(packet, () => {});
         } else {
+
           const parsedTopic = parseMQTTTopic(topic);
           // TODO: ensure no one tries to publish a capability with this name -> registry
           if (parsedTopic.capability == '@transitive-robotics/_robot-agent') {
             // it's for us, the robot-agent
             const json = mqttParsePayload(payload);
-            if (parsedTopic.sub[0] && parsedTopic.sub[0][0] == '_') {
-              // commands start with `_`
-              handleAgentCommand(parsedTopic.sub, json, (response) => response &&
+
+            const {command, rest} = (// old format (start with _):
+              parsedTopic.sub[0]?.[0] == '_' &&
+                { command: parsedTopic.sub[0].slice(1),
+                  rest: parsedTopic.sub.slice(1)
+                }) ||
+              // new commands (under commands/):
+              (parsedTopic.sub[0] == 'commands' &&
+                { command: parsedTopic.sub[1],
+                  rest: parsedTopic.sub.slice(2)
+                });
+            if (command) {
+              handleAgentCommand(command, rest, json, (response) => response &&
                 mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
                   JSON.stringify(response)));
             }
+
           } else {
             // Not for us, relay it locally.
             /* We do NOT want to retain package-specific messages because we do not
@@ -130,13 +143,13 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
-      // mqttClient.subscribe(`${AGENT_PREFIX}/desiredPackages/#`, subOptions);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_stopPackage/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
       // mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
+      // new commands should go under `commands/`
+      mqttClient.subscribe(`${AGENT_PREFIX}/commands/#`, subOptions, log.debug);
 
       initialized = true;
     });

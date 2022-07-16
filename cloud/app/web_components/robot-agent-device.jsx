@@ -141,19 +141,24 @@ const Device = (props) => {
   };
 
   const restartAgent = () => {
-    const topic = `${versionPrefix}/_restart`;
+    const topic = `${versionPrefix}/commands/restart`;
     console.log('sending restart command', topic);
     mqttSync.mqtt.publish(topic, '1');
   };
 
   const restartPackage = (name) => {
     console.log('sending command to restart package', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/_restartPackage/${name}`, '1');
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/restartPackage/${name}`, '1');
+  };
+
+  const stopAll = () => {
+    console.log('sending command to stop all packages');
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/stopAll`, '1');
   };
 
   const stopPackage = (name) => {
     console.log('sending command to stop package', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/_stopPackage/${name}`, '1');
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/stopPackage/${name}`, '1');
   };
 
   /** remove the device from the dashboard (until it republishes status, if at
@@ -190,6 +195,9 @@ const Device = (props) => {
       <Button onClick={restartAgent} variant='outline-warning'>
         Restart agent
       </Button>
+      <Button onClick={stopAll} variant='outline-warning'>
+        Stop all capabilities
+      </Button>
       <ConfirmedButton onClick={clear} variant='outline-secondary'
         explanation={explanation}>
         Remove device
@@ -203,7 +211,7 @@ const Device = (props) => {
           _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
             {name} {
               running && <Badge bg="success">
-                running: {Object.keys(running).join(', ')}
+                running: v{Object.keys(running).join(', ')}
               </Badge>
             } {
               running && <Button variant='link' href={`/device/${device}/${name}`}>

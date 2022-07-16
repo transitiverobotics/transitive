@@ -118,7 +118,7 @@ module.exports = {
       }
     });
     const flat = [].concat(...lists); // flatten
-    return flat.filter(dir => fileExists(`${dir}/package.json`));
+    return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
   },
 
   restartPackage,

@@ -181,6 +181,7 @@ const start = async ({name, version}) => {
         PortBindings: {
           "1000/tcp": [{"HostPort": String(exposedPort)}]
         },
+        Init: true, // start an init process that reaps zombies, e.g., sshd's
       },
       Labels: {
         'transitive-type': 'capability'

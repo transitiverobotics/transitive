@@ -12,5 +12,5 @@ export const ensureWebComponentIsLoaded = (capability, name, userId, deviceId) =
         // `${url.protocol}//data.${url.host}/bundle/${capability}/dist/${name}.js?${params}`);
         document.head.appendChild(script);
       }
-    }, [userId, deviceId]);
+    }, [capability, name, userId, deviceId]);
 };

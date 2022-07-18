@@ -74,7 +74,7 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
         fetchJson('/@transitive-robotics/_robot-agent/getJWT',
           (err, res) => {
             if (err) {
-              console.error(err);
+              log.error(err);
               logout();
             } else {
               setJwtToken(res.token);
@@ -86,9 +86,12 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
             capability,
             validity: 3600 * 24,
             ...jwtExtras
-          }})
+          }});
+        // We need to delete jwt at the end, otherwise using this Component with
+        // another capability will reuse the existing jwt at first
+        return () => setJwtToken(null);
       }
-    }, [webComponent, capability, session]);
+    }, [webComponent, capability, session, deviceId]);
 
   if (!session) {
     // shouldn't happen but just in case

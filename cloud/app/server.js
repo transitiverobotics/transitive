@@ -306,7 +306,7 @@ app.post('/auth/acl', (req, res) => {
       payload.validity && (payload.iat + payload.validity) * 1e3 > Date.now() &&
       ( ( payload.device == parsedTopic.device &&
             ( (payload.capability == parsedTopic.capability &&
-                !payload.topics || payload.topics.includes(parsedTopic.sub[0])
+                (!payload.topics || payload.topics?.includes(parsedTopic.sub[0]))
               // if payload.topics exists it is a limitation of topics to allow
             ) ||
               // all valid JWTs for a device also grant read access to _robot-agent

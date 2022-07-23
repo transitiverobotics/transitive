@@ -45,3 +45,7 @@
     column-count: 2;
   }
 }
+
+pre {
+  white-space: normal;
+}

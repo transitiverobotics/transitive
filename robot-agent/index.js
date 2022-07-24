@@ -53,32 +53,22 @@ const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
 
 /** self-update this package */
-const selfUpdate = (cb) => {
+const selfUpdate = (callback) => {
   console.log('checking for updates');
-  // The `rm` here is to clear out old npm folders from a potentially failed
-  // update (or whatever else leaves these beind, see
-  // https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
-  exec(`rm -rf node_modules/.*-* node_modules/*/.*-* && ${constants.NPM} update --no-save`,
-    {cwd: constants.TRANSITIVE_DIR}, (err, stdout, stderr) => {
-      if (!err) {
-        // check package version after update
-        const after = execSync('npm pkg get version', {
-            cwd: `${constants.TRANSITIVE_DIR}/node_modules/@transitive-robotics/robot-agent`,
-            encoding: 'utf-8'
-          }).trim().replace(/"/g, '');
-        if (after != process.env.npm_package_version) {
-          console.log(`self-update to ${after} completed:`, stdout);
-          // In NO_SYSTEMD mode we need to see whether we actually updated
-          // (there was a newer version) and if so kill ourselves and hope to be
-          // reborn (we should be running in a while loop).
-          process.env.NO_SYSTEMD && process.exit(0);
-        } else {
-          console.log(
-            `no update necessary (running ${process.env.npm_package_version})`);
-        }
-        cb();
+
+  exec(`${constants.NPM} outdated --json`, {cwd: constants.TRANSITIVE_DIR},
+    (err, stdout, stderr) => {
+      const outdated = JSON.parse(stdout);
+
+      if (Object.keys(outdated).length > 0) {
+        // agent wants to be updated, exit to restart:
+        process.exit(0);
+        // TODO: maybe add a counter (in a file) that we can use to abort
+        // updates if they have failed too many times in a row? (e.g., when offline)
       } else {
-        console.log('self-update failed', {err, stderr});
+        console.log(
+          `no update necessary (running ${process.env.npm_package_version})`);
+        callback();
       }
     });
 };

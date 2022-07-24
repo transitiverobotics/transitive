@@ -31,7 +31,7 @@ if [ -d /run/systemd/system ]; then
   loginctl enable-linger $USER
   systemctl --user daemon-reload
   systemctl --user enable transitive-robot.service
-  systemctl --user restart transitive-robot.service
+  systemctl --user start transitive-robot.service
 
   echo robot-agent postinstall done!
 fi;

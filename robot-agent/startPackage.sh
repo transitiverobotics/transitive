@@ -41,7 +41,7 @@ do
   # Clear out old npm folders from a potentially failed update (or whatever
   # else leaves these beind, see
   # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
-  rm -rf node_modules/.*-* node_modules/*/.*-*
+  rm -rf node_modules/.*-* node_modules/@*/.*-*
 
   npm update --no-save
   # Note: npm update also installs missing packages, see,

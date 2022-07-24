@@ -9,8 +9,12 @@ Description=Transitive Robotics Robot Agent Service
 # EnvironmentFile=-%h/.transitive/.env_user
 # WorkingDirectory=%h/.transitive
 # ExecStart=%h/.transitive/usr/bin/node node_modules/@transitive-robotics/robot-agent/index.js
-WorkingDirectory=%h/.transitive/node_modules/@transitive-robotics/robot-agent
-ExecStart=/bin/bash -c "%h/.transitive/usr/bin/npm start"
+# WorkingDirectory=%h/.transitive/node_modules/@transitive-robotics/robot-agent
+#ExecStartPre=/bin/bash -c "PATH=%h/.transitive/usr/bin:$PATH exec node npm update --no-save"
+#ExecStart=/bin/bash -c "PATH=%h/.transitive/usr/bin:$PATH exec node npm start"
+
+WorkingDirectory=%h/.transitive
+ExecStart=/bin/bash start_agent.sh
 
 Restart=always
 RestartSec=2

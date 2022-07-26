@@ -612,6 +612,13 @@ class _robotAgent extends Capability {
     this.router.get('/stripe/create-customer-portal-session',
       requireLogin,
       stripeUtils.createPortalSession);
+
+    this.router.get('/admin/startCloudCap/:name/:version', requireLogin,
+      (req, res) => {
+        docker.ensureRunning(req.params);
+        log.debug('manually starting cloud cap for', req.params);
+        res.json({});
+      });
   }
 };
 

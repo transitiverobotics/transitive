@@ -165,7 +165,10 @@ const start = async ({name, version}) => {
         `MQTT_URL=${process.env.MQTT_URL}`,
         `PUBLIC_PORT=${exposedPort}`,
       ],
-      ExposedPorts: {'1000/tcp': {}},
+      ExposedPorts: {
+        '1000/tcp': {},
+        '1000/udp': {}
+      },
       HostConfig: {
         AutoRemove: true,
         // expose app run folder to host, we are hosting the js bundle here

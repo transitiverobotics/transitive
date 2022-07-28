@@ -179,7 +179,8 @@ const start = async ({name, version}) => {
         // ExtraHosts: ['mqtt:host-gateway'],
         NetworkMode: 'cloud_caps',
         PortBindings: {
-          "1000/tcp": [{"HostPort": String(exposedPort)}]
+          "1000/tcp": [{"HostPort": String(exposedPort)}],
+          "1000/udp": [{"HostPort": String(exposedPort)}]
         },
         Init: true, // start an init process that reaps zombies, e.g., sshd's
       },

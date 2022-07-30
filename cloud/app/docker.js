@@ -4,6 +4,8 @@ const dns = require('dns');
 const path = require('path');
 const { execSync } = require('child_process');
 const Docker = require('dockerode');
+const fetch = require('node-fetch');
+const _ = require('lodash');
 const { getLogger } = require('@transitive-sdk/utils');
 
 const { getNextInRange } = require('./utils');
@@ -14,7 +16,7 @@ const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 const REGISTRY_HOST = '172.17.0.1';
 
 // window of port numbers from which to give out ports to cap containers
-const EXPOSED_PORT_WINDOW = [11000, 12000];
+const EXPOSED_PORT_WINDOW = [11000, 25000];
 
 const log = getLogger('docker.js');
 log.setLevel('debug');
@@ -88,19 +90,21 @@ const build = async ({name, version}) => {
 
   // generate Dockerfile
   const certsFolder = `${pkgFolder}/cloud/certs`;
+  const externalIp = await dns.promises.lookup(process.env.HOST, {family: 4});
+  log.debug({externalIp});
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
       'RUN apt-get update',
       'COPY * /app/',
       'WORKDIR /app',
+      `ENV HOST=${process.env.HOST}`,
+      `ENV EXTERNAL_IP=${externalIp.address}`,
       'ENV TRANSITIVE_IS_CLOUD=1',
       'RUN npm install',
       `RUN mkdir ${certsFolder}`,
       `RUN ln -s /app/client.crt ${certsFolder}`,
       `RUN ln -s /app/client.key ${certsFolder}`,
-      // `WORKDIR /app/${pkgFolder}`,
       `RUN chmod +x /app/run.sh`,
-      // `CMD cp -a dist /app/run && cp -a package.json /app/run && npm run cloud`,
       'CMD ["./run.sh"]'
     ].join('\n'));
 
@@ -153,40 +157,64 @@ const start = async ({name, version}) => {
     log.debug('image exists');
   }
 
-  const inUse = await getUsedPorts();
-  const exposedPort = getNextInRange(inUse, EXPOSED_PORT_WINDOW);
-  portsUsedByUs.push(exposedPort);
+  const pkgInfo = await (
+      await fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`))
+      .json();
+  const ports = pkgInfo.versions[version]?.transitiverobotics?.ports || 1;
+  ports > 100 && log.warn(`${name}:${version} is requesting ${ports} ports!`);
+
+  const exposedPorts = ports > 0 && await allocatePorts(ports);
 
   const devNull = fs.createWriteStream('/dev/null');
-  log.debug('starting container for', tagName, 'port:', exposedPort);
+  log.debug('starting container for', tagName, 'ports:', exposedPorts);
+
+  const HostConfig = {
+    AutoRemove: true,
+    // expose app run folder to host, we are hosting the js bundle here
+    Binds: [
+      `${runDir}:/app/run`,
+      `${process.env.TR_VAR_DIR}/caps/common:/persistent/common`,
+      `${process.env.TR_VAR_DIR}/caps/${name}:/persistent/self`,
+    ],
+    // ExtraHosts: ["host.docker.internal:host-gateway"]
+    // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
+    // ExtraHosts: ['mqtt:host-gateway'],
+    NetworkMode: 'cloud_caps',
+    Init: true, // start an init process that reaps zombies, e.g., sshd's
+  };
+
+  let ExposedPorts;
+  if (exposedPorts) {
+    // the first exposed port always maps to port 1000 inside the container
+    HostConfig.PortBindings = {
+      "1000/tcp": [{"HostPort": String(exposedPorts.min)}],
+      "1000/udp": [{"HostPort": String(exposedPorts.min)}]
+    };
+    ExposedPorts = {
+      '1000/tcp': {},
+      '1000/udp': {}
+    };
+    // Any additionally requested ports map 1:1. This is necessary because the
+    // application running inside the container may need to share those ports
+    // with clients to be reach at.
+    for (let port = exposedPorts.min + 1; port <= exposedPorts.max; port++) {
+      HostConfig.PortBindings[`${port}/tcp`] = [{"HostPort": String(port)}];
+      HostConfig.PortBindings[`${port}/udp`] = [{"HostPort": String(port)}];
+      ExposedPorts[`${port}/tcp`] = {};
+      ExposedPorts[`${port}/udp`] = {};
+    }
+  }
+
   docker.run(tagName, [], devNull, {
       name: tagName.replace(/[\/:]/g, '.'),
       Env: [
         `MQTT_URL=${process.env.MQTT_URL}`,
-        `PUBLIC_PORT=${exposedPort}`,
+        `PUBLIC_PORT=${exposedPorts.min}`,
+        `MIN_PORT=${exposedPorts.min + 1}`,
+        `MAX_PORT=${exposedPorts.max}`,
       ],
-      ExposedPorts: {
-        '1000/tcp': {},
-        '1000/udp': {}
-      },
-      HostConfig: {
-        AutoRemove: true,
-        // expose app run folder to host, we are hosting the js bundle here
-        Binds: [
-          `${runDir}:/app/run`,
-          `${process.env.TR_VAR_DIR}/caps/common:/persistent/common`,
-          `${process.env.TR_VAR_DIR}/caps/${name}:/persistent/self`,
-        ],
-        // ExtraHosts: ["host.docker.internal:host-gateway"]
-        // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
-        // ExtraHosts: ['mqtt:host-gateway'],
-        NetworkMode: 'cloud_caps',
-        PortBindings: {
-          "1000/tcp": [{"HostPort": String(exposedPort)}],
-          "1000/udp": [{"HostPort": String(exposedPort)}]
-        },
-        Init: true, // start an init process that reaps zombies, e.g., sshd's
-      },
+      ExposedPorts,
+      HostConfig,
       Labels: {
         'transitive-type': 'capability'
       }
@@ -205,13 +233,21 @@ const stop = async ({name, version}) => {
   }
 };
 
-/** get all public ports currently already in use by docker containers */
-const getUsedPorts = async () => {
+/** allocate public ports that are not yet already in use by docker containers */
+const allocatePorts = async (count = 1) => {
   const list = await docker.listContainers();
   const allPorts = list.map(c => c.Ports).flat();
   const ports = allPorts.map(port => port.PublicPort);
   const set = new Set(ports.concat(portsUsedByUs));
-  const rtv = Array.from(set);
+
+  const inUse = Array.from(set);
+  const rtv = getNextInRange(inUse, EXPOSED_PORT_WINDOW, count);
+  if (rtv) {
+    // add the newly allocatd port to the list of used ones
+    const enumerated = _.range(rtv.min, rtv.max+1);
+    portsUsedByUs.splice(portsUsedByUs.length, 0, ...enumerated);
+  }
+
   return rtv;
 };
 

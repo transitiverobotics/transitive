@@ -18,7 +18,7 @@ The URL in the command contains your user `id` and your secret `token`. This tok
 
 :::
 
-The `curl` command fetches the install script from our servers and runs it. It installs the Transitive Robotics agent in `~/.transitive` and adds a systemd user service to start it on boot. The agent is responsible for providing very basic status information about your device and for installing and starting capabilities. If you ever want to remove the agent, its services, and all capabilities it has installed, you can use the `~/.transitive/usr/bin/uninstall.sh` script included.
+The `curl` command fetches the install script from our servers and runs it. It installs the Transitive Robotics agent in `~/.transitive` and adds a systemd user service to start it on boot. The agent is responsible for providing very basic status information about your device and for installing and starting capabilities. If you ever want to remove the agent, its services, and all capabilities it has installed you can use the `~/.transitive/bin/uninstall.sh` script.
 
 Once the agent is installed you will see your device on your Fleet page.
 
@@ -35,7 +35,7 @@ This will add the selected capability to the list of desired capabilities on tha
 
 :::tip About system dependencies
 
-Some users may wonder how Transitive Robotics handles dependencies given that the robot-agent is running as an ordinary user without `sudo` priviledges. The answer is that the agent locally installs required Ubuntu packages that are not already found on the system. These packages are placed in subfolders of `~/.transitive` and are shared between capabilities.
+Some users may wonder how Transitive Robotics handles dependencies given that the robot-agent is running as an ordinary user without `sudo` privileges. The answer is that the agent locally installs required Ubuntu packages that are not already found on the system. These packages are placed in subfolders of `~/.transitive` and are shared between capabilities.
 
 :::
 

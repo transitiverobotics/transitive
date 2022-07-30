@@ -240,7 +240,7 @@ const allocatePorts = async (count = 1) => {
   const ports = allPorts.map(port => port.PublicPort);
   const set = new Set(ports.concat(portsUsedByUs));
 
-  const inUse = Array.from(set);
+  const inUse = Array.from(set).filter(p => p !== undefined);
   const rtv = getNextInRange(inUse, EXPOSED_PORT_WINDOW, count);
   if (rtv) {
     // add the newly allocatd port to the list of used ones

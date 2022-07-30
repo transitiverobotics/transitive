@@ -73,6 +73,7 @@ services:
       #DEV- ./app/assets:/app/assets
       #DEV- ./app/docker.js:/app/docker.js
       #DEV- ./app/server.js:/app/server.js
+      #DEV- ./app/utils.js:/app/utils.js
       #DEV- ./app/common.js:/app/common.js
       #DEV- ./app/stripeUtils.js:/app/stripeUtils.js
       #DEV- ../../transitive-caps/:/app/transitive-caps

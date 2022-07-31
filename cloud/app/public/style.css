@@ -1,3 +1,11 @@
+/*  WIP
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #111;
+    color: #eee;
+  }
+} */
+
 .capability .body {
   padding: 0.5em 1em 0.5em 1em;
   border-bottom-left-radius: 8px;

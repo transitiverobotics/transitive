@@ -3,10 +3,11 @@ import React from 'react';
 const styles = {
   code: {
     fontFamily: 'monospace',
+    fontSize: 'small',
     color: '#700',
-    borderLeft: '3px solid #aaa',
+    borderLeft: '4px solid #622',
     padding: '0.5em 0.5em 0.5em 2em',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#d0d0d070',
     borderRadius: '4px',
     marginTop: '0.5em',
     overflowWrap: 'anywhere',

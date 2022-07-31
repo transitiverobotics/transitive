@@ -6,17 +6,24 @@ from '@transitive-sdk/utils-web';
 
 const { COOKIE_NAME } = require('../common.js');
 
-loglevel.setLevel('debug');
-window.loglevel = loglevel;
 const log = getLogger('Login');
+log.setLevel('debug');
+window.loglevel = loglevel;
 
 const styles = {
+  page: {
+    minHeight: '100vh',
+    background: 'linear-gradient(0deg, rgb(0 0 0), rgb(88 88 88))',
+  },
   wrapper: {
     margin: 'auto',
+    top: 'calc(50vh - 15em)',
+    // left: 'calc(50vw - 15em)',
     padding: '2em',
     maxWidth: '30em',
-    height: '30em',
-    marginTop: 'calc(50vh - 15em)'
+    // height: '30em',
+    // width: '30em'
+    // marginTop: 'calc(50vh - 15em)'
   },
   loggedIn: {
     margin: 'auto'
@@ -113,10 +120,12 @@ export const Login = ({}) => {
     </Form>
   </Card.Body>;
 
-  return <Card style={styles.wrapper}>
-    <Card.Img variant="top" src="/logo_text.svg" />
-    {session ?
-      <div style={styles.loggedIn}>Logging in as {session.user}...</div> :
-      form }
-  </Card>
+  return <div style={styles.page}>
+    <Card style={styles.wrapper}>
+      <Card.Img variant="top" src="/logo_text.svg" />
+      {session ?
+        <div style={styles.loggedIn}>Logging in as {session.user}...</div> :
+        form }
+    </Card>
+  </div>;
 };

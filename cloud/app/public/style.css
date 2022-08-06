@@ -13,29 +13,30 @@
 }
 
 .capability .header {
-  color: #ccc;
-  background-color: #6669;
+  /* color: #ccc; */
+  /* background-color: #6669; */
+  color: #777;
   font-size: smaller;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
   padding: 2px 6px 2px 6px;
 }
 .capability .header a {
   text-decoration: none;
-  color: #eef;
+  color: #777;
 }
 .capability .header + .body {
   outline: none;
 }
 .capability .header:hover + .body {
-  outline: 1px solid #aaa;
+  /* outline: 1px solid #aaa; */
 }
 .capability .header:hover {
-  outline: 1px solid #aaa;
-  background-color: #666;
+  /* outline: 1px solid #aaa; */
+  background-color: #e5e5e5;
 }
 .capability .body:hover + .header {
-  background-color: #444;
+  /* background-color: #e5e5e5; */
 }
 
 .nav-item:hover {

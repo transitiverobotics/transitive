@@ -60,6 +60,7 @@ const Fleet = (props) => {
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
   const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
 
+  // TODO: use useEffect
   if (mqttSync) {
     mqttSync.subscribe(`${prefix}/status`);
     mqttSync.subscribe(`${prefix}/info`);

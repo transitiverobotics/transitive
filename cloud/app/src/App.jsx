@@ -62,7 +62,7 @@ const styles = {
 /** Note, this only works on the cloud app directly when we are logged in with
     username/password, which allows us to get JWTs. This is not a model of
   how to do this with capabilities in other web applications */
-const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
+const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}) => {
   const {session, logout} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
   const {deviceId = '_fleet'} = useParams();
@@ -114,15 +114,19 @@ const Capability = ({webComponent, capability, jwtExtras = {}, ...props}) => {
       ...props
     }, null);
 
+  if (simple) {
+    return element;
+  }
+
   return <div className='capability' style={styles.cap}>
+    <div className='body'>
+      {element}
+    </div>
     <div className='header'>
       <span style={styles.capName} title='Name of the capability'>
         {capability}/{webComponent}
       </span>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId} />
-    </div>
-    <div className='body'>
-      {element}
     </div>
   </div>;
 };
@@ -158,6 +162,13 @@ const CapabilityWidget = ({type}) => {
   log.debug({scope, capability, pkg});
 
   return <div>
+    {type == 'device' ?
+      <Capability simple={true} webComponent='robot-agent-device-header'
+        capability='@transitive-robotics/_robot-agent'/>
+      : <div>Fleet</div>
+    }
+    <div>&nbsp;</div>
+
     <h4>{pkg?.title || capability}</h4>
     <Capability webComponent={webComponent} capability={capability}/>
 

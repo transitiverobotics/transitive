@@ -35,6 +35,7 @@ const PORT = process.env.TR_CLOUD_PORT || 9000;
 
 const log = getLogger('server');
 log.setLevel('info');
+// log.setLevel('debug');
 
 const addSessions = (router, collectionName, secret) => {
   router.use(session({
@@ -363,6 +364,8 @@ class _robotAgent extends Capability {
       // running.
       this.mqttSync.subscribe(
         '/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages');
+      this.mqttSync.subscribe(
+        '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat');
       this.data.subscribePathFlat(
         '/+org/+device/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
         (value, topic, matched, tags) => {
@@ -400,7 +403,7 @@ class _robotAgent extends Capability {
 
     const running = this.data.filter(['+', '+', '@transitive-robotics',
       '_robot-agent', '+', 'status', 'runningPackages']);
-    // log.debug('updateSubscriptions, running', running);
+    // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
     _.forEach(running, (orgRunning, orgId) => {
       const counts = {};
@@ -420,9 +423,9 @@ class _robotAgent extends Capability {
 
         const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
         const merged = mergeVersions(allVersions, 'status/runningPackages');
-        // log.debug('updateSubscriptions, merged', deviceId, JSON.stringify(merged, true, 2));
-
         const pkgRunning = merged.status.runningPackages;
+
+        log.debug(`running packages, ${orgId}/${deviceId}:`, pkgRunning);
 
         _.forEach(pkgRunning, (scopeRunning, scope) => {
           _.forEach(scopeRunning, (capRunning, capName) => {

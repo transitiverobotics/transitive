@@ -1,13 +1,28 @@
 
 # run with package name as argument
 
+getROSRelease() {
+  case $(lsb_release -sc) in
+    xenial) echo kinetic;;
+    bionic) echo melodic;;
+    focal) echo noetic;;
+    *) echo noetic;;
+  esac
+}
+
 # set -e
 
 cd /home/transitive
 
-if stat --printf='' /opt/ros/*/setup.bash 2>/dev/null; then
-. /opt/ros/*/setup.bash;
+# if stat --printf='' /opt/ros/*/setup.bash 2>/dev/null; then
+# . /opt/ros/*/setup.bash;
+# fi
+
+ROS_RELEASE=$(getROSRelease)
+if [ -e /opt/ros/$ROS_RELEASE/setup.bash ]; then
+  . /opt/ros/$ROS_RELEASE/setup.bash;
 fi
+
 
 PATH=/home/usr/bin:$PATH
 . /home/etc/env_local

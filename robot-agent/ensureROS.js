@@ -73,6 +73,11 @@ const startCore = (path) => {
 
 
 module.exports = (callback) => {
+  if (process.env.TR_NO_ROSCORE) {
+    callback();
+    return;
+  }
+
   ubuntuRelease = execSync('lsb_release -sc').toString().trim();
   rosDistro = rosDistros[ubuntuRelease];
   console.log({ubuntuRelease, rosDistro});

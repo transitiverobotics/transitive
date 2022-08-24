@@ -52,7 +52,10 @@ rm -f /$HOME/.fonts
 ln -sf /home/usr/share/fonts /$HOME/.fonts
 
 # Shed fake root.
-if [[ $SUDO_COMMAND ]]; then
+if [[ $(id -u) == 0 ]]; then
+  echo "we are root, staying root"
+  bash -c "cd && $*"
+elif [[ $SUDO_COMMAND ]]; then
   # when using SUDO we need to use `su`, otherwise we don't have write permissions
   # in the fake /home/transitive
   chown -R $SUDO_UID:$SUDO_GID $TRHOME/$USER

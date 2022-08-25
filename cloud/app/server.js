@@ -25,7 +25,6 @@ const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 
 const docker = require('./docker');
 const installRouter = require('./install');
-const stripeUtils = require('./stripeUtils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
@@ -47,7 +46,9 @@ const addSessions = (router, collectionName, secret) => {
       clientPromise: new Promise((resolve) => resolve(Mongo.client)),
       dbName: Mongo.db.databaseName,
       collectionName
-    })
+    }),
+    // cookie: {domain: process.env.TR_HOST}
+    // cookie: {domain: `portal.${process.env.TR_HOST}`}
   }));
 };
 
@@ -233,13 +234,15 @@ app.get('/running/:scope/:capName/*', (req, res) => {
   Authentication for MQTT Websockets (called from mosquitto go-auth)
 */
 
-/** authenticate the username based on the JWT given as password */
+/** authenticate the username based on the JWT given as password
+  body: {
+    clientid: '....',
+    password: '...',
+    username: '{id, payload: {device, capability, userId, validity}}'
+  }
+*/
 app.post('/auth/user', async (req, res) => {
   // log.debug('/auth/user', req.body);
-
-  //   clientid: 'qEmYn5tibovKgGvSm',
-  //   password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6ImhlYWx0aC1tb25pdG9yaW5nIiwidXNlcklkIjoicG9ydGFsVXNlci1xRW1ZbjV0aWJvdktnR3ZTbSIsInZhbGlkaXR5Ijo0MzIwMCwiaWF0IjoxNjM3MDk1Nzg5fQ.H6-3I5z-BwFeUJ3A-j1_2NE9YFa7AGAz5nTWkMPuY9k',
-  //   username: '{id, payload: {device, capability, userId, validity}}'
 
   const accounts = Mongo.db.collection('accounts');
   // const devices = Mongo.db.collection('devices');
@@ -392,61 +395,65 @@ class _robotAgent extends Capability {
           }
         });
 
-      this.mqttSync.waitForHeartbeatOnce(() => {
-        this.updateSubscriptions();
-        new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
-      });
+      // this.mqttSync.waitForHeartbeatOnce(() => {
+      //   this.updateSubscriptions();
+      //   new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
+      // });
     });
   }
 
   /** Ensure that customers have subscriptions in Stripe for all the paid caps
   they are running, incl. quantity. This function should be called regularly,
   maybe once an hour. */
-  async updateSubscriptions() {
-    // first make sure list of products in Stripe is up to date
-    const products = await updateProducts();
 
-    const running = this.data.filter(['+', '+', '@transitive-robotics',
-      '_robot-agent', '+', 'status', 'runningPackages']);
-    // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
+  // TODO: replace this with some logic that reports to the global billing service
+  // and updates the JWTs received back
 
-    _.forEach(running, (orgRunning, orgId) => {
-      const counts = {};
-      _.forEach(orgRunning, (deviceRunning, deviceId) => {
+  // async updateSubscriptions() {
+  //   // first make sure list of products in Stripe is up to date
+  //   const products = await updateProducts();
 
-        // Remove any by robots that have been offline for more than
-        // a threshold
-        const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
-          '_robot-agent']);
-        const mergedAgent = mergeVersions(agent, 'status');
-        log.debug({mergedAgent});
-        const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
-        if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
-          log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
-          return;
-        }
+  //   const running = this.data.filter(['+', '+', '@transitive-robotics',
+  //     '_robot-agent', '+', 'status', 'runningPackages']);
+  //   // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
-        const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
-        const merged = mergeVersions(allVersions, 'status/runningPackages');
-        const pkgRunning = merged.status.runningPackages;
+  //   _.forEach(running, (orgRunning, orgId) => {
+  //     const counts = {};
+  //     _.forEach(orgRunning, (deviceRunning, deviceId) => {
 
-        log.debug(`running packages, ${orgId}/${deviceId}:`, pkgRunning);
+  //       // Remove any by robots that have been offline for more than
+  //       // a threshold
+  //       const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
+  //         '_robot-agent']);
+  //       const mergedAgent = mergeVersions(agent, 'status');
+  //       log.debug({mergedAgent});
+  //       const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
+  //       if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
+  //         log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
+  //         return;
+  //       }
 
-        _.forEach(pkgRunning, (scopeRunning, scope) => {
-          _.forEach(scopeRunning, (capRunning, capName) => {
-            if (_.some(capRunning, (value) => value)) {
-              const capability = `${scope}/${capName}`;
-              // log.debug(`updateSubscriptions: cap ${capability} is running`);
-              !counts[capability] && (counts[capability] = 0);
-              counts[capability]++;
-            }
-          });
-        });
-      });
+  //       const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
+  //       const merged = mergeVersions(allVersions, 'status/runningPackages');
+  //       const pkgRunning = merged.status.runningPackages;
 
-      stripeUtils.updateSubscriptions(orgId, counts, products);
-    });
-  }
+  //       log.debug(`running packages, ${orgId}/${deviceId}:`, pkgRunning);
+
+  //       _.forEach(pkgRunning, (scopeRunning, scope) => {
+  //         _.forEach(scopeRunning, (capRunning, capName) => {
+  //           if (_.some(capRunning, (value) => value)) {
+  //             const capability = `${scope}/${capName}`;
+  //             // log.debug(`updateSubscriptions: cap ${capability} is running`);
+  //             !counts[capability] && (counts[capability] = 0);
+  //             counts[capability]++;
+  //           }
+  //         });
+  //       });
+  //     });
+
+  //     // stripeUtils.updateSubscriptions(orgId, counts, products);
+  //   });
+  // }
 
   /** get list of all packages running on a device, incl. their versions */
   getDevicePackages(organization, device) {
@@ -626,10 +633,6 @@ class _robotAgent extends Capability {
       });
     });
 
-    this.router.get('/stripe/create-customer-portal-session',
-      requireLogin,
-      stripeUtils.createPortalSession);
-
     this.router.get('/admin/startCloudCap/:name/:version', requireLogin,
       (req, res) => {
         docker.ensureRunning(req.params);
@@ -647,29 +650,6 @@ app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
 
 // routes used during the installation process of a new robot
 app.use('/install', installRouter);
-
-/** receive webhook events from Stripe */
-app.use('/stripe/webhooks', stripeUtils.handleWebhook);
-
-/** fetch the latest info about packages from registry, and update Stripe */
-const updateProducts = async () => {
-  const selector = JSON.stringify({'transitiverobotics.price': {$exists: 1}});
-  const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
-  const allPackages = await response.json();
-
-  // log.debug(JSON.stringify(allPackages, true, 2));
-  // const latest = allPackages.map(data => data.versions.find(({version}) =>
-  //   version == data.version));
-  const list = await stripeUtils.updateProducts(allPackages);
-
-  return list;
-};
-
-// for debugging
-// app.use('*', (req, res, next) => {
-//   console.log('Unknown path', req.method, req.url);
-//   res.status(404).end();
-// });
 
 app.get('/admin/setLogLevel', (req, res) => {
   if (!req.query.level) {
@@ -710,8 +690,4 @@ Mongo.init(() => {
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);
   });
-
-  // once an hour update products
-  // new CronJob('0 0 * * * *', updateProducts, null, true);
-  // updateProducts();
 });

@@ -47,10 +47,24 @@ const routingTable = dockerCompose ? {
     default: 'localhost:3000'
   };
 
+const pathTable = {
+  '/billing': 'billing:7000'
+};
+
 /** route the request */
 const handleRequest = (req, res) => {
   const hostname = req.headers.host.split(':')[0];
-  const target = routingTable[hostname.split('.')[0]];
+
+  let target = routingTable.default;
+  const pathMatch = Object.keys(pathTable).find(path => req.url.startsWith(path));
+  const hostMatch = routingTable[hostname.split('.')[0]];
+  if (pathMatch) {
+    target = pathTable[pathMatch];
+    req.url = req.url.slice(pathMatch.length);
+  } else if (hostMatch) {
+    target = hostMatch;
+  }
+
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
   if (target) {
     proxy.web(req, res, { target: `http://${target}` });

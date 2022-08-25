@@ -7,7 +7,8 @@ version: "3.9"
 networks:
   caps:
     attachable: true
-
+  shared:
+    attachable: true
 
 services:
   # a minimal container that ensures certificates are present in the shared,
@@ -23,6 +24,9 @@ services:
     restart: always
     volumes:
       - ${TR_VAR_DIR:-.}/db:/data/db
+    networks:
+      - default
+      - shared
 
   mosquitto:
     build: ./mosquitto
@@ -97,6 +101,9 @@ services:
       - 8000:8000
       - 80:80   #NODEV
       - 443:443 #NODEV
+    networks:
+      - default
+      - shared
 
   registry:
     build: ./registry
@@ -108,6 +115,9 @@ services:
       - .env
     ports:
       - 6000:6000
+    networks:
+      - default
+      - shared
 
   # Once the registry is up, republish the robot-agent to it, in case it changed
   publish:

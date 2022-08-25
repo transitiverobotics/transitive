@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  }
-from 'react-bootstrap';
+import { Badge } from 'react-bootstrap';
 
 // const _ = {
 //   map: require('lodash/map'),
@@ -47,7 +46,10 @@ const Device = (props) => {
   return <div>
     <span style={styles.name}>
       {!ready ? '' : mergedData?.info?.os?.hostname || device}
-    </span> <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
+    </span>
+    {mergedData?.info?.labels?.map(label =>
+        <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
+    } <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
   </div>;
 };
 

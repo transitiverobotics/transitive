@@ -72,12 +72,19 @@ const parseLsbRelease = (string) => {
 };
 
 /** display info from OS */
-const OSInfo = ({os}) => <div>
-  <h3>Device: {os.hostname}</h3>
-  <Form.Text>
-    {os.dpkgArch}, {parseLsbRelease(os.lsb_release)?.Description}
-  </Form.Text>
-</div>;
+const OSInfo = ({info}) => !info ? <div></div> :
+  <div>
+    Device
+    <h3>{info.os.hostname}</h3>
+    <div>
+      {info.labels?.map(label =>
+          <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
+      }
+    </div>
+    <Form.Text>
+      {info.os.dpkgArch}, {parseLsbRelease(info.os.lsb_release)?.Description}
+    </Form.Text>
+  </div>;
 
 
 /** Component showing the device from the robot-agent perspective */
@@ -175,15 +182,13 @@ const Device = (props) => {
 
   console.log('packages', packages);
 
-  const os = latestVersionData.info?.os;
-
   const explanation = `This will delete all meta-data for this device. If the
     agent is still running, the device will come back but will require a
     restart of the agent in order to get back all meta-data, such as the hostname.`;
 
   return <div>
     <div style={styles.row}>
-      {os && <OSInfo os={os}/>}
+      <OSInfo info={latestVersionData?.info}/>
       {latestVersionData.status?.heartbeat &&
         <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
       } <span style={styles.agentVersion} title='Transitive agent version'>

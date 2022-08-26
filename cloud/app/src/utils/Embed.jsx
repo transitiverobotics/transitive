@@ -14,7 +14,7 @@ const styles = {
 };
 
 /** reusable embedding instructions */
-export const Embed = ({name, jwt, deviceId, extra, style}) => {
+export const Embed = ({name, jwt, deviceId, extra, style, host, ssl}) => {
   if (!jwt) {
     return <span></span>;
   }
@@ -27,9 +27,9 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
   const url = new URL(location.href);
   // TODO: also allow hostname here instead of deviceId
   const params = `userId=${jwtPayload.id}&deviceId=${deviceId}`;
-  const host = `${url.protocol}//${url.host}`;
+  const currentHost = `${url.protocol}//${url.host}`;
   const bundleURL =
-    `${host}/bundle/${jwtPayload.capability}/${name}.js?${params}`;
+    `${currentHost}/running/${jwtPayload.capability}/dist/${name}.js?${params}`;
   const jwtPayloadExample = Object.assign(jwtPayload, {
     userId: '[a string that uniquely identifies the current user]',
     validity: '[number of seconds this authentication should remain valid]',
@@ -46,7 +46,7 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
         if (err) {
           alert(err);
         } else {
-          setLink(`${host}/sac/${jwtPayload.id}/${deviceId}/${jwtPayload.capability}/${name}?token=${tokenName}`);
+          setLink(`${currentHost}/sac/${jwtPayload.id}/${deviceId}/${jwtPayload.capability}/${name}?token=${tokenName}`);
         }
       },
       {body: {jwt, tokenName, password}});
@@ -56,7 +56,7 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
     <Form.Text style={{color: 'inherit'}}>
       To embed this widget in another page use:
       <Code >
-        {`<script src="${bundleURL}"></script>\n<${name} id="${jwtPayload.id}"${optionalExtraParam} jwt="[JWT]" />`}
+        {`<script src="${bundleURL}"></script>\n<${name} id="${jwtPayload.id}"${optionalExtraParam} jwt="[JWT]" host="${host}" ssl="${ssl}" />`}
       </Code>
       where <tt>JWT</tt> is a <a href="https://jwt.io/">JWT token</a> signed
       with your JWT secret (see <Link to='/security'>Security</Link>), carrying
@@ -71,7 +71,7 @@ export const Embed = ({name, jwt, deviceId, extra, style}) => {
         For testing only you can use this ready-to-go snippet. The included JWT
         is valid for the next 12 hours from when this page was loaded.
         <Code>
-          {`<script src="${bundleURL}"></script>\n<${name} id="${jwtPayload.id}"${optionalExtraParam} jwt="${jwt}"/>`}
+          {`<script src="${bundleURL}"></script>\n<${name} id="${jwtPayload.id}"${optionalExtraParam} jwt="${jwt}" host="${host}" ssl="${ssl}"/>`}
         </Code>
       </div>
 

@@ -52,14 +52,14 @@ rm -f /$HOME/.fonts
 ln -sf /home/usr/share/fonts /$HOME/.fonts
 
 # Shed fake root.
-if [[ $(id -u) == 0 ]]; then
-  echo "we are root, staying root"
-  bash -c "cd && $*"
-elif [[ $SUDO_COMMAND ]]; then
+if [[ $SUDO_COMMAND ]]; then
   # when using SUDO we need to use `su`, otherwise we don't have write permissions
   # in the fake /home/transitive
   chown -R $SUDO_UID:$SUDO_GID $TRHOME/$USER
   su $USER bash -c "cd && $*"
+elif [[ $(id -u) == 0 ]]; then
+  echo "we are root, staying root"
+  bash -c "cd && $*"
 else
   # when being root or in an `unshare -r` we become nobody. If we need to be the
   # original user instead we can try revertuid (see tmp/experiments/revertuid).

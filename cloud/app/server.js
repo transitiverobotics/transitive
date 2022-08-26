@@ -34,8 +34,8 @@ const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
 const PORT = process.env.TR_CLOUD_PORT || 9000;
 
 const log = getLogger('server');
-log.setLevel('info');
-// log.setLevel('debug');
+// log.setLevel('info');
+log.setLevel('debug');
 
 const addSessions = (router, collectionName, secret) => {
   router.use(session({

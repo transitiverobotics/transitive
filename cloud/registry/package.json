@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.4.0",
+    "@transitive-sdk/utils": "^0.5.29",
     "bcrypt": "^5.0.1",
     "cors": "^2.8.5",
     "express": "^4.17.2",

@@ -7,6 +7,14 @@ const constants = require('./constants');
 dotenv.config({path: './.env'});
 dotenv.config({path: './.env_user'});
 
+global.config = {};
+try {
+  global.config = JSON.parse(fs.readFileSync('./config.json', {encoding: 'utf8'}));
+  console.log(`Using config:\n${JSON.stringify(global.config, true, 2)}`);
+} catch (e) {
+  console.log('No config.json file found or not valid JSON, proceeding without.');
+}
+
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
 
 /**

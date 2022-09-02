@@ -83,6 +83,11 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
+      const config = {
+        global: global.config.global,      // global, shared config
+        package: global.config[name] || {} // pkg specific config
+      };
+
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -90,7 +95,10 @@ const startPackage = (name) => {
           cwd: `${os.homedir()}/.transitive`,
           env: Object.assign({},
             process.env, // TODO: is this safe? we may *not* want capabilities to see this
-            { TRPACKAGE: name })
+            {
+              TRPACKAGE: name,
+              TRCONFIG: JSON.stringify(config)
+            })
         });
       subprocess.unref();
       } // else: nothing to do, it's already running

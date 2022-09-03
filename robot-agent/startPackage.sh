@@ -14,15 +14,17 @@ getROSRelease() {
 
 cd /home/transitive
 
-# if stat --printf='' /opt/ros/*/setup.bash 2>/dev/null; then
-# . /opt/ros/*/setup.bash;
-# fi
-
-ROS_RELEASE=$(getROSRelease)
-if [ -e /opt/ros/$ROS_RELEASE/setup.bash ]; then
-  . /opt/ros/$ROS_RELEASE/setup.bash;
+if [ "$TR_ROS_RELEASES" ]; then
+  for release in $TR_ROS_RELEASES; do
+    . /opt/ros/$release/setup.bash;
+  done;
+else
+  # automatically decide which ROS1 release to source based on OS
+  ROS_RELEASE=$(getROSRelease)
+  if [ -e /opt/ros/$ROS_RELEASE/setup.bash ]; then
+    . /opt/ros/$ROS_RELEASE/setup.bash;
+  fi
 fi
-
 
 PATH=/home/usr/bin:$PATH
 . /home/etc/env_local

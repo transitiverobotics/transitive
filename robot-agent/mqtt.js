@@ -56,37 +56,46 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
   protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
-mqttClient.on('error', log.warn);
-mqttClient.on('disconnect', log.warn);
+mqttClient.on('error', (...args) => log.warn('mqtt error', ...args));
+mqttClient.on('disconnect', (...args) => log.warn('mqtt disconnect', ...args));
 
 let initialized = false;
+let mqttSync;
 mqttClient.on('connect', function(connackPacket) {
   log.info(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
 
-  const mqttSync = new MqttSync({mqttClient,
-    migrate: [{
-      topic: `${AGENT_PREFIX}/desiredPackages`,
-      newVersion: version
-    }],
-    onReady: () => {
-      mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`);
-      log.info('waiting for heartbeat from upstream');
-      mqttSync.waitForHeartbeatOnce(() => {
-        log.info('got heartbeat');
-        ensureDesiredPackages(mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
-        mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
-          (value, key) => ensureDesiredPackages(value));
-      });
-    }
-  });
+  if (!mqttSync) {
+    mqttSync = new MqttSync({mqttClient,
+      migrate: [{
+        topic: `${AGENT_PREFIX}/desiredPackages`,
+        newVersion: version
+      }],
+      onReady: () => {
+        mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`, (err) => {
+          if (err) {
+            log.warn('Failed to subscribe to desiredPackages:', err,
+              'Not changing installed packages for now.', new Date());
+            return;
+          }
+
+          log.info('waiting for heartbeat from upstream');
+          mqttSync.waitForHeartbeatOnce(() => {
+            log.info('got heartbeat');
+            ensureDesiredPackages(
+              mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
+            mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
+              (value, key) => ensureDesiredPackages(value));
+          });
+        });
+      }
+    });
+  }
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
   // "publication", of which this may be a "clear on start" functionality
   const allVersionsPrefix = `${PREFIX}/@transitive-robotics/_robot-agent`;
   !initialized && mqttClearRetained(mqttClient,
     [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
-
-      log.info('subscribing to robot-agent commands');
 
       data = mqttSync.data;
       mqttSync.publish(`${AGENT_PREFIX}/info`);
@@ -148,6 +157,7 @@ mqttClient.on('connect', function(connackPacket) {
       mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
       // mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
       // new commands should go under `commands/`
+      log.info('subscribing to robot-agent commands');
       mqttClient.subscribe(`${AGENT_PREFIX}/commands/#`, subOptions, log.debug);
 
       initialized = true;

@@ -3,6 +3,10 @@
 * given range that is not yet used */
 const getNextInRange = (allUsed, range, count = 1) => {
 
+  if (!allUsed?.length) {
+    return {min: range[0], max: range[0] + count - 1}
+  }
+
   const used = allUsed.sort((a, b) => a - b);
   const rtv = {min: range[0], max: null};
   for (let i = 0; i < used.length; i++) {
@@ -18,9 +22,9 @@ const getNextInRange = (allUsed, range, count = 1) => {
   }
 
   // no allocation found before or between existing used ports, try behind:
-  const lastUsed = used.at(-1);
-  if (lastUsed + count <= range[1]) {
-    return {min: lastUsed + 1, max: lastUsed + count};
+  const next = Math.max(used.at(-1) + 1, range[0]);
+  if (next + count - 1 <= range[1]) {
+    return {min: next, max: next + count - 1};
   }
 
   // no allocation possible

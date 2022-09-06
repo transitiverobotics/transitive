@@ -26,7 +26,7 @@ Using a docker image derived from Ubuntu 18+ (e.g., `ros:melodic`), install depe
 
 - Since Transitive uses linux namespaces to sanbox capabilities, you need to run your container with `--privileged`.
 - Inside your container, `$HOME/.transitive` needs to be a bind-mounted folder from your host. For instance, run `mkdir /tmp/transitive-docker` and run your container with `-v /tmp/transitive-docker:/root/.transitive`, if running as root inside your container. (This is required for two reasons: to give Transitive a place where it can permanently store files, and to allow usage of this folder for creating an overlayfs mount onto /usr inside the container.)
-- Make sure, `/etc/machine-id` is not empty, e.g., run `hostname > /etc/machine-id` as part of your entry point.
+- Make sure, `/etc/machine-id` is not empty, e.g., run `hostname > /etc/machine-id` as part of your entry point. The ID you set needs to be unique for each robot in your fleet. Usually the file is written by systemd on first boot using a randomly generated id that is long enough to assume it is globally unique. But since docker images are, of coruse, usually shared between devices, this uniqueness guarantee may not exist, or the file may be empty completely if systemd is not used in the container.
 
 
 ### Running in virtual environments

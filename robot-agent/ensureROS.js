@@ -73,7 +73,7 @@ const startCore = (path) => {
 
 
 module.exports = (callback) => {
-  if (process.env.TR_NO_ROSCORE) {
+  if (process.env.TR_NO_ROSCORE || global.config?.global?.noRosCore) {
     callback();
     return;
   }

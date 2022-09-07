@@ -22,9 +22,9 @@ else
   [[ -z $DEVICEID ]] && DEVICEID=$(openssl rand -base64 20)
 
   # compute sha256sum of machine-id (or random id), take first 10 chars of it's
-  # base64 encoding, with special characters removed
-  # HASH=$($NODE -e "h = require('crypto').createHash('sha256'); h.update(process.argv[1]); b = Buffer.from(h.digest()); console.log(b.toString('base64').replace(/[/+=]/g, '').slice(0,10));" $DEVICEID)
-  HASH=$(echo $DEVICEID | sha256sum | cut -c -10)
+  # base64 encoding, with special characters removed; The d_ ensures that the id
+  # is not a decimal number, to avoid #164.
+  HASH=d_$(echo $DEVICEID | sha256sum | cut -c -10)
   echo "  deterministic device id: $HASH"
   echo "TR_DEVICEID=$HASH" >> .env
 

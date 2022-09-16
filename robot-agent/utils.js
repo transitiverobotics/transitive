@@ -98,7 +98,7 @@ const startPackage = (name) => {
             {
               TRPACKAGE: name,
               TRCONFIG: JSON.stringify(config),
-              TR_ROS_RELEASES: config?.global?.rosReleases.join(' ')
+              TR_ROS_RELEASES: config?.global?.rosReleases?.join(' ')
             })
         });
       subprocess.unref();

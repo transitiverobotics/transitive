@@ -95,8 +95,8 @@ services:
       - .env
     ports:
       - 8000:8000
-      - 80:80
-      - 443:443
+      - 80:80   #NODEV
+      - 443:443 #NODEV
 
   registry:
     build: ./registry

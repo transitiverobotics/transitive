@@ -16,17 +16,24 @@ else
   . .env
   . .token
 
-  echo "  computing hashed machine-id"
-  DEVICEID=$(cat /etc/machine-id)
-  # if machine has no id yet, create a random one
-  [[ -z $DEVICEID ]] && DEVICEID=$(openssl rand -base64 20)
+  HASH=${TR_INSTALL_HASH//[^a-zA-Z0-9]/}
+  if [[ -z $HASH ]]; then
+    echo "  computing hashed machine-id"
+    DEVICEID=$(cat /etc/machine-id)
+    # if machine has no id yet, create a random one
+    [[ -z $DEVICEID ]] && DEVICEID=$(openssl rand -base64 20)
 
-  # compute sha256sum of machine-id (or random id), take first 10 chars of it's
-  # base64 encoding, with special characters removed; The d_ ensures that the id
-  # is not a decimal number, to avoid #164.
-  HASH=d_$(echo $DEVICEID | sha256sum | cut -c -10)
-  echo "  deterministic device id: $HASH"
-  echo "TR_DEVICEID=$HASH" >> .env
+    # compute sha256sum of machine-id (or random id), take first 10 chars of it's
+    # base64 encoding, with special characters removed; The d_ ensures that the id
+    # is not a decimal number, to avoid #164.
+    HASH=$(echo $DEVICEID | sha256sum | cut -c -10)
+    echo "  using device hash: $HASH"
+  else
+    echo "  using (sanitized) hash provided in env var: $HASH"
+  fi;
+
+  ID=d_$HASH
+  echo "TR_DEVICEID=$ID" >> .env
 
   # generate certificate signing request for MQTT broker
   echo "  generating CSR"
@@ -35,7 +42,7 @@ else
   openssl rand 2048 > $HOME/.rnd
   # openssl genrsa -out $DIR/certs/client.key -rand $DIR/.rnd 2048 2>/dev/null
   openssl genrsa -out $DIR/certs/client.key 2048 2>/dev/null
-  openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj "/CN=$TR_USERID:$HASH"
+  openssl req -out $DIR/certs/client.csr -key $DIR/certs/client.key -new -subj "/CN=$TR_USERID:$ID"
 
   # send certificate signing request to cloud
   echo "  sending CSR to $TR_INSTALL_HOST"

@@ -64,8 +64,6 @@ export const Embed = ({name, jwt, deviceId, extra, style, host, ssl}) => {
       <Code>
         {JSON.stringify(jwtPayloadExample, true, 2)}
       </Code>
-      If you prefer, you can replace <tt>"device": "deviceId"</tt> with <tt>
-        "hostname": "hostname of your device"</tt>.
 
       <div>
         For testing only you can use this ready-to-go snippet. The included JWT

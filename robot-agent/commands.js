@@ -1,78 +1,16 @@
 const fs = require('fs');
-const assert = require('assert');
 const { exec } = require('child_process');
 
-const _ = require('lodash');
-
 const constants = require('./constants');
-const { getInstalledPackages, restartPackage, startPackage, killPackage,
-killAllPackages } = require('./utils');
+const { restartPackage, killPackage, killAllPackages } = require('./utils');
 
-const { DataCache, toFlatObject, getLogger } = require('@transitive-sdk/utils');
+const { DataCache, getLogger } = require('@transitive-sdk/utils');
 const dataCache = new DataCache();
 
 const log = getLogger('commands');
 log.setLevel('debug');
 
 
-/** install new package. Note: addedPkg may include a scope,
-  e.g., @transitive-robotics/test1 */
-const addPackage = (addedPkg) => {
-  log.debug(`adding package ${addedPkg}`);
-  const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
-  fs.mkdirSync(dir, {recursive: true});
-  fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
-  fs.writeFileSync(`${dir}/package.json`,
-    `{ "dependencies": {"${addedPkg}": "*"} }`);
-  startPackage(addedPkg);
-};
-
-/** stop and uninstall named package */
-const removePackage = (pkg) => {
-  log.debug(`removing package ${pkg}`);
-  // verify the pkg name is a string, not empty, and doesn't contain dots
-  assert(typeof pkg == 'string' && pkg.match(/\w/) && !pkg.match(/\./));
-  // stop and remove folder
-  killPackage(pkg, 'SIGTERM', (exitcode) => {
-    if (exitcode) {
-      console.warn(`stopping package failed (exit code: ${exitcode})`);
-    } else {
-      log.debug('package stopped, removing files');
-    }
-    exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
-  });
-};
-
-/** ensure packages are installed IFF they are in desiredPackages in dataCache */
-const ensureDesiredPackages = (desired = {}) => {
-  log.debug('ensureDesiredPackages', desired);
-  // const desired = dataCache.get('desiredPackages');
-  const desiredPackages = toFlatObject(desired);
-  // remove the initial '/' from the keys:
-  _.each(desiredPackages, (value, key) => {
-    if (key.startsWith('/')) {
-      delete desiredPackages[key];
-      desiredPackages[key.slice(1)] = value;
-    }
-  });
-  log.debug('Ensure installed packages match: ', desiredPackages);
-
-  const packages = getInstalledPackages();
-  log.debug('currently installed: ', packages);
-  packages.forEach(pkg => {
-    if (desiredPackages[pkg]) {
-      // TODO: later, check whether the version has changed; for now all
-      // packages are set to version "*"
-      delete desiredPackages[pkg];
-    } else {
-      removePackage(pkg);
-    }
-  });
-
-  // what remains in `desired` is added new, install and start
-  log.debug('add: ', desiredPackages);
-  Object.keys(desiredPackages).forEach(addPackage);
-};
 
 /** execute a sequence of commands and report corresponding results in cb */
 const execAll = ([head, ...tail], cb) => {
@@ -153,6 +91,4 @@ module.exports = {
       console.error('Received unknown command', command);
     }
   },
-
-  ensureDesiredPackages,
 };

@@ -127,7 +127,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
         {capability}/{webComponent}
       </span>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
-        host={TR_HOST} ssl={TR_SECURE} />
+        host={TR_HOST} ssl={ssl} />
     </div>
   </div>;
 };

@@ -26,8 +26,8 @@ const exec = require('child_process').exec;
 
 const { parseMQTTTopic, mqttClearRetained, mqttParsePayload, MqttSync, getLogger,
 loglevel } = require('@transitive-sdk/utils');
-const { handleAgentCommand, ensureDesiredPackages } =
-  require('./commands');
+const { handleAgentCommand } = require('./commands');
+const { ensureDesiredPackages } = require('./utils');
 
 const {startLocalMQTTBroker} = require('./localMQTT');
 const log = getLogger('mqtt.js');
@@ -71,6 +71,7 @@ mqttClient.on('connect', function(connackPacket) {
         newVersion: version
       }],
       onReady: () => {
+        log.info('migration complete');
         mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`, (err) => {
           if (err) {
             log.warn('Failed to subscribe to desiredPackages:', err,

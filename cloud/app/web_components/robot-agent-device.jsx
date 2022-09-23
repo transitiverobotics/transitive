@@ -236,7 +236,7 @@ const Device = (props) => {
               desired ? <Button variant='link' onClick={() => uninstall(name)}>
                 uninstall
               </Button> :
-              <span> (to be removed)</span>
+              <span> (pre-installed)</span>
             }
           </ListGroup.Item>) :
 

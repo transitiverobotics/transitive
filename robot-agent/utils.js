@@ -2,7 +2,10 @@ const fs = require('fs');
 const { spawn, exec, execSync } = require('child_process');
 const os = require('os');
 const path = require('path');
-const { getLogger } = require('@transitive-sdk/utils');
+const assert = require('assert');
+const _ = require('lodash');
+
+const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
 
 const log = getLogger('utils');
@@ -32,6 +35,35 @@ const getInstalledPackages = () => {
   });
   const flat = [].concat(...lists); // flatten
   return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
+};
+
+
+/** install new package. Note: addedPkg may include a scope,
+e.g., @transitive-robotics/test1 */
+const addPackage = (addedPkg) => {
+  log.debug(`adding package ${addedPkg}`);
+  const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
+  fs.mkdirSync(dir, {recursive: true});
+  fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
+  fs.writeFileSync(`${dir}/package.json`,
+    `{ "dependencies": {"${addedPkg}": "*"} }`);
+  startPackage(addedPkg);
+};
+
+/** stop and uninstall named package */
+const removePackage = (pkg) => {
+  log.debug(`removing package ${pkg}`);
+  // verify the pkg name is a string, not empty, and doesn't contain dots
+  assert(typeof pkg == 'string' && pkg.match(/\w/) && !pkg.match(/\./));
+  // stop and remove folder
+  killPackage(pkg, 'SIGTERM', (exitcode) => {
+    if (exitcode) {
+      console.warn(`stopping package failed (exit code: ${exitcode})`);
+    } else {
+      log.debug('package stopped, removing files');
+    }
+    exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
+  });
 };
 
 /** restart the named package by sending a SIGUSR1 to its startPackage.sh process
@@ -170,6 +202,44 @@ const killAllPackages = () => {
   });
 };
 
+
+/** ensure packages are installed IFF they are in desiredPackages in dataCache */
+const ensureDesiredPackages = (desired = {}) => {
+  log.debug('ensureDesiredPackages', desired);
+  // const desired = dataCache.get('desiredPackages');
+  const wanted = toFlatObject(desired);
+  // remove the initial '/' from the keys:
+  _.each(wanted, (value, key) => {
+    if (key.startsWith('/')) {
+      delete wanted[key];
+      wanted[key.slice(1)] = value;
+    }
+  });
+
+  // also add any configured packages from config.json:
+  global.config?.global?.desiredPackages?.forEach(pkgName =>
+    wanted[pkgName] = '*');
+
+  log.debug('Ensure installed packages match: ', wanted);
+
+  const packages = getInstalledPackages();
+  log.debug('currently installed: ', packages);
+  packages.forEach(pkg => {
+    if (wanted[pkg]) {
+      // TODO: later, check whether the version has changed; for now all
+      // packages are set to version "*"
+      delete wanted[pkg];
+    } else {
+      removePackage(pkg);
+    }
+  });
+
+  // what remains is added new, install and start
+  log.debug('add: ', wanted);
+  Object.keys(wanted).forEach(addPackage);
+};
+
+
 module.exports = {
   getInstalledPackages,
   restartPackage,
@@ -178,4 +248,5 @@ module.exports = {
   weHaveSudo,
   rotateAllLogs,
   killAllPackages,
+  ensureDesiredPackages
 };

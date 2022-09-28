@@ -133,7 +133,8 @@ mqttClient.on('connect', function(connackPacket) {
                 });
             if (command) {
               handleAgentCommand(command, rest, json, (response) => response &&
-                mqttClient.publish(`${AGENT_PREFIX}/$response/${parsedTopic.sub}`,
+                mqttClient.publish(
+                  `${AGENT_PREFIX}/$response/${parsedTopic.sub.join('/')}`,
                   JSON.stringify(response)));
             }
 
@@ -178,10 +179,8 @@ const staticInfo = () => {
 
   exec('lsb_release -a', (err, stdout, stderr) => {
     !err && (info.os.lsb_release = stdout.trim());
-
     exec('dpkg --print-architecture', (err, stdout, stderr) => {
       !err && (info.os.dpkgArch = stdout.trim());
-
       data.update(`${AGENT_PREFIX}/info`, info);
     });
   });

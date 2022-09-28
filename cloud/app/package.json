@@ -19,6 +19,7 @@
     "mqtt": "^4.3.5",
     "mqtt-browser": "^4.2.7",
     "node-fetch": "^2.6.7",
+    "pako": "^2.0.4",
     "prompt": "^1.2.1",
     "react-icons": "^4.2.0",
     "react-router-dom": "^6.2.1",

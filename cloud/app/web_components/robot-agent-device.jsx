@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form }
+import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form, Modal }
 from 'react-bootstrap';
 
 const _ = {
@@ -8,8 +8,10 @@ const _ = {
   forEach: require('lodash/forEach'),
 };
 
+import pako from 'pako';
+
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained }
+mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
 from '@transitive-sdk/utils-web';
 
 import { Heartbeat, ensureProps } from './shared';
@@ -86,12 +88,47 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
+/** given a compressed base64 buffer, convert and decompress */
+const decompress = (zippedBase64) => {
+  const buf = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
+  return pako.ungzip(buf, {to: 'string'});
+}
+
+/** Component that renders the package log response, such as
+{
+  "@transitive-robotics": {
+    "webrtc-video": {
+      "err": null,
+      "stdout": [base64 encoded gzip buffer of text],
+      "stderr": [base64 encoded gzip buffer of text],
+    }
+  }
+}
+*/
+const PkgLog = ({response, onHide}) => {
+  const scope = Object.keys(response)[0];
+  const cap = Object.values(response)[0];
+  const capName = Object.keys(cap)[0];
+  const result = Object.values(cap)[0];
+  const stdout = decompress(result.stdout);
+  const stderr = decompress(result.stderr);
+
+  return <Modal show={true} fullscreen={true} onHide={onHide} >
+    <Modal.Header closeButton>
+      <Modal.Title>Package Log for {scope}/{capName}</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      {stdout ? <pre>{stdout}</pre> : <div>stdout is empty</div>}
+      {stderr ? <pre style={{color: 'red'}}>{stderr}</pre> : <div>stderr is empty</div>}
+    </Modal.Body>
+  </Modal>;
+}
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
 
   if (!ensureProps(props, ['jwt', 'id', 'host'])) {
-    console.log({props})
+    log.debug({props})
     return <div>missing props</div>;
   }
   const {jwt, id, host} = props;
@@ -111,11 +148,25 @@ const Device = (props) => {
         .then(json => setAvailablePackages(json));
     }, [ssl, host]);
 
-  if (mqttSync) {
-    mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
-    log.debug('adding publish', `${prefix}/+/desiredPackages`);
-    mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
-  }
+  useEffect(() => {
+      if (mqttSync) {
+        mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        log.debug('adding publish', `${prefix}/+/desiredPackages`);
+        mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
+
+        // mqttSync.mqtt.on('message', (topic, payload, packet) => {
+        //   if (pathMatch(`${prefix}/+/$response/#`, topic)) {
+        //     if (pathMatch(`${prefix}/+/$response/commands/getPkgLog/#`, topic)) {
+        //       const results = JSON.parse(payload.toString());
+        //       const stdout = decompress(results.stdout);
+        //       const stderr = decompress(results.stdout);
+        //       log.info(`Got response for ${topic}:`, {stdout, stderr});
+        //     } else {
+        //       log.info(`Got unhandled response for ${topic}:`, payload?.toString());
+        //     }
+        //   }
+        // });
+      }}, [mqttSync]);
 
   log.debug('data', data);
   const deviceData = data && data[id] && data[id][device] &&
@@ -138,34 +189,48 @@ const Device = (props) => {
 
   /** add the named package to this robot's desired packages */
   const install = (pkg) => {
-    console.log(`installing ${pkg._id}`);
+    log.debug(`installing ${pkg._id}`);
     mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
   };
 
   const uninstall = (pkgName) => {
-    console.log(`uninstalling ${pkgName}`);
+    log.debug(`uninstalling ${pkgName}`);
     mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, null);
   };
 
   const restartAgent = () => {
     const topic = `${versionPrefix}/commands/restart`;
-    console.log('sending restart command', topic);
+    log.debug('sending restart command', topic);
     mqttSync.mqtt.publish(topic, '1');
   };
 
   const restartPackage = (name) => {
-    console.log('sending command to restart package', name);
+    log.debug('sending command to restart package', name);
     mqttSync.mqtt.publish(`${versionPrefix}/commands/restartPackage/${name}`, '1');
   };
 
   const stopAll = () => {
-    console.log('sending command to stop all packages');
+    log.debug('sending command to stop all packages');
     mqttSync.mqtt.publish(`${versionPrefix}/commands/stopAll`, '1');
   };
 
   const stopPackage = (name) => {
-    console.log('sending command to stop package', name);
+    log.debug('sending command to stop package', name);
     mqttSync.mqtt.publish(`${versionPrefix}/commands/stopPackage/${name}`, '1');
+  };
+
+  const getPackageLog = (name) => {
+    log.debug('getting package log for', name);
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/getPkgLog/${name}`, '1');
+  };
+
+  /** remove the package log (reponse) from the data */
+  const clearPackageLog = () => {
+    mqttSync.data.forMatch(`${prefix}/+/$response/commands/getPkgLog/#`,
+      (obj, path) => {
+        log.debug('clearing', path);
+        mqttSync.data.update(path, null);
+      });
   };
 
   /** remove the device from the dashboard (until it republishes status, if at
@@ -174,13 +239,11 @@ const Device = (props) => {
     // TODO: indicate progress/loading while waiting for callback, which depends
     // on getting a heartbeat from broker, which can take a while (~10 seconds)
     mqttSync.clear([prefix], () => {
-      console.log('device removed');
+      log.info('device removed');
       // redirect to fleet page if given, or to homepage otherwise
       location.href = props.fleetURL || '/';
     });
   };
-
-  console.log('packages', packages);
 
   const explanation = `This will delete all meta-data for this device. If the
     agent is still running, the device will come back but will require a
@@ -236,7 +299,11 @@ const Device = (props) => {
               desired ? <Button variant='link' onClick={() => uninstall(name)}>
                 uninstall
               </Button> :
-              <span> (pre-installed)</span>
+              <span>pre-installed</span>
+            } {
+              <Button variant='link' onClick={() => getPackageLog(name)}>
+                get log
+              </Button>
             }
           </ListGroup.Item>) :
 
@@ -255,6 +322,12 @@ const Device = (props) => {
         </ListGroup.Item>
       </ListGroup>
     </div>
+
+    {latestVersionData.$response?.commands?.getPkgLog &&
+        <PkgLog response={latestVersionData.$response?.commands?.getPkgLog}
+          onHide={clearPackageLog}/>
+    }
+
   </div>
 };
 

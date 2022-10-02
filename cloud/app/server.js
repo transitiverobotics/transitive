@@ -308,7 +308,10 @@ app.post('/auth/acl', (req, res) => {
       (permitted.iat + permitted.validity) * 1e3 > Date.now() &&
       (
         (permitted.device == requested.device &&
-            ((permitted.capability == requested.capability &&
+            (((permitted.capability == requested.capability ||
+                // _robot-agent permissions grant full device access
+                permitted.capability == '@transitive-robotics/_robot-agent')
+              &&
                 (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
               // if payload.topics exists it is a limitation of topics to allow
             ) ||
@@ -321,19 +324,21 @@ app.post('/auth/acl', (req, res) => {
             requested.capability == '@transitive-robotics/_robot-agent' &&
             !permitted.topics)
           ||
-          // _fleet permissions give read access to all devices' data for the
-          // cap (in the permitted org only of course)
-          ( permitted.device == '_fleet' && readAccess &&
-              requested.capability == permitted.capability &&
+          // _fleet permissions give access to all devices' data for the
+          // cap (in the permitted org only of course); _robot-agent permissions
+          // grant access to all devices in the fleet
+          ( permitted.device == '_fleet' &&
+              (requested.capability == permitted.capability ||
+                permitted.capability == '@transitive-robotics/_robot-agent') &&
               !permitted.topics )
       );
 
-    // log.debug('/auth/acl', payload, parsedTopic);
-    // log.debug('/auth/acl', req.body.topic, readAccess, allowed);
-
-    (allowed ? res.send('ok') :
+    if (allowed) {
+      res.send('ok');
+    } else {
+      log.debug('permission denied', {permitted, requested, readAccess});
       res.status(401).end('not authorized for topic or token expired')
-    );
+    }
   } catch (e) {
     log.warn('/auth/acl exception', e, req.body);
     res.status(400).end('unable to parse authentication request')

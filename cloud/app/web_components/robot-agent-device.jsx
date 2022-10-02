@@ -238,7 +238,7 @@ const Device = (props) => {
   const clear = () => {
     // TODO: indicate progress/loading while waiting for callback, which depends
     // on getting a heartbeat from broker, which can take a while (~10 seconds)
-    mqttSync.clear([prefix], () => {
+    mqttSync.clear([`/${id}/${device}`], () => {
       log.info('device removed');
       // redirect to fleet page if given, or to homepage otherwise
       location.href = props.fleetURL || '/';

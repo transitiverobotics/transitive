@@ -12,11 +12,16 @@ const style = {
   stale: {color: '#a00'},
 };
 
-export const Heartbeat = ({heartbeat}) => {
+/** get heartbeat state (stale, warning, or live) */
+export const heartbeatState = (heartbeat) => {
   const timediff = Date.now() - (new Date(heartbeat));
-  const state = timediff > STALE_THRESHOLD ? 'stale'
-      : timediff > WARNING_THRESHOLD ? 'warning'
-      : 'live';
+  return timediff > STALE_THRESHOLD ? 'stale'
+  : timediff > WARNING_THRESHOLD ? 'warning'
+  : 'live';
+}
+
+export const Heartbeat = ({heartbeat}) => {
+  const state = heartbeatState(heartbeat);
   return <span style={style[state]} title={state}>
     <FaHeartbeat /> {(new Date(heartbeat)).toLocaleString()}
   </span>

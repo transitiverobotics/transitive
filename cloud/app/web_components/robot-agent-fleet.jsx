@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ListGroup, Badge } from 'react-bootstrap';
 
-import { Heartbeat, ensureProps } from './shared';
+import { heartbeatState, Heartbeat, ensureProps } from './shared';
+import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const _ = {
   map: require('lodash/map'),
@@ -17,6 +18,9 @@ const log = getLogger('robot-agent-fleet');
 log.setLevel('debug');
 
 const clone = x => SON.parse(JSON.stringify(x));
+
+const explanation = `This will remove the data for all inactive devices.
+  They will reappear if they reconnect, but all capability data will be gone.`;
 
 /** Show one device */
 const FleetDevice = ({status, info, device, device_url}) => {
@@ -81,19 +85,36 @@ const Fleet = (props) => {
     }
   }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname));
 
+  const stale = mergedData
+      .filter(({status}) => heartbeatState(status.heartbeat) == 'stale')
+      .map((device) => `/${id}/${device.id}`);
+
+  /** remove inactive devices */
+  const clear = () => {
+    log.debug('clearing:', stale);
+    // TODO: indicate progress/loading while waiting for callback, which depends
+    // on getting a heartbeat from broker, which can take a while (~10 seconds)
+    mqttSync.clear(stale, () => log.info('devices removed'));
+  };
+
   return <div>
     <h5>Devices</h5>
-      <ListGroup variant="flush">
-        {_.map(mergedData, ({status, info, id}) =>
-            <FleetDevice key={id} status={status} info={info} device={id}
-              device_url={device_url} />)
-        }
-        <ListGroup.Item>
-          <Code>
-            curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
-          </Code>
-        </ListGroup.Item>
-      </ListGroup>
+    {stale.length > 0 && <ConfirmedButton onClick={clear} variant='link'
+      explanation={explanation}>
+      Remove inactive devices
+    </ConfirmedButton>}
+
+    <ListGroup variant="flush">
+      {_.map(mergedData, ({status, info, id}) =>
+          <FleetDevice key={id} status={status} info={info} device={id}
+            device_url={device_url} />)
+      }
+      <ListGroup.Item>
+        <Code>
+          curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
+        </Code>
+      </ListGroup.Item>
+    </ListGroup>
   </div>
 };
 

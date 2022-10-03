@@ -35,20 +35,22 @@ const routingTable = dockerCompose ? {
     install: 'cloud:9000/install',
     repo: 'cloud:9000/repo', // binaries we host for packages, may go away
     mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
+    billing: 'billing:7000', // billing portal: only run by Transitive Robotics
     default: 'homepage:3000'
   } : { // when not started via docker-compose (for local dev):
-    registry: 'localhost:6000', // npm registry
+    registry: 'localhost:6000',
     portal: 'localhost:9000',
     data: 'localhost:9000',
     auth: 'localhost:9000',
     install: 'localhost:9000/install',
-    repo: 'localhost:9000/repo', // binaries we host for packages, may go away
-    mqtt: 'localhost:9001', // for clients to connect to mqtt via websockets
+    repo: 'localhost:9000/repo',
+    mqtt: 'localhost:9001',
+    billing: 'localhost:7000',
     default: 'localhost:3000'
   };
 
 const pathTable = {
-  '/billing': 'billing:7000'
+  // '/billing': 'billing:7000'
 };
 
 /** route the request */

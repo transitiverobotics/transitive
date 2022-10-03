@@ -109,7 +109,7 @@ export const Sidebar = () => {
     </div>
     <div>
       <PageLink to='/security'>Security</PageLink>
-      <a href='https://portal.transitiverobotics.com/billing/v1/billingPortal'>
+      <a href='https://billing.transitiverobotics.com/v1/billingPortal'>
         Billing
       </a>
     </div>

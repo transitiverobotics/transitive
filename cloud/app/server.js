@@ -18,23 +18,19 @@ mergeVersions, forMatchIterator, Capability } = require('@transitive-sdk/utils')
 
 const {createAccount} = require('./accounts');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
-
-// const WebRTCVideo = require('./caps/webrtc_video');
-// const RemoteTeleop = require('./caps/remote_teleop');
-// const RemoteAccess = require('./caps/remote_access');
-
 const docker = require('./docker');
 const installRouter = require('./install');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
-
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
-
 const PORT = process.env.TR_CLOUD_PORT || 9000;
+const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
+  'https://billing.transitiverobotics.com';
 
 const log = getLogger('server');
 // log.setLevel('info');
 log.setLevel('debug');
+
 
 const addSessions = (router, collectionName, secret) => {
   router.use(session({
@@ -354,9 +350,9 @@ app.post('/auth/acl', (req, res) => {
   Cloud Agent
 */
 
-// After 24h of a robot not reporting a heartbeat we'll pause billing for any
-// premium capabilities it might be running
-const RUNNING_THRESHOLD = 24 * 60 * 60 * 1000;
+// After 1h of a robot not reporting a heartbeat we'll pause reporting its use to
+// billing
+const RUNNING_THRESHOLD = 1 * 60 * 60 * 1000;
 
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
@@ -368,12 +364,16 @@ class _robotAgent extends Capability {
 
   constructor() {
     super(() => {
+      this.updateSubscriptions_throttled =
+        _.throttle(this.updateSubscriptions, 1000);
+
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
       this.mqttSync.subscribe(
         '/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages');
       this.mqttSync.subscribe(
         '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat');
+      this.mqttSync.publish('/+/+/+/+/+/billing/token');
       this.data.subscribePathFlat(
         '/+org/+device/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
         (value, topic, matched, tags) => {
@@ -393,67 +393,87 @@ class _robotAgent extends Capability {
               docker.ensureRunning({name, version});
             }
           }
+
+          // if device is live, report usage and get JWT right away
+          this.updateSubscriptions_throttled();
         });
 
-      // this.mqttSync.waitForHeartbeatOnce(() => {
-      //   this.updateSubscriptions();
-      //   new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
-      // });
+      // probably no longer needed:
+      // new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
     });
   }
 
-  /** Ensure that customers have subscriptions in Stripe for all the paid caps
-  they are running, incl. quantity. This function should be called regularly,
-  maybe once an hour. */
+  /** Ensure the usage of all active devices' capabilities is recorded with the
+  * billing service. */
+  async updateSubscriptions() {
 
-  // TODO: replace this with some logic that reports to the global billing service
-  // and updates the JWTs received back
+    const running = this.data.filter(['+', '+', '@transitive-robotics',
+      '_robot-agent', '+', 'status', 'runningPackages']);
+    // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
-  // async updateSubscriptions() {
-  //   // first make sure list of products in Stripe is up to date
-  //   const products = await updateProducts();
+    _.forEach(running, (orgRunning, orgId) => {
+      _.forEach(orgRunning, (deviceRunning, deviceId) => {
 
-  //   const running = this.data.filter(['+', '+', '@transitive-robotics',
-  //     '_robot-agent', '+', 'status', 'runningPackages']);
-  //   // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
+        // Remove any by robots that have been offline for more than
+        // a threshold
+        const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
+          '_robot-agent']);
+        const mergedAgent = mergeVersions(agent, 'status');
+        log.debug({mergedAgent});
+        const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
+        if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
+          log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
+          return;
+        }
 
-  //   _.forEach(running, (orgRunning, orgId) => {
-  //     const counts = {};
-  //     _.forEach(orgRunning, (deviceRunning, deviceId) => {
+        const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
+        const merged = mergeVersions(allVersions, 'status/runningPackages');
+        const pkgRunning = merged.status.runningPackages;
 
-  //       // Remove any by robots that have been offline for more than
-  //       // a threshold
-  //       const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
-  //         '_robot-agent']);
-  //       const mergedAgent = mergeVersions(agent, 'status');
-  //       log.debug({mergedAgent});
-  //       const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
-  //       if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
-  //         log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
-  //         return;
-  //       }
+        log.debug(`running packages, ${orgId}/${deviceId}:`,
+          JSON.stringify(pkgRunning, null, 2));
 
-  //       const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
-  //       const merged = mergeVersions(allVersions, 'status/runningPackages');
-  //       const pkgRunning = merged.status.runningPackages;
+        _.forEach(pkgRunning, (scopeRunning, scope) => {
+          _.forEach(scopeRunning, async (capRunning, capName) => {
+            const runningVersion = _.findKey(capRunning, Boolean);
+            if (runningVersion) {
+              const ns = [orgId, deviceId, scope, capName, runningVersion];
+              const capability = `${scope}/${capName}`;
+              // log.debug(`updateSubscriptions: cap ${capability} is running`);
+              // Report this usage to the billing portal, and retrieve back a
+              // JWT that the cap on this device can use to start
+              const billingUser = process.env.TR_BILLING_USER || orgId;
+              // get secret to use to sign usage record
 
-  //       log.debug(`running packages, ${orgId}/${deviceId}:`, pkgRunning);
+              let billingSecret = process.env.TR_BILLING_SECRET;
+              if (!billingSecret) {
+                const account = await Mongo.db.collection('accounts')
+                    .findOne({_id: billingUser});
+                billingSecret = account?.jwtSecret;
+              }
+              if (!billingSecret) {
+                log.warn('Unable to record usage for', ns, '(no billing secret)');
+                return;
+              }
+              const recordJwt = jwt.sign({deviceId, capability}, billingSecret);
 
-  //       _.forEach(pkgRunning, (scopeRunning, scope) => {
-  //         _.forEach(scopeRunning, (capRunning, capName) => {
-  //           if (_.some(capRunning, (value) => value)) {
-  //             const capability = `${scope}/${capName}`;
-  //             // log.debug(`updateSubscriptions: cap ${capability} is running`);
-  //             !counts[capability] && (counts[capability] = 0);
-  //             counts[capability]++;
-  //           }
-  //         });
-  //       });
-  //     });
-
-  //     // stripeUtils.updateSubscriptions(orgId, counts, products);
-  //   });
-  // }
+              const response = await fetch(
+                `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
+              );
+              const json = await response.json();
+              if (json.ok) {
+                // got token, share with device
+                log.debug(`got token for`, ns);
+                this.data.update([...ns, 'billing', 'token'], json.token);
+              } else {
+                log.warn(`failed to get token for`, ns, json.error);
+              }
+            }
+          });
+        });
+      });;
+    });
+  }
 
   /** get list of all packages running on a device, incl. their versions */
   getDevicePackages(organization, device) {

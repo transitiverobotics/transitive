@@ -457,16 +457,20 @@ class _robotAgent extends Capability {
               }
               const recordJwt = jwt.sign({deviceId, capability}, billingSecret);
 
-              const response = await fetch(
-                `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
-              );
-              const json = await response.json();
-              if (json.ok) {
-                // got token, share with device
-                log.debug(`got token for`, ns);
-                this.data.update([...ns, 'billing', 'token'], json.token);
-              } else {
-                log.warn(`failed to get token for`, ns, json.error);
+              try {
+                const response = await fetch(
+                  `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
+                );
+                const json = await response.json();
+                if (json.ok) {
+                  // got token, share with device
+                  log.debug(`got token for`, ns);
+                  this.data.update([...ns, 'billing', 'token'], json.token);
+                } else {
+                  log.warn(`failed to get token for`, ns, json.error);
+                }
+              } catch (e) {
+                log.warn(`failed to record usage for`, ns, e);
               }
             }
           });

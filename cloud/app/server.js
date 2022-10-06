@@ -364,9 +364,6 @@ class _robotAgent extends Capability {
 
   constructor() {
     super(() => {
-      this.updateSubscriptions_throttled =
-        _.throttle(this.updateSubscriptions, 1000);
-
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
       this.mqttSync.subscribe(
@@ -375,13 +372,13 @@ class _robotAgent extends Capability {
         '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat');
       this.mqttSync.publish('/+/+/+/+/+/billing/token');
       this.data.subscribePathFlat(
-        '/+org/+device/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
-        (value, topic, matched, tags) => {
+        '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
+        async (value, topic, matched, tags) => {
 
           if (!value) return;
 
-          // this.addDevicePackageVersion(parsed);
-          const {scope, capName, version} = matched;
+          // Make sure the docker container for this cap is running
+          const {orgId, deviceId, scope, capName, version} = matched;
           const name = `${scope}/${capName}`;
           const key = `${name}:${version}`;
 
@@ -394,37 +391,105 @@ class _robotAgent extends Capability {
             }
           }
 
-          // if device is live, report usage and get JWT right away
-          this.updateSubscriptions_throttled();
+          // Report usage and get JWT right away since the capability on the
+          // device may be waiting on it.
+          if (!this.isRunning(orgId, deviceId)) return;
+          const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
+
+          if (!billingSecret) {
+            log.warn('Unable to record usage for', orgId, '(no billing secret)');
+          } else {
+            this.recordUsage({orgId, deviceId, scope, capName, version},
+              {billingUser, billingSecret});
+          }
         });
 
-      // probably no longer needed:
-      // new CronJob('0 0 0,12 * * *', this.updateSubscriptions.bind(this), null, true);
+      this.mqttSync.waitForHeartbeatOnce(() => {
+        this.updateAllSubscriptions();
+        // report usage every hour
+        new CronJob('0 0 * * * *', this.updateAllSubscriptions.bind(this),
+          null, true);
+      });
     });
   }
 
+  /** check whether the given device is running, i.e., had a recent heartbeat */
+  isRunning(orgId, deviceId) {
+    const agent = this.data.get(
+      [orgId, deviceId, '@transitive-robotics', '_robot-agent']);
+    const mergedAgent = mergeVersions(agent, 'status');
+    const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
+    return (heartbeat > Date.now() - RUNNING_THRESHOLD);
+  }
+
+  /** Given an org id, get the billing user and secret */
+  async getBillingCreds(orgId) {
+    const billingUser = process.env.TR_BILLING_USER || orgId;
+
+    // Get secret to use to sign usage record. We allow overriding this for
+    // self-hosting, where this needs to be set to a secret from
+    // transitiverobotics.com (not the local org's secret).
+    let billingSecret = process.env.TR_BILLING_SECRET;
+    if (!billingSecret) {
+      const account =
+        await Mongo.db.collection('accounts').findOne({_id: billingUser});
+      billingSecret = account?.jwtSecret;
+    }
+
+    return {billingUser, billingSecret};
+  }
+
+
+  /** Report usage to the billing portal, and retrieve back a JWT that the cap
+  * on this device can use to start. Publish it in mqtt. */
+  async recordUsage({orgId, deviceId, scope, capName, version},
+    {billingUser, billingSecret}) {
+
+    const capability = `${scope}/${capName}`;
+    const ns = [orgId, deviceId, scope, capName, version];
+
+    // log.debug(`updateSubscriptions: cap ${capability} is running`);
+    const recordJwt = jwt.sign({deviceId, capability}, billingSecret);
+
+    try {
+      const response = await fetch(
+        `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
+      );
+      const json = await response.json();
+      if (json.ok) {
+        // got token, share with device
+        log.debug(`got token for /${ns.join('/')}`);
+        this.data.update([...ns, 'billing', 'token'], json.token);
+      } else {
+        log.warn(`failed to get token for`, ns, json.error);
+      }
+    } catch (e) {
+      log.warn(`failed to record usage for`, ns, e);
+    }
+  }
+
+
   /** Ensure the usage of all active devices' capabilities is recorded with the
   * billing service. */
-  async updateSubscriptions() {
+  async updateAllSubscriptions() {
 
     const running = this.data.filter(['+', '+', '@transitive-robotics',
       '_robot-agent', '+', 'status', 'runningPackages']);
     // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
-    _.forEach(running, (orgRunning, orgId) => {
+    _.forEach(running, async (orgRunning, orgId) => {
+
+      const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
+      if (!billingSecret) {
+        log.warn('Unable to record usage for', orgId, '(no billing secret)');
+        return;
+      }
+
       _.forEach(orgRunning, (deviceRunning, deviceId) => {
 
         // Remove any by robots that have been offline for more than
         // a threshold
-        const agent = this.data.get([orgId, deviceId, '@transitive-robotics',
-          '_robot-agent']);
-        const mergedAgent = mergeVersions(agent, 'status');
-        log.debug({mergedAgent});
-        const heartbeat = new Date(mergedAgent.status?.heartbeat || 0).getTime();
-        if (heartbeat < Date.now() - RUNNING_THRESHOLD) {
-          log.debug(`ignoring device ${deviceId}, offline since ${heartbeat}`);
-          return;
-        }
+        if (!this.isRunning(orgId, deviceId)) return;
 
         const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
         const merged = mergeVersions(allVersions, 'status/runningPackages');
@@ -435,43 +500,11 @@ class _robotAgent extends Capability {
 
         _.forEach(pkgRunning, (scopeRunning, scope) => {
           _.forEach(scopeRunning, async (capRunning, capName) => {
-            const runningVersion = _.findKey(capRunning, Boolean);
-            if (runningVersion) {
-              const ns = [orgId, deviceId, scope, capName, runningVersion];
-              const capability = `${scope}/${capName}`;
-              // log.debug(`updateSubscriptions: cap ${capability} is running`);
-              // Report this usage to the billing portal, and retrieve back a
-              // JWT that the cap on this device can use to start
-              const billingUser = process.env.TR_BILLING_USER || orgId;
-              // get secret to use to sign usage record
-
-              let billingSecret = process.env.TR_BILLING_SECRET;
-              if (!billingSecret) {
-                const account = await Mongo.db.collection('accounts')
-                    .findOne({_id: billingUser});
-                billingSecret = account?.jwtSecret;
-              }
-              if (!billingSecret) {
-                log.warn('Unable to record usage for', ns, '(no billing secret)');
-                return;
-              }
-              const recordJwt = jwt.sign({deviceId, capability}, billingSecret);
-
-              try {
-                const response = await fetch(
-                  `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
-                );
-                const json = await response.json();
-                if (json.ok) {
-                  // got token, share with device
-                  log.debug(`got token for`, ns);
-                  this.data.update([...ns, 'billing', 'token'], json.token);
-                } else {
-                  log.warn(`failed to get token for`, ns, json.error);
-                }
-              } catch (e) {
-                log.warn(`failed to record usage for`, ns, e);
-              }
+            const version = _.findKey(capRunning, Boolean);
+            if (version) {
+              // version is running
+              await this.recordUsage({orgId, deviceId, scope, capName, version},
+                {billingUser, billingSecret});
             }
           });
         });

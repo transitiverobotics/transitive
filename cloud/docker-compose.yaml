@@ -61,6 +61,7 @@ services:
       target: prod
       #DEVtarget: dev
     image: transitive/cloud:latest
+    tty: true # to get colored logging output
     restart: always
     depends_on:
       - ensure_certs
@@ -79,7 +80,6 @@ services:
       #DEV- ./app/server.js:/app/server.js
       #DEV- ./app/utils.js:/app/utils.js
       #DEV- ./app/common.js:/app/common.js
-      #DEV- ./app/stripeUtils.js:/app/stripeUtils.js
       #DEV- ../../transitive-caps/:/app/transitive-caps
     env_file:
       - .env

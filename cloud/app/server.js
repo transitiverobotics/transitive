@@ -610,10 +610,16 @@ class _robotAgent extends Capability {
     });
 
 
-    this.router.post('/logout', async (req, res) => {
+    this.router.post('/logout', async (req, res, next) => {
       log.debug('logout', req.session.user);
-      res.clearCookie(COOKIE_NAME).json({status: 'ok'});
-      delete req.session.user;
+      req.session.user = null
+      req.session.save((err) => {
+        if (err) next(err);
+        req.session.regenerate((err) => {
+          if (err) next(err);
+          res.clearCookie(COOKIE_NAME).json({status: 'ok'});
+        });
+      })
     });
 
 

@@ -43,8 +43,7 @@ const addSessions = (router, collectionName, secret) => {
       dbName: Mongo.db.databaseName,
       collectionName
     }),
-    // cookie: {domain: process.env.TR_HOST}
-    // cookie: {domain: `portal.${process.env.TR_HOST}`}
+    cookie: {domain: `.${process.env.HOST}`}
   }));
 };
 

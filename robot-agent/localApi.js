@@ -63,7 +63,7 @@ const handleRequest = ({command, ...args}, res) => {
 };
 
 module.exports = {
-  startServer: () => {
+  startServer: (cb) => {
     server = http.createServer(async (req, res) => {
       console.log(req.url);
       const body = await readRequest(req);
@@ -75,6 +75,13 @@ module.exports = {
       }
     });
 
-    fs.unlink(SOCKET_FILE, () => server.listen(SOCKET_FILE));
+    fs.unlink(SOCKET_FILE, () => {
+      server.listen(SOCKET_FILE);
+      cb && cb();
+    });
   },
+
+  stopServer: () => {
+    server.close();
+  }
 };

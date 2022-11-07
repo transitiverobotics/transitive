@@ -77,20 +77,31 @@ if [[ ! -e $FLAG_FILE ]]; then
   printStep "Installing the agent"
   $NPM install > /dev/null
 
-  printStep "Success!"
+  printStep "Agent installed"
   touch $FLAG_FILE
 
 else
   echo "Agent already installed, not reinstalling."
 fi;
 
-
+printStep "Installation complete"
 if [[ -d /run/systemd/system ]]; then
   # systemd is running, so the postinstall of the robot-agent will have already
   # started it via a systemd user service
   echo "  You can verify that the agent is running using 'systemctl --user status transitive-robot.service'"
+
+elif [docker]; then
+  echo "  Docker: running preinstall"
+
+  cd $DIR
+  $NODE node_modules/\@transitive-robotics/robot-agent/docker_install.js
+
+  mv $HOME/.transitive /transitive-preinstalled
+  # This folder will get bind mounted on top of anyways, but just to avoid
+  # confusion and save space, we'll clean up:
+  rm -rf $HOME/.transitive/
+
 else
-  printStep "Installation complete"
   echo "  Starting agent since systemd is not running."
   cd $HOME/.transitive
   bash start_agent.sh

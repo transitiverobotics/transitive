@@ -60,12 +60,15 @@ do
   # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
   rm -rf node_modules/.*-* node_modules/@*/.*-*
 
-  npm update --no-save
-  # Note: npm update also installs missing packages, see,
-  # https://stackoverflow.com/a/19824154/1087119
-  # But we still need to run `npm install` to make sure all dependencies
-  # are installed as well (e.g., if compilation of native code failed last time)
-  npm install --no-save
+  if ! npm outdated; then
+    # yes, `npm outdated` has a non-zero exit code iff there are outdated packages
+    npm update --no-save
+    # Note: npm update also installs missing packages, see,
+    # https://stackoverflow.com/a/19824154/1087119
+    # But we still need to run `npm install` to make sure all dependencies
+    # are installed as well (e.g., if compilation of native code failed last time)
+    npm install --no-save
+  fi;
 
   cd "$BASE/node_modules/$1"
   export PASSWORD=$(cat ../../../password)

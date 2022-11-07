@@ -150,13 +150,20 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
       id: req.body._id,
       ok: true,
       token
-    })
+    });
   });
 
   /** --- Packages ---------------------------------------------------------- */
 
   app.put('/:package/:_rev?/:revision?', useUser, async (req, res) => {
     const data = req.body;
+    if (req.params._rev) {
+      res.status(401).json({
+        error: `We don't support revisions.`,
+        success: false
+      });
+      return;
+    }
     console.log(`receiving package ${data.name}`);
 
     // ensure all tarball URLs use our global hostname, not localhost
@@ -223,7 +230,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
       }
 
-      // all test passed: add new version
+      // all tests passed: add new version
       const versionObj = data.versions[versionNumber];
       packages.updateOne({_id: req.params.package}, {$set: {
           version: versionObj.version,

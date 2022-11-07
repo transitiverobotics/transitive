@@ -80,6 +80,7 @@ services:
       #DEV- ./app/server.js:/app/server.js
       #DEV- ./app/utils.js:/app/utils.js
       #DEV- ./app/common.js:/app/common.js
+      #DEV- ./app/install.js:/app/install.js
       #DEV- ../../transitive-caps/:/app/transitive-caps
     env_file:
       - .env

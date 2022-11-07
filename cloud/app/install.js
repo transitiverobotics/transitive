@@ -19,6 +19,7 @@ const router = express.Router();
   from request parameters */
 const replaceVariables = (text, req) => {
   const env = {
+    docker: 'false', // default, can be set to true in query
     ...req.query,
     host: `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`,
     PROTOCOL: `${req.headers['x-forwarded-proto']}://`,

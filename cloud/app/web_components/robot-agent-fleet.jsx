@@ -110,9 +110,12 @@ const Fleet = (props) => {
             device_url={device_url} />)
       }
       <ListGroup.Item>
+        Add more device by executing this on your device:
         <Code>
           curl -s "{curlURL}?<wbr/>id={id}&<wbr/>token={encodeURIComponent(robot_token)}" | bash
         </Code>
+        To pre-install the agent plus capabilities in a docker image, see the
+        documentation.
       </ListGroup.Item>
     </ListGroup>
   </div>

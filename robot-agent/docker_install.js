@@ -4,7 +4,7 @@ any desired packages.
 */
 
 const fs = require('fs');
-const {execSync} = require('child_process');
+const {spawn} = require('child_process');
 const localApi = require('./localApi');
 
 const constants = require('./constants');
@@ -20,36 +20,39 @@ try {
     e);
 }
 
-const installPackage = (pkg) => {
+const installPackage = (pkg) => new Promise((resolve, reject) => {
   console.log(`Installing ${pkg}`);
   const pkgDir = `${DIR}/packages/${pkg}`;
   fs.mkdirSync(pkgDir, {recursive: true});
   fs.copyFileSync(`${DIR}/.npmrc`, `${pkgDir}/.npmrc`);
-  fs.writeFileSync(`${pkgDir}/package.json`,
-    `{ "dependencies": {"${pkg}": "*"} }`);
-  try {
-    execSync('npm install --no-save', {cwd: pkgDir,
-      env: Object.assign({}, process.env,
-        {
-          PATH: `${process.PATH}:${DIR}/usr/bin`,
+  fs.writeFileSync(`${pkgDir}/package.json`, `{"dependencies": {"${pkg}": "*"}}`);
 
+  // Cannot use spawnSync here, since that would block requests to the localApi
+  // as well, which we may need to process as part of these npm install processes
+  const npmInstall = spawn('npm', ['install', '--no-save'], {
+    cwd: pkgDir,
+    env: {
+      ...process.env,
+      PATH: `${process.env.PATH}:${DIR}/usr/bin`,
+      TRANSITIVE_IS_ROBOT: 1,
+    },
+    stdio: 'inherit'
+  });
 
-          // #HERE: test this
+  npmInstall.on('close', (code) => {
+    code && console.warn(`Installing ${pkg} exited with code:`, code);
+    resolve();
+  });
+});
 
-
-
-        })
-    });
-  } catch (e) {
-    console.warn(`Installing ${pkg} failed:`, e);
-  }
-};
 
 // Need to start the local API server to install package dependencies if necessary
-localApi.startServer(() => {
+localApi.startServer(async () => {
   const packages = config?.global?.desiredPackages || [];
   console.log(`Desired packages: ${packages.join(', ')}`);
-  packages.forEach(installPackage);
+  for (let p of packages) {
+    await installPackage(p);
+  }
 
   localApi.stopServer();
   console.log('docker_install.js: done');

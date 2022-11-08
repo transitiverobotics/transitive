@@ -77,11 +77,13 @@ module.exports = {
 
     fs.unlink(SOCKET_FILE, () => {
       server.listen(SOCKET_FILE);
+      console.log('localApi server listening on', SOCKET_FILE);
       cb && cb();
     });
   },
 
   stopServer: () => {
+    console.log('stopping localApi server');
     server.close();
   }
 };

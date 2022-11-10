@@ -18,15 +18,16 @@ const styles = {
     color: '#bbb'
   },
   logo: {
-    height: '1.2em',
-    marginRight: '0.3em',
-    verticalAlign: 'top',
+    height: '1.5em',
+    marginRight: '0.4em',
+    verticalAlign: 'text-bottom',
     display: 'inline-block'
   },
   brand: {
     color: 'inherit',
     textDecorations: 'none',
     textAlign: 'center',
+    fontSize: 'large'
   },
   views: {
     flexGrow: '1',

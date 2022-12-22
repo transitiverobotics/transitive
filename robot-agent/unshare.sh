@@ -8,7 +8,8 @@
 if [[ $(id -u) == 0 ]]; then
   # we are root
   echo "we are root"
-  unshare -m $PWD/unshared.sh $@
+  # make sure the USER is set
+  env USER=root unshare -m $PWD/unshared.sh $@
 elif (sudo -n whoami >/dev/null 2>/dev/null); then
   # we have passwordless sudo
   echo "using sudo for $USER"

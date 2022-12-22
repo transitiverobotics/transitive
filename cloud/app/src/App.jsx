@@ -15,7 +15,8 @@ import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
 
 const log = getLogger('App.jsx');
-log.setLevel('debug');
+// log.setLevel('debug');
+log.setLevel('info');
 
 const F = React.Fragment;
 

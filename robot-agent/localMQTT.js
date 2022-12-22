@@ -10,7 +10,7 @@ const persistence = require('aedes-persistence')();
 //   path: './db',     // defaults to './data',
 //   prefix: 'mqtt'    // defaults to ''
 // });
-const Aedes = require('aedes');
+const Aedes = require('aedes-preunsub');
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('localMQTT');
 

@@ -392,7 +392,10 @@ class _robotAgent extends Capability {
 
           // Report usage and get JWT right away since the capability on the
           // device may be waiting on it.
-          if (!this.isRunning(orgId, deviceId)) return;
+          if (!this.isRunning(orgId, deviceId)) {
+            log.debug('Device is not live', orgId, deviceId);
+            return;
+          }
           const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
 
           if (!billingSecret) {
@@ -448,12 +451,16 @@ class _robotAgent extends Capability {
     const ns = [orgId, deviceId, scope, capName, version];
 
     // log.debug(`updateSubscriptions: cap ${capability} is running`);
-    const recordJwt = jwt.sign({deviceId, capability}, billingSecret);
+    const params = new URLSearchParams({
+      jwt: jwt.sign({deviceId, capability}, billingSecret),
+      host: process.env.HOST  // for bookkeeping
+    });
 
     try {
       const response = await fetch(
-        `${BILLING_SERVICE}/v1/record/${billingUser}?jwt=${recordJwt}`
+        `${BILLING_SERVICE}/v1/record/${billingUser}?${params}`
       );
+
       const json = await response.json();
       if (json.ok) {
         // got token, share with device

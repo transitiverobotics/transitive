@@ -73,6 +73,9 @@ if [[ ! -e $FLAG_FILE ]]; then
   echo "TR_INSTALL_HOST=[host]" >> .env
   echo "TR_ROBOT_TOKEN=[token]" >> .token
 
+  # make sure we have the github.com host key file, so ssh fetches work in npm
+  # mkdir -p ~/.ssh
+  # ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
   printStep "Installing the agent"
   $NPM install > /dev/null

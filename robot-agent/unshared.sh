@@ -18,14 +18,19 @@ mkdir -p $RODIR
 # hide some folders by bind-mounting an empty read-only folder on top of them
 mount -o bind,ro $RODIR /var
 
-# create fs overlays for /usr and /opt; will be bind-mounted later
-mkdir -p $HOME/.transitive/tmp
-TMP=$(mktemp -d -p $HOME/.transitive/tmp)
-for folder in usr opt; do
-  mkdir -p $TMP/$folder/{workdir,merged}
-  mkdir -p $HOME/.transitive/$folder # in case it doesn't exist
-  mount -t overlay overlay -olowerdir=/$folder,upperdir=$HOME/.transitive/$folder,workdir=$TMP/$folder/workdir $TMP/$folder/merged
-done;
+# $USER is not root when we are in an `unshare -r`
+if [[ $USER != "root" ]]; then
+  # create fs overlays for /usr and /opt; will be bind-mounted later
+  mkdir -p $HOME/.transitive/tmp
+  TMP=$(mktemp -d -p $HOME/.transitive/tmp)
+  for folder in usr opt; do
+    mkdir -p $TMP/$folder/{workdir,merged}
+    mkdir -p $HOME/.transitive/$folder # in case it doesn't exist
+    mount -t overlay overlay -olowerdir=/$folder,upperdir=$HOME/.transitive/$folder,workdir=$TMP/$folder/workdir $TMP/$folder/merged
+  done;
+else
+  echo "we are root, not using overlays";
+fi;
 
 mkdir -p $TRHOME/$USER
 mkdir -p $TRHOME/transitive
@@ -38,10 +43,12 @@ for folder in usr bin sbin opt lib etc var run; do
   fi
 done
 
-# bind-mount our merged overlay directories onto /usr and /opt
-for folder in usr opt; do
-  mount --bind $TMP/$folder/merged /$folder
-done;
+if [[ $USER != "root" ]]; then
+  # bind-mount our merged overlay directories onto /usr and /opt
+  for folder in usr opt; do
+    mount --bind $TMP/$folder/merged /$folder
+  done;
+fi;
 
 mount --rbind $TRHOME /home
 rm -f $TRHOME/$USER/.transitive

@@ -146,6 +146,11 @@ const CapabilityWidget = ({type}) => {
 
   const pkgUrl = session?.user &&
     `/running/${capability}/package.json?userId=${session.user}&deviceId=${deviceId || '_fleet'}`;
+  /** TODO: Could we replace this^ with a call like
+    fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`)).json();
+    as in docker.js?
+    or use `npm view`? https://docs.npmjs.com/cli/v7/commands/npm-view
+  */
 
   // fetch info about additional widgets of this capability from it's
   // package.json

@@ -17,6 +17,7 @@ const REGISTRY_HOST = '172.17.0.1';
 
 // window of port numbers from which to give out ports to cap containers
 const EXPOSED_PORT_WINDOW = [11000, 25000];
+// Note: 30000 - 40000 currently given to turnserver in our cloud
 
 const log = getLogger('docker.js');
 log.setLevel('debug');

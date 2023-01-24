@@ -21,6 +21,8 @@ mount -o bind,ro $RODIR /var
 # $USER is not root when we are in an `unshare -r`
 if [[ $USER != "root" ]]; then
   # create fs overlays for /usr and /opt; will be bind-mounted later
+  # TODO: this doesn't need to be per-capability; can't we create this once and
+  # then use nsenter (or similar) to share that setup among caps?
   mkdir -p $HOME/.transitive/tmp
   TMP=$(mktemp -d -p $HOME/.transitive/tmp)
   for folder in usr opt; do

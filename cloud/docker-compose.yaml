@@ -20,8 +20,10 @@ services:
       - ${TR_VAR_DIR:-.}/certs:/generated
 
   mongodb:
-    image: mongo:5
+    build: ./mongo # with replset, required to watch for changes
+    image: transitive/mongo:latest
     restart: always
+    command: --replSet rs0
     volumes:
       - ${TR_VAR_DIR:-.}/db:/data/db
     networks:
@@ -45,13 +47,23 @@ services:
       - caps
 
   homepage:
-    build: ./homepage
+    build:
+      context: ./homepage
+      args:
+        - MONGO_URL=mongodb://mongodb
+        - MONGO_DB=transitive
     image: transitive/homepage:latest
     restart: always
     volumes:
-      - ${TR_VAR_DIR:-.}/static:/app/static
+      - ${TR_VAR_DIR:-.}/static:/app/build/static
     ports:
       - 3000:3000
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    networks:
+      - default
 
   cloud:
     build:

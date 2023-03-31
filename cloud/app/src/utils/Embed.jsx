@@ -30,10 +30,9 @@ export const Embed = ({name, jwt, deviceId, extra, style, host, ssl}) => {
   const currentHost = `${url.protocol}//${url.host}`;
   const bundleURL =
     `${currentHost}/running/${jwtPayload.capability}/dist/${name}.js?${params}`;
-  const jwtPayloadExample = Object.assign(jwtPayload, {
-    userId: '[a string that uniquely identifies the current user]',
-    validity: '[number of seconds this authentication should remain valid]',
-  });
+  const jwtPayloadExample = {...jwtPayload};
+  delete jwtPayloadExample.userId;
+  delete jwtPayloadExample.validity;
   delete jwtPayloadExample.iat;
 
   const optionalExtraParam = extra &&
@@ -62,7 +61,12 @@ export const Embed = ({name, jwt, deviceId, extra, style, host, ssl}) => {
       with your JWT secret (see <Link to='/security'>Security</Link>), carrying
       the payload:
       <Code>
-        {JSON.stringify(jwtPayloadExample, true, 2)}
+        {['{',
+            ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}"`),
+            `  "userId": "[a string that uniquely identifies the current user]"`,
+            `  "validity": [number of seconds this authentication should remain valid]`,
+            '}'
+          ].join('\n')}
       </Code>
 
       <div>

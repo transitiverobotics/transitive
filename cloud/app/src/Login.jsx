@@ -31,6 +31,12 @@ const styles = {
   error: {
     padding: '0.5em',
     color: '#b00',
+  },
+  conditions: {
+    fontSize: 'smaller',
+    color: '#444',
+    marginTop: '2em',
+    marginBottom: '2em'
   }
 };
 
@@ -83,6 +89,11 @@ export const UserContextProvider = ({children}) => {
 /** Login component; updates the context on login/logout events */
 export const Login = ({}) => {
 
+  const url = new URL(window.location);
+  url.hostname = url.hostname.split('.').slice(-2).join('.');
+  url.pathname = '/';
+  const homepage = url.toString();
+
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const {session, login, logout, error} = useContext(UserContext);
@@ -110,6 +121,14 @@ export const Login = ({}) => {
           onChange={e => setPassword(e.target.value)}
           autoComplete="current-password"/>
       </Form.Group>
+
+      <div style={styles.conditions}>
+        By clicking the Log in button, you agree to Transitive Robotics's <a
+          href={`${homepage}terms`}>Terms of Service</a> and <a
+          href={`${homepage}privacy.html`}>
+          Privacy Policy</a>.
+      </div>
+
       <Button variant="primary" disabled={!userName || !password}
         onClick={() => login(userName, password)}
         type='submit'

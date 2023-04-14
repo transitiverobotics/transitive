@@ -29,6 +29,8 @@ services:
     networks:
       - default
       - shared
+    logging:
+      driver: local
 
   mosquitto:
     build: ./mosquitto
@@ -45,6 +47,8 @@ services:
     networks:
       - default
       - caps
+    logging:
+      driver: local
 
   homepage:
     build:
@@ -64,6 +68,8 @@ services:
       - .env
     networks:
       - default
+    logging:
+      driver: local
 
   cloud:
     build:
@@ -102,6 +108,8 @@ services:
       - default
       - caps
       - shared
+    logging:
+      driver: local
 
   proxy:
     build: ./proxy
@@ -118,6 +126,8 @@ services:
     networks:
       - default
       - shared
+    logging:
+      driver: local
 
   registry:
     build: ./registry
@@ -132,6 +142,8 @@ services:
     networks:
       - default
       - shared
+    logging:
+      driver: local
 
   # Once the registry is up, republish the robot-agent to it, in case it changed
   publish:

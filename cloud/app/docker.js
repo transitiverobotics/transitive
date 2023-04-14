@@ -59,7 +59,7 @@ const build = async ({name, version}) => {
   const cn = `cap:${name.replace(/\//g, '\\/')}`;
   execSync(`openssl genrsa -out ${keyFile} 2048`);
   execSync(`openssl req -out ${csrFile} -key ${keyFile} -new -subj="/CN=${cn}"`);
-  execSync(`openssl x509 -req -in ${csrFile} -out ${crtFile} -CA /etc/mosquitto/certs/ca.crt -CAkey /etc/mosquitto/certs/ca.key -days 180`);
+  execSync(`openssl x509 -req -in ${csrFile} -out ${crtFile} -CA /etc/mosquitto/certs/ca.crt -CAkey /etc/mosquitto/certs/ca.key -days 3650`);
 
   // generate package.json
   const packageJson = {

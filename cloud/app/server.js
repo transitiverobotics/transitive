@@ -243,11 +243,17 @@ app.post('/auth/user', async (req, res) => {
   // const devices = Mongo.db.collection('devices');
 
   const token = req.body.password;
-  const payload = decodeJWT(token);
-  const parsedUsername = JSON.parse(req.body.username);
-  // log.debug('  ', payload, parsedUsername);
+  if (!token) {
+    log.warn('no token provided');
+    res.status(401).send('please provide a valid JWT');
+    return;
+  }
 
   try {
+    const payload = decodeJWT(token);
+    const parsedUsername = JSON.parse(req.body.username);
+    // log.debug('  ', payload, parsedUsername);
+
     // First verify that the user's signed JWT has the same payload as username.
     // This is needed because downstream decision, e.g., in ACL, will be based
     // on this verified username.
@@ -277,7 +283,7 @@ app.post('/auth/user', async (req, res) => {
 
     res.send('ok');
   } catch (e) {
-    log.info(`user authentication failed`, e);
+    log.info(`user authentication failed for token ${token}:`, e);
     res.status(401).send(e);
   }
 });

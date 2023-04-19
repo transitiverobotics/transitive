@@ -13,7 +13,7 @@ window.loglevel = loglevel;
 const styles = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(0deg, rgb(0 0 0), rgb(88 88 88))',
+    background: 'linear-gradient(21deg, rgb(0, 0, 0), #000, #112, #234)',
   },
   wrapper: {
     margin: 'auto',

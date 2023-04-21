@@ -213,6 +213,8 @@ const start = async ({name, version}) => {
         `PUBLIC_PORT=${exposedPorts.min}`,
         `MIN_PORT=${exposedPorts.min + 1}`,
         `MAX_PORT=${exposedPorts.max}`,
+        `MONGO_DB=cap_${name.replace(/@/g, '').replace('/', '_')}`,
+        'MONGO_URL=mongodb://mongodb',
       ],
       ExposedPorts,
       HostConfig,

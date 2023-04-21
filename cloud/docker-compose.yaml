@@ -28,6 +28,7 @@ services:
       - ${TR_VAR_DIR:-.}/db:/data/db
     networks:
       - default
+      - caps # TODO: This means we'll need to enable authentication on the DB
       - shared
     logging:
       driver: local

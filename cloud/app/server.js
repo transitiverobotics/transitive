@@ -1,4 +1,5 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
@@ -78,6 +79,64 @@ const getVersion = (userId, deviceId, scope, capName) => {
   }
 };
 
+/** Given a JWT, verify that it is valid, i.e., was signed by the secret
+* belonging to the user id named in the token */
+const verifyJWT = async (token) => {
+  const payload = decodeJWT(token);
+
+  const accounts = Mongo.db.collection('accounts');
+  const account = await accounts.findOne({_id: payload.id});
+
+  if (!account) {
+    return {
+      valid: false,
+      error: 'no such account, please verify the id provided to the web component'
+    };
+  }
+  if (!account.jwtSecret) {
+    return {
+      valid: false,
+      error: 'account has no jwt secret! please recreate using the cli tool'
+    };
+  }
+
+  await jwt.verify(token, account.jwtSecret);
+  log.debug('verified token');
+
+  if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
+    // The token is expired
+    log.info(`JWT is expired ${JSON.stringify(payload)}`);
+    return {
+      valid: false,
+      error: `JWT is expired ${JSON.stringify(payload)}`
+    };
+  }
+
+  return {
+    valid: true,
+    payload
+  }
+}
+
+/** Verify the session cookie set by setSessionJWT */
+const parseJWTCookie = async (cookie) => {
+  if (!cookie) return {};
+
+  const parsed = JSON.parse(cookie);
+  if (!parsed.token) {
+    return {};
+  }
+
+  const {valid, error, payload} = await verifyJWT(parsed.token);
+  if (valid) {
+    return payload;
+  }
+  log.debug('parseJWTCookie: invalid token, ', error);
+  return {};
+};
+
+
+
 // ----------------------------------------------------------------------
 
 const app = express();
@@ -98,6 +157,7 @@ app.use('/caps', capsRouter);
 
 const addCapsRoutes = () => {
   log.debug('adding caps router');
+  capsRouter.use(cookieParser());
 
   addSessions(capsRouter, 'tokenSessions', process.env.TR_CAPSESSION_SECRET);
 
@@ -152,7 +212,9 @@ const addCapsRoutes = () => {
     res.cookie(TOKEN_COOKIE, JSON.stringify(json)).json(json);
   });
 
-  /** if the client already has a JWT, it can set it for the session here */
+  /** If the client already has a JWT, it can set it for the session here.
+  * This will authenticate him for capability routes who can just check the
+  * cookie. */
   capsRouter.post('/setSessionJWT', async (req, res) => {
     log.debug('setting session JWT', req.body);
     const {token} = req.body;
@@ -188,14 +250,18 @@ const addCapsRoutes = () => {
 
   /** http proxy for reverse proxying to web servers run by caps */
   const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
-  capsRouter.use('/:scope/:capName/:version', (req, res, next) => {
+  capsRouter.use('/:scope/:capName/:version', async (req, res, next) => {
     // construct docker container name from named cap and version
     // e.g., transitive-robotics.configuration-management.0.1.5-0.cloud_caps
     // (cloud_caps is the name of the docker network)
     const host =
       `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
     log.debug('proxying to', host);
-    capsProxy.web(req, res, {target: `http://${host}:8085`});
+    // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
+    const payload = await parseJWTCookie(req.cookies[TOKEN_COOKIE]);
+    // log.debug({payload});
+    capsProxy.web(req, res, {target: `http://${host}:8085`,
+      headers: {'jwt-payload': JSON.stringify(payload)}});
   });
 };
 
@@ -250,38 +316,20 @@ app.post('/auth/user', async (req, res) => {
   }
 
   try {
-    const payload = decodeJWT(token);
-    const parsedUsername = JSON.parse(req.body.username);
-    // log.debug('  ', payload, parsedUsername);
+    const {valid, error, payload} = await verifyJWT(token);
 
-    // First verify that the user's signed JWT has the same payload as username.
-    // This is needed because downstream decision, e.g., in ACL, will be based
-    // on this verified username.
-    assert.deepEqual(payload, parsedUsername.payload);
+    if (error) {
+      res.status(401).send(error);
+    } else {
+      const parsedUsername = JSON.parse(req.body.username);
+      // Verify that the user's signed JWT has the same payload as username.
+      // This is needed because downstream decision, e.g., in ACL, will be based
+      // on this verified username.
+      assert.deepEqual(payload, parsedUsername.payload);
 
-    const account = await accounts.findOne({_id: parsedUsername.id});
-    // log.debug(account);
-    if (!account) {
-      res.status(401).send(
-        'no such account, please verify the id provided to the web component');
-      return;
-    }
-    if (!account.jwtSecret) {
-      res.status(401).send('account has no jwt secret! please recreate using the cli tool');
-      return;
+      res.send('ok');
     }
 
-    await jwt.verify(token, account.jwtSecret);
-    log.debug('verified token');
-
-    if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
-      // The token is expired
-      log.info(`JWT is expired ${JSON.stringify(payload)}`);
-      res.status(401).send(`JWT is expired ${JSON.stringify(payload)}`);
-      return;
-    }
-
-    res.send('ok');
   } catch (e) {
     log.info(`user authentication failed for token ${token}:`, e);
     res.status(401).send(e);

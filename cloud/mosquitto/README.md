@@ -1,6 +1,9 @@
-# File required for mosquitto
-
+# Files required for mosquitto
 
 ## Auth plugin
 
-The [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug) is no longer supported by its creator and it didn't compile anymore. Had to make some minor changes to make it compile again. These changes are reflected in the tar-ball found here. After unpacking it should compile (at least for the HTTP backend we currently use), as long as there is a mosquitto source folder next to it (../mosquitto from the mosquitto-auth-plug folder).
+We are now using two different auth plugins, the go-auth plugin, of which we use the HTTP mode for authenticating (web) client by JWT, and our own custom auth-transitive, see https://github.com/chfritz/transitive/issues/250. The latter is *much* faster than using go-auth's JS mode.
+
+## Notes
+
+In the past we used [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug), which contains some good hints for using mosquitto's C API.

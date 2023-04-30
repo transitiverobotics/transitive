@@ -60,13 +60,24 @@ const styles = {
   }
 };
 
+window.setEmbed ||= {};
+
 /** Note, this only works on the cloud app directly when we are logged in with
     username/password, which allows us to get JWTs. This is not a model of
   how to do this with capabilities in other web applications */
 const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}) => {
   const {session, logout} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
+  // things added to embedding option by the capability widget itself
+  const [added, setAdded] = useState();
   const {deviceId = '_fleet'} = useParams();
+
+  // hacky, but works well: expose a method through which the capability can set
+  // additional parameters to include in the embedding
+  window.setEmbed[webComponent] = (options) => {
+    log.debug('setEmbed', webComponent, options);
+    setAdded(options);
+  };
 
   log.debug('Capability', {deviceId, webComponent, capability, props, session});
   ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
@@ -111,8 +122,9 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
       id: session.user,
       host: TR_HOST,
       ssl,
+      setembed: webComponent,
       ...session,
-      ...props
+      ...props,
     }, null);
 
   if (simple) {
@@ -128,7 +140,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
         {capability}/{webComponent}
       </span>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
-        host={TR_HOST} ssl={ssl} />
+        host={TR_HOST} ssl={ssl} added={added} />
     </div>
   </div>;
 };

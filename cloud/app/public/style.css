@@ -10,15 +10,13 @@ a, .btn-link {
   text-decoration: none !important;
 }
 
-.capability .body {
+/* .capability .body {
   padding: 0.5em 1em 0.5em 1em;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
 }
 
 .capability .header {
-  /* color: #ccc; */
-  /* background-color: #6669; */
   color: #777;
   font-size: smaller;
   border-bottom-left-radius: 8px;
@@ -27,7 +25,7 @@ a, .btn-link {
 }
 .capability .header + .body {
   outline: none;
-}
+} */
 
 .nav-item:hover {
   background-color: #311 !important;

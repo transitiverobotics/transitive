@@ -101,6 +101,9 @@ const build = async ({name, version}) => {
       `ENV HOST=${process.env.HOST}`,
       `ENV EXTERNAL_IP=${externalIp.address}`,
       'ENV TRANSITIVE_IS_CLOUD=1',
+      // Required in order to install indirect dependencies from the
+      // @transitive-robotics scope
+      'ENV npm_config_userconfig=/app/.npmrc',
       'RUN npm install',
       `RUN mkdir ${certsFolder}`,
       `RUN ln -s /app/client.crt ${certsFolder}`,

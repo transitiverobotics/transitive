@@ -33,6 +33,8 @@ PATH=/home/usr/bin:$PATH
 node -e "fs.writeFileSync('password', Math.random().toString(36).substr(2, 9))"
 
 export TRANSITIVE_IS_ROBOT=1
+# Required in order to install indirect dependencies from the @transitive-robotics scope
+export npm_config_userconfig=$PWD/.npmrc
 
 pid=
 

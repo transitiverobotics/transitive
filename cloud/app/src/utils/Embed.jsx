@@ -10,7 +10,7 @@ import {fetchJson, getLogger, decodeJWT} from '@transitive-sdk/utils-web';
 import {Fold} from './Fold';
 import {Code} from './Code';
 
-const log = getLogger('webrtc-video');
+const log = getLogger('Embed');
 log.setLevel('debug');
 
 const styles = {
@@ -29,7 +29,7 @@ const formatParams = (params) => _
     .join('');
 
 /** reusable embedding instructions */
-const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, added = {}}) => {
+const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}}) => {
   if (!jwt) {
     return <span></span>;
   }
@@ -51,7 +51,7 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, added = {}}
   delete jwtPayloadExample.iat;
 
   const defaultParams = `id=${id} host=${host} ssl=${ssl}`;
-  const paramString = formatParams({...extra, ...added});
+  const paramString = formatParams({...extra, ...config});
 
   const createToken = () => {
     log.debug({tokenName, password});
@@ -133,10 +133,19 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, added = {}}
 //     <EmbedBody {...props} />
 //   </Fold>;
 
-export const Embed = ({style, ...props}) => {
+export const Embed = ({style, compRef, capability, name, ...props}) => {
   const [show, setShow] = useState(false);
+  const [config, setConfig] = useState(false);
+
+  const open = () => {
+    // get the config from the component for which we are showing embedding code
+    const config = compRef.current.getConfig?.();
+    config && setConfig(config);
+    setShow(true);
+  };
+
   return <div>
-    <Button variant='link' onClick={() => setShow(true)}>
+    <Button variant='link' onClick={open}>
       <FaCode style={styles.icon}/> Embed
     </Button>
     <Modal show={show} size="lg" centered aria-labelledby="embedding code"
@@ -147,7 +156,10 @@ export const Embed = ({style, ...props}) => {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body style={styles.modalBody}>
-        <EmbedBody {...props} />
+        <EmbedBody name={name} {...props} config={config} />
+        <Form.Text>
+          capability: {capability}, widget: {name}
+        </Form.Text>
       </Modal.Body>
     </Modal>
   </div>;

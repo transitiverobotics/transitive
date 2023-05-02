@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 
 import {BrowserRouter as Router, Routes, Route, Link, useParams} from
 'react-router-dom';
@@ -49,8 +49,16 @@ const styles = {
     background: '#eee',
   },
   cap: {
-    background: '#fff',
-    borderRadius: '6px',
+    wrapper: {
+      background: '#fff',
+      borderRadius: '6px',
+    },
+    embed: {
+      float: 'right'
+    },
+    body: {
+      padding: '1em'
+    }
   },
   capName: {
     float: 'right',
@@ -68,16 +76,8 @@ window.setEmbed ||= {};
 const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}) => {
   const {session, logout} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
-  // things added to embedding option by the capability widget itself
-  const [added, setAdded] = useState();
   const {deviceId = '_fleet'} = useParams();
-
-  // hacky, but works well: expose a method through which the capability can set
-  // additional parameters to include in the embedding
-  window.setEmbed[webComponent] = (options) => {
-    log.debug('setEmbed', webComponent, options);
-    setAdded(options);
-  };
+  const ref = useRef(null);
 
   log.debug('Capability', {deviceId, webComponent, capability, props, session});
   ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
@@ -122,7 +122,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
       id: session.user,
       host: TR_HOST,
       ssl,
-      setembed: webComponent,
+      ref,
       ...session,
       ...props,
     }, null);
@@ -131,16 +131,13 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
     return element;
   }
 
-  return <div className='capability' style={styles.cap}>
-    <div className='body'>
-      {element}
-    </div>
-    <div className='header'>
-      <span style={styles.capName} title='Name of the capability'>
-        {capability}/{webComponent}
-      </span>
+  return <div className='capability' style={styles.cap.wrapper}>
+    <div style={styles.cap.embed}>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
-        host={TR_HOST} ssl={ssl} added={added} />
+        host={TR_HOST} ssl={ssl} compRef={ref} capability={capability} />
+    </div>
+    <div style={styles.cap.body}>
+      {element}
     </div>
   </div>;
 };
@@ -271,13 +268,3 @@ export default () => {
     </UserContextProvider>
   </div>;
 };
-
-// <robot-agent-device
-//   id="qEmYn5tibovKgGvSm"
-//   cloud_host=""
-//   jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6IkB0cmFuc2l0aXZlLXJvYm90aWNzL19yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0Mzg1MDQ4Nn0.ofIzMkJOsuYHPCPkJs4wqtxqjSuZk7XAh7mHZbywFeo"
-//   />
-
-
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2UiOiJHYkdhMnlncXF6IiwiY2FwYWJpbGl0eSI6IkB0cmFuc2l0aXZlLXJvYm90aWNzL19yb2JvdC1hZ2VudCIsInVzZXJJZCI6InBvcnRhbFVzZXItcUVtWW41dGlib3ZLZ0d2U20iLCJ2YWxpZGl0eSI6NDMyMDAsImlhdCI6MTY0Mzg1MDQ4Nn0.ofIzMkJOsuYHPCPkJs4wqtxqjSuZk7XAh7mHZbywFeo"
-// jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNmcml0eiIsImNhcGFiaWxpdHkiOiJfcm9ib3QtYWdlbnQiLCJpYXQiOjE2NDM4NTY5MDN9.R0kzAK2KwCrx7v2KpNrDcNPq6KjmNyK6ufTDWusYyis"

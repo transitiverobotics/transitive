@@ -68,8 +68,6 @@ const styles = {
   }
 };
 
-window.setEmbed ||= {};
-
 /** Note, this only works on the cloud app directly when we are logged in with
     username/password, which allows us to get JWTs. This is not a model of
   how to do this with capabilities in other web applications */

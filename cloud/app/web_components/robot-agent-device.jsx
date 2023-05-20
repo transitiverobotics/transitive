@@ -257,16 +257,13 @@ const Device = (props) => {
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
       </span>
-    </div>
-
-    <div style={styles.row}>
-      <Button onClick={restartAgent} variant='outline-warning'>
+      <Button onClick={restartAgent} variant='link'>
         Restart agent
       </Button>
-      <Button onClick={stopAll} variant='outline-warning'>
+      <Button onClick={stopAll} variant='link'>
         Stop all capabilities
       </Button>
-      <ConfirmedButton onClick={clear} variant='outline-secondary'
+      <ConfirmedButton onClick={clear} variant='link'
         explanation={explanation}>
         Remove device
       </ConfirmedButton>

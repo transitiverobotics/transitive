@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ListGroup, Badge } from 'react-bootstrap';
 
-import { heartbeatState, Heartbeat, ensureProps } from './shared';
+import { heartbeatLevel, Heartbeat, ensureProps } from './shared';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const _ = {
   map: require('lodash/map'),
   pickBy: require('lodash/pickBy'),
+  reduce: require('lodash/reduce'),
 };
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
@@ -18,6 +19,7 @@ const log = getLogger('robot-agent-fleet');
 log.setLevel('debug');
 
 const clone = x => SON.parse(JSON.stringify(x));
+
 
 const explanation = `This will remove the data for all inactive devices.
   They will reappear if they reconnect, but all capability data will be gone.`;
@@ -31,9 +33,13 @@ const FleetDevice = ({status, info, device, device_url}) => {
     action href={`${device_url}/${device}`}
   >
     <div className="ms-2 me-auto">
-      <div className="fw-bold">{info?.os?.hostname}
+      <div className="fw-bold">
+        {status.heartbeat && <Heartbeat heartbeat={status.heartbeat} />}
+        <span>{info?.os?.hostname}</span>
         {info?.labels?.map(label =>
-            <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
+            <span key={label}>{' '}
+              <Badge bg="info">{label}</Badge>
+            </span>)
         }
       </div>
       { /* list running packages */
@@ -45,7 +51,7 @@ const FleetDevice = ({status, info, device, device_url}) => {
           ))
       }
     </div>
-    {status.heartbeat && <Heartbeat heartbeat={status.heartbeat} />}
+
   </ListGroup.Item>;
 };
 
@@ -86,7 +92,7 @@ const Fleet = (props) => {
   }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname));
 
   const stale = mergedData
-      .filter(({status}) => heartbeatState(status.heartbeat) == 'stale')
+      .filter(({status}) => heartbeatLevel(status.heartbeat) == 0)
       .map((device) => `/${id}/${device.id}`);
 
   /** remove inactive devices */
@@ -97,12 +103,23 @@ const Fleet = (props) => {
     mqttSync.clear(stale, () => log.info('devices removed'));
   };
 
+  const counts = _.reduce(mergedData, (agg, {status, info, id}) => {
+      const state = heartbeatLevel(status.heartbeat);
+      agg[state]++;
+      return agg;
+    }, [0, 0, 0]);  // see heartbeat level in shared.jsx
+
   return <div>
     <h5>Devices</h5>
-    {stale.length > 0 && <ConfirmedButton onClick={clear} variant='link'
-      explanation={explanation}>
-      Remove inactive devices
-    </ConfirmedButton>}
+
+    <div>
+      {counts[0]} online, {counts[1]} offline, {counts[2]} inactive
+      {stale.length > 0 && <ConfirmedButton onClick={clear} variant='link'
+        explanation={explanation} style={{verticalAlign: 'initial'}}>
+        Remove inactive devices
+      </ConfirmedButton>}
+    </div>
+
 
     <ListGroup variant="flush">
       {_.map(mergedData, ({status, info, id}) =>

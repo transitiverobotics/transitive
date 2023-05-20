@@ -17,7 +17,7 @@ const styles = {
   },
   wrapper: {
     margin: 'auto',
-    top: 'calc(50vh - 15em)',
+    top: 'calc(50vh - 20em)',
     // left: 'calc(50vw - 15em)',
     padding: '2em',
     maxWidth: '30em',

@@ -1,5 +1,6 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
@@ -148,7 +149,7 @@ const app = express();
 // });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(cors(), express.static(path.join(__dirname, 'dist')));
 app.use(express.json());
 
 // router for standalone-component pages

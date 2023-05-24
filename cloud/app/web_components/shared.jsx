@@ -7,7 +7,7 @@ const WARNING_THRESHOLD = 1.15 * 60 * 1e3;
 
 const levels = [
   {color: '#2e912e', comp: FaCircle, label: 'online'},
-  {color: '#700', comp: FaRegQuestionCircle, label: 'offline'},
+  {color: '#bd0000', comp: FaCircle, label: 'offline'},
   {color: '#777', comp: FaRegCircle, label: 'inactive'},
 ];
 

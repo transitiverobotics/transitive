@@ -36,6 +36,7 @@ const routingTable = dockerCompose ? {
     repo: 'cloud:9000/repo', // binaries we host for packages, may go away
     mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
     billing: 'billing:7000', // billing portal: only run by Transitive Robotics
+    foxglove: 'foxglove:8080', // run separately, for now
     default: 'homepage:3000'
   } : { // when not started via docker-compose (for local dev):
     registry: 'localhost:6000',

@@ -42,6 +42,7 @@ const styles = {
 
 export const UserContext = React.createContext({});
 export const UserContextProvider = ({children}) => {
+  const [ready, setReady] = useState(false);
   const [session, setSession] = useState();
   const [error, setError] = useState();
   const refresh = () => {
@@ -50,6 +51,7 @@ export const UserContextProvider = ({children}) => {
     log.debug('cookie', cookie);
     cookie[COOKIE_NAME] &&
       setSession(JSON.parse(cookie[COOKIE_NAME]));
+    setReady(true);
   };
   useEffect(refresh, []);
 
@@ -80,7 +82,7 @@ export const UserContextProvider = ({children}) => {
     },
     {method: 'post'});
 
-  return <UserContext.Provider value={{session, login, logout, error}}>
+  return <UserContext.Provider value={{ready, session, login, logout, error}}>
     {children}
   </UserContext.Provider>;
 };

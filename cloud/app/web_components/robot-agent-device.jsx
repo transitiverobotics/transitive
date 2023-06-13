@@ -6,9 +6,12 @@ const _ = {
   map: require('lodash/map'),
   some: require('lodash/some'),
   forEach: require('lodash/forEach'),
+  keyBy: require('lodash/keyBy'),
+  filter: require('lodash/filter'),
 };
 
 import pako from 'pako';
+import jsonLogic from '../src/utils/logic';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
 mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
@@ -18,6 +21,10 @@ import { Heartbeat, ensureProps } from './shared';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const log = getLogger('robot-agent-device');
+log.setLevel('debug');
+
+// extend jsonLogic with new operator for array size
+jsonLogic.add_operation("$size", (a) => a.length);
 
 const styles = {
   row: {
@@ -25,6 +32,19 @@ const styles = {
   },
   agentVersion: {
     fontSize: 'smaller'
+  },
+  issue: {
+    color: '#622',
+    fontSize: 'small'
+  },
+  rowItem: {
+    display: 'flex',
+    justifyContent: 'center',
+    flexDirection: 'column',
+  },
+  subText: {
+    color: '#999',
+    fontSize: 'small'
   }
 };
 
@@ -58,19 +78,18 @@ const getMergedPackageInfo = (robotAgentData) => {
   return rtv;
 };
 
+/** check whether the given device info (from mqtt) meet the given pkg's
+(json from npm registry) requirements if any. If it fails, will return a list
+of human-readable issues. */
+const failsRequirements = (info, pkg) => {
+  const requires = pkg.versions?.[0].transitiverobotics?.requires;
+  if (!requires) return false;
 
-/** parse lsb_release info, e.g.,
-'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'
-*/
-const parseLsbRelease = (string) => {
-  const lines = string.split('\n');
-  const rtv = {};
-  lines.forEach(line => {
-    const [field, value] = line.split('\t');
-    // drop colon of field name, then add to rtv
-    rtv[field.slice(0, -1)] = value;
-  });
-  return rtv;
+  const issues = requires.map( req =>
+      !jsonLogic.apply(req.rule, info) && req.message
+    ).filter(Boolean);
+  log.debug('meetsRequirements', info, requires, issues);
+  return issues;
 };
 
 /** display info from OS */
@@ -84,7 +103,7 @@ const OSInfo = ({info}) => !info ? <div></div> :
       }
     </div>
     <Form.Text>
-      {info.os.dpkgArch}, {parseLsbRelease(info.os.lsb_release)?.Description}
+      {info.os.dpkgArch}, {info.os.lsb?.Description}
     </Form.Text>
   </div>;
 
@@ -92,7 +111,19 @@ const OSInfo = ({info}) => !info ? <div></div> :
 const decompress = (zippedBase64) => {
   const buf = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
   return pako.ungzip(buf, {to: 'string'});
-}
+};
+
+/** given a package name, get it's human-readable title, e.g.,
+@transitive-robotics/remote-teleop => Remote Teleop
+*/
+const getPkgTitle = (name, allPackges) => {
+  const pkg = allPackges[name];
+  return pkg?.versions[0].transitiverobotics.title;
+};
+
+/** Given an object, map each item using fn, in lexicographic order of keys */
+const mapSorted = (obj, fn) =>
+  Object.keys(obj).sort().map(key => fn(obj[key], key));
 
 /** Component that renders the package log response, such as
 {
@@ -145,8 +176,9 @@ const Device = (props) => {
       const cloudHost = `${ssl ? 'https' : 'http'}://data.${host}`;
       fetch(`${cloudHost}/@transitive-robotics/_robot-agent/availablePackages`)
         .then(result => result.json())
-        .then(json => setAvailablePackages(json));
+        .then(json => setAvailablePackages(_.keyBy(json, 'name')));
     }, [ssl, host]);
+  log.debug({availablePackages});
 
   useEffect(() => {
       if (mqttSync) {
@@ -184,6 +216,9 @@ const Device = (props) => {
   const versionPrefix = `${prefix}/${latestVersion}`;
 
   const packages = getMergedPackageInfo(latestVersionData);
+  const canBeInstalledPkgs = _.keyBy(
+    _.filter(availablePackages, pkg => !packages[pkg.name]), 'name');
+  log.debug({availablePackages, packages, canBeInstalledPkgs});
 
   const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
 
@@ -273,12 +308,22 @@ const Device = (props) => {
       <h5>Capabilities</h5>
       <ListGroup>
         { Object.keys(packages).length > 0 ?
-          _.map(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
-            {name} {
+          mapSorted(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
+            <Row>
+            <Col sm='4' style={styles.rowItem}>
+                <div>{getPkgTitle(name, availablePackages)}</div>
+                <div style={styles.subText}>{name}</div>
+            </Col>
+            <Col sm='2' style={styles.rowItem}>
+            {
               running && <Badge bg="success">
                 running: v{Object.keys(running).join(', ')}
               </Badge>
-            } {
+            }
+            </Col>
+            <Col sm='6' style={styles.rowItem}>
+              <div>
+            {
               running && <Button variant='link' href={`/device/${device}/${name}`}>
                 view
               </Button>
@@ -302,6 +347,9 @@ const Device = (props) => {
                 get log
               </Button>
             }
+            </div>
+            </Col>
+            </Row>
           </ListGroup.Item>) :
 
           <ListGroup.Item>No capabilities running.</ListGroup.Item>
@@ -309,11 +357,18 @@ const Device = (props) => {
 
         <ListGroup.Item>
           <DropdownButton title="Install capabilities" variant='link'>
-            {availablePackages.map(pkg => <Dropdown.Item
-                key={pkg._id}
-                onClick={() => install(pkg)}>
-                {pkg.versions[0].transitiverobotics.title} ({pkg.version})
-              </Dropdown.Item>)
+            {mapSorted(canBeInstalledPkgs, pkg => {
+                const issues = failsRequirements(latestVersionData.info, pkg);
+                return <Dropdown.Item
+                  key={pkg._id}
+                  onClick={() => install(pkg)}
+                  disabled={Boolean(issues)}
+                >
+                  {pkg.versions[0].transitiverobotics.title} (v{pkg.version})
+                  {issues && issues.map((message, i) =>
+                    <div key={i} style={styles.issue}>{message}</div>)}
+                </Dropdown.Item>
+              })
             }
           </DropdownButton>
         </ListGroup.Item>

@@ -15,8 +15,8 @@ import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
 
 const log = getLogger('App.jsx');
-// log.setLevel('debug');
-log.setLevel('info');
+log.setLevel('debug');
+// log.setLevel('info');
 
 const F = React.Fragment;
 
@@ -246,7 +246,9 @@ const Portal = () =>
 
 const Apps = () => {
 
-  const {session, login, logout} = useContext(UserContext);
+  const {ready, session, login, logout} = useContext(UserContext);
+
+  if (!ready) return <div></div>;
 
   return <Router>
     <Routes>

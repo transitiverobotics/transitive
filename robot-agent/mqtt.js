@@ -176,14 +176,40 @@ const staticInfo = () => {
   }};
 
   process.env.TR_LABELS && (info.labels = process.env.TR_LABELS.split(','));
+  global.config && (info.config = global.config);
 
   exec('lsb_release -a', (err, stdout, stderr) => {
-    !err && (info.os.lsb_release = stdout.trim());
+    if (!err) {
+      const output = stdout.trim();
+      info.os.lsb_release = output;
+      info.os.lsb = parseLsbRelease(output);
+    }
     exec('dpkg --print-architecture', (err, stdout, stderr) => {
       !err && (info.os.dpkgArch = stdout.trim());
       data.update(`${AGENT_PREFIX}/info`, info);
     });
   });
+};
+
+/** parse lsb_release info, e.g.,
+'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'
+*/
+const parseLsbRelease = (string) => {
+  const lines = string.split('\n');
+  const rtv = {};
+  lines.forEach(line => {
+    const [field, value] = line.split('\t');
+    // drop colon of field name, then add to rtv
+    const name = field.slice(0, -1);
+    rtv[name] = value;
+    if (name == 'Release') {
+      // also parse Release, e.g., 20.04 => major: 20, minor: 4
+      const [major, minor] = value.split('.');
+      rtv.major = Number(major);
+      rtv.minor = Number(minor);
+    }
+  });
+  return rtv;
 };
 
 const heartbeat = () => {

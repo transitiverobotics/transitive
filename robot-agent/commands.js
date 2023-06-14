@@ -1,12 +1,12 @@
 const fs = require('fs');
 const { exec } = require('child_process');
 const zlib = require('zlib');
+const _ = require('lodash');
 
 const constants = require('./constants');
 const { restartPackage, killPackage, killAllPackages } = require('./utils');
 
-const { DataCache, getLogger } = require('@transitive-sdk/utils');
-const dataCache = new DataCache();
+const { getLogger, clone } = require('@transitive-sdk/utils');
 
 const log = getLogger('commands');
 log.setLevel('debug');
@@ -54,6 +54,19 @@ const commands = {
         stdout: zlib.gzipSync(stdout).toString('base64'),
         stderr: zlib.gzipSync(stderr).toString('base64')
       }));
+  },
+  updateConfig: (sub, modifier, cb) => {
+    log.debug('updateConfig', modifier);
+    // now set it in `global.config` and write it back to disk
+    _.forEach(modifier, (value, path) => _.set(global.config, path, value));
+    log.debug('backing up old config and writing new', global.config);
+    fs.cpSync('./config.json', './config.json.bak');
+    fs.writeFileSync('./config.json', JSON.stringify(global.config, true, 2),
+      {encoding: 'utf8'});
+
+    global.data.update(`${global.AGENT_PREFIX}/info/config`,
+      clone(global.config)
+    );
   },
 };
 

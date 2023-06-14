@@ -25,7 +25,7 @@ const mqtt = require('mqtt');
 const exec = require('child_process').exec;
 
 const { parseMQTTTopic, mqttClearRetained, mqttParsePayload, MqttSync, getLogger,
-loglevel } = require('@transitive-sdk/utils');
+loglevel, clone } = require('@transitive-sdk/utils');
 const { handleAgentCommand } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 
@@ -99,6 +99,9 @@ mqttClient.on('connect', function(connackPacket) {
     [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
 
       data = mqttSync.data;
+      global.data = data; // #hacky; need this in commands.js
+      global.AGENT_PREFIX = AGENT_PREFIX;
+
       mqttSync.publish(`${AGENT_PREFIX}/info`);
       mqttSync.publish(`${AGENT_PREFIX}/status`);
 
@@ -176,7 +179,10 @@ const staticInfo = () => {
   }};
 
   process.env.TR_LABELS && (info.labels = process.env.TR_LABELS.split(','));
-  global.config && (info.config = global.config);
+  global.config && (info.config = clone(global.config));
+  // Note: need to clone, so that we can update it later again when
+  // global.config changes. This is an unusual way to use mqttSync. Normally
+  // the data in mqttSync is used directly and always updated directly.
 
   exec('lsb_release -a', (err, stdout, stderr) => {
     if (!err) {

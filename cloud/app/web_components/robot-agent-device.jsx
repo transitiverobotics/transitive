@@ -18,13 +18,14 @@ mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
 from '@transitive-sdk/utils-web';
 
 import { Heartbeat, ensureProps } from './shared';
+import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const log = getLogger('robot-agent-device');
 log.setLevel('debug');
 
 // extend jsonLogic with new operator for array size
-jsonLogic.add_operation("$size", (a) => a.length);
+jsonLogic.add_operation("$size", (a) => a?.length);
 
 const styles = {
   row: {
@@ -88,8 +89,8 @@ const failsRequirements = (info, pkg) => {
   const issues = requires.map( req =>
       !jsonLogic.apply(req.rule, info) && req.message
     ).filter(Boolean);
-  log.debug('meetsRequirements', info, requires, issues);
-  return issues;
+  log.debug('failsRequirements', info, requires, issues);
+  return issues.length == 0 ? null : issues;
 };
 
 /** display info from OS */
@@ -268,6 +269,12 @@ const Device = (props) => {
       });
   };
 
+  const updateConfig = (modifier) => {
+    log.debug('updating config:', modifier);
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/updateConfig`,
+      JSON.stringify(modifier));
+  };
+
   /** remove the device from the dashboard (until it republishes status, if at
   all) */
   const clear = () => {
@@ -380,6 +387,12 @@ const Device = (props) => {
           onHide={clearPackageLog}/>
     }
 
+    <div style={styles.row}>
+      <h5>Configuration</h5>
+      {latestVersionData?.info?.config &&
+        <ConfigEditor config={latestVersionData.info.config}
+          updateConfig={updateConfig}/>}
+    </div>
   </div>
 };
 

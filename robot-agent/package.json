@@ -14,7 +14,7 @@
   "author": "Christian Fritz",
   "license": "UNLICENSED",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.5.33",
+    "@transitive-sdk/utils": "^0.6.8",
     "aedes-preunsub": "^0.45.0",
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",

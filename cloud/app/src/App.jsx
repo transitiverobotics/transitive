@@ -25,7 +25,7 @@ const styles = {
     width: '100%',
     height: '100%',
     margin: '0px',
-    display: 'flex'
+    display: 'flex',
   },
   sidebar: {
     margin: '0',
@@ -52,6 +52,7 @@ const styles = {
     wrapper: {
       background: '#fff',
       borderRadius: '6px',
+      padding: '1em',
     },
     embed: {
       float: 'right'

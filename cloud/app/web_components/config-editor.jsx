@@ -15,6 +15,12 @@ import { constants, getLogger } from '@transitive-sdk/utils-web';
 const log = getLogger('ConfigEditor');
 log.setLevel('debug');
 
+const styles = {
+  rows: {
+    marginBottom: '0.5em'
+  }
+};
+
 /** Configuration management widget
  * For now just for enabling ROS releases.
 */
@@ -34,9 +40,9 @@ export const ConfigEditor = ({config = {}, updateConfig}) => {
       {[1, 2].map(version => {
         const releases = getReleasesForVersion(version).sort();
 
-        return <Col key={version}>
-          <Form.Group className="mb-3" controlId="formGroupEmail">
-            <Form.Label>Use ROS {version} release</Form.Label>
+        return <Row key={version} style={styles.rows}>
+          <Form.Label column='sm' sm={4}>ROS {version} release to use</Form.Label>
+          <Col sm={5}>
             <Form.Select aria-label="Select ROS release to use"
               value={selected[version] || ''}
               onChange={e => setSelected(s => {
@@ -48,8 +54,8 @@ export const ConfigEditor = ({config = {}, updateConfig}) => {
                 {release} {activeReleases[version] == release && '(active)'}
               </option>)}
             </Form.Select>
-          </Form.Group>
-        </Col>;
+          </Col>
+        </Row>;
       })}
     </Row>
     <Button

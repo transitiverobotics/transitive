@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form, Modal }
-from 'react-bootstrap';
+import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
+    Modal } from 'react-bootstrap';
 
 const _ = {
   map: require('lodash/map'),
@@ -14,10 +14,10 @@ import pako from 'pako';
 import jsonLogic from '../src/utils/logic';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
-from '@transitive-sdk/utils-web';
+    mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
+  from '@transitive-sdk/utils-web';
 
-import { Heartbeat, ensureProps } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
@@ -128,13 +128,13 @@ const mapSorted = (obj, fn) =>
 
 /** Component that renders the package log response, such as
 {
-  "@transitive-robotics": {
-    "webrtc-video": {
-      "err": null,
-      "stdout": [base64 encoded gzip buffer of text],
-      "stderr": [base64 encoded gzip buffer of text],
-    }
-  }
+"@transitive-robotics": {
+"webrtc-video": {
+"err": null,
+"stdout": [base64 encoded gzip buffer of text],
+"stderr": [base64 encoded gzip buffer of text],
+}
+}
 }
 */
 const PkgLog = ({response, onHide}) => {
@@ -210,6 +210,8 @@ const Device = (props) => {
   const latestVersion = Object.keys(deviceData).sort(versionCompare).at(-1);
   const latestVersionData = deviceData[latestVersion];
   log.debug(latestVersionData);
+
+  const inactive = Boolean(heartbeatLevel(latestVersionData.status?.heartbeat));
 
   // Pubishing under which-ever _robot-agent version we get talked to. A quirk
   // of how robot-agent works, since its robot-package and cloud code don't (yet)
@@ -295,14 +297,14 @@ const Device = (props) => {
     <div style={styles.row}>
       <OSInfo info={latestVersionData?.info}/>
       {latestVersionData.status?.heartbeat &&
-        <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
+          <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
       </span>
-      <Button onClick={restartAgent} variant='link'>
+      <Button onClick={restartAgent} variant='link' disabled={inactive}>
         Restart agent
       </Button>
-      <Button onClick={stopAll} variant='link'>
+      <Button onClick={stopAll} variant='link' disabled={inactive}>
         Stop all capabilities
       </Button>
       <ConfirmedButton onClick={clear} variant='link'
@@ -317,45 +319,56 @@ const Device = (props) => {
         { Object.keys(packages).length > 0 ?
           mapSorted(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
             <Row>
-            <Col sm='4' style={styles.rowItem}>
+              <Col sm='4' style={styles.rowItem}>
                 <div>{getPkgTitle(name, availablePackages)}</div>
                 <div style={styles.subText}>{name}</div>
-            </Col>
-            <Col sm='2' style={styles.rowItem}>
-            {
-              running && <Badge bg="success">
-                running: v{Object.keys(running).join(', ')}
-              </Badge>
-            }
-            </Col>
-            <Col sm='6' style={styles.rowItem}>
-              <div>
-            {
-              running && <Button variant='link' href={`/device/${device}/${name}`}>
-                view
-              </Button>
-            } {
-              running && <Button variant='link'
-                onClick={() => restartPackage(name)}>
-                restart
-              </Button>
-            } {
-              running && <Button variant='link'
-                onClick={() => stopPackage(name)}>
-                stop
-              </Button>
-            } {
-              desired ? <Button variant='link' onClick={() => uninstall(name)}>
-                uninstall
-              </Button> :
-              <span>pre-installed</span>
-            } {
-              <Button variant='link' onClick={() => getPackageLog(name)}>
-                get log
-              </Button>
-            }
-            </div>
-            </Col>
+              </Col>
+              <Col sm='3' style={styles.rowItem}>
+                { running && !inactive && <div>
+                    <Badge bg="success">
+                      running: v{Object.keys(running).join(', ')}
+                    </Badge>
+                    <Button variant='link' href={`/device/${device}/${name}`}>
+                      view
+                    </Button>
+                  </div>
+                }
+                { running && inactive && <div>
+                    <Badge bg="secondary">
+                      installed: v{Object.keys(running).join(', ')}
+                    </Badge>
+                  </div>
+                }
+              </Col>
+              <Col sm='5' style={styles.rowItem}>
+                {!inactive &&
+                    <div style={{textAlign: 'right'}}>
+                      {
+                        running && <Button variant='link'
+                          onClick={() => restartPackage(name)}>
+                          restart
+                        </Button>
+                      } {
+                        running && <Button variant='link'
+                          onClick={() => stopPackage(name)}>
+                          stop
+                        </Button>
+                      } {
+                        <span title={!desired ? 'pre-installed' : null}>
+                          <Button variant='link'
+                            disabled={!desired}
+                            onClick={() => uninstall(name)}>
+                            uninstall
+                          </Button>
+                        </span>
+                      } {
+                        <Button variant='link' onClick={() => getPackageLog(name)}>
+                          get log
+                        </Button>
+                      }
+                    </div>
+                }
+              </Col>
             </Row>
           </ListGroup.Item>) :
 

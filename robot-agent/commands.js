@@ -60,7 +60,9 @@ const commands = {
     // now set it in `global.config` and write it back to disk
     _.forEach(modifier, (value, path) => _.set(global.config, path, value));
     log.debug('backing up old config and writing new', global.config);
-    fs.cpSync('./config.json', './config.json.bak');
+    try {
+      fs.copyFileSync('./config.json', './config.json.bak');
+    } catch (e) {}
     fs.writeFileSync('./config.json', JSON.stringify(global.config, true, 2),
       {encoding: 'utf8'});
 

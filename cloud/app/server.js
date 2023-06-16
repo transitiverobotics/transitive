@@ -436,6 +436,11 @@ class _robotAgent extends Capability {
           const name = `${scope}/${capName}`;
           const key = `${name}:${version}`;
 
+          if (!this.isRunning(orgId, deviceId)) {
+            log.debug('Device is not live', orgId, deviceId);
+            return;
+          }
+
           if (!matched.capName.startsWith('_')) {
             if (process.env.NODOCKER) {
               log.info('NODOCKER: not starting docker container for', key);
@@ -447,10 +452,6 @@ class _robotAgent extends Capability {
 
           // Report usage and get JWT right away since the capability on the
           // device may be waiting on it.
-          if (!this.isRunning(orgId, deviceId)) {
-            log.debug('Device is not live', orgId, deviceId);
-            return;
-          }
           const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
 
           if (!billingSecret) {

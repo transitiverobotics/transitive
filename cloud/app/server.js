@@ -22,6 +22,7 @@ const {createAccount} = require('./accounts');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
+const {sendEmail} = require('./server/email');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
@@ -819,4 +820,10 @@ Mongo.init(() => {
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);
   });
+
+  // sendEmail({
+  //   to: 'christian@transitiverobotics.com',
+  //   subject: 'test1',
+  //   body: 'first email sent from code'
+  // });
 });

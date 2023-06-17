@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.354.0",
     "@transitive-sdk/utils": "^0.6.4",
     "@transitive-sdk/utils-web": "^0.6.4",
     "bcrypt": "^5.0.1",

@@ -143,7 +143,9 @@ export const Login = ({}) => {
 
   return <div style={styles.page}>
     <Card style={styles.wrapper}>
-      <Card.Img variant="top" src="/logo_text.svg" />
+      <Card.Link href={homepage}>
+        <Card.Img variant="top" src="/logo_text.svg" />
+      </Card.Link>
       {session ?
         <div style={styles.loggedIn}>Logging in as {session.user}...</div> :
         form }

@@ -18,11 +18,12 @@ const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
 mergeVersions, forMatchIterator, Capability } = require('@transitive-sdk/utils');
 
-const {createAccount} = require('./accounts');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
-const {sendEmail} = require('./server/email');
+const {createAccount, sendVerificationEmail, verifyCode} =
+  require('./server/accounts');
+// const {sendEmail} = require('./server/email');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
@@ -652,7 +653,7 @@ class _robotAgent extends Capability {
 
       if (!req.body.name || !req.body.password) {
         log.debug('missing credentials', req.body);
-        return fail('to account name given');
+        return fail('no account name or password given');
         // on purpose not disclosing that the account doesn't exist
       }
 
@@ -688,6 +689,62 @@ class _robotAgent extends Capability {
           res.clearCookie(COOKIE_NAME).json({status: 'ok'});
         });
       })
+    });
+
+
+    this.router.post('/register', async (req, res) => {
+      log.debug('register', req.body);
+
+      const fail = (error) =>
+        res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+
+      if (!req.body.name || !req.body.password || !req.body.email) {
+        log.debug('missing credentials', req.body);
+        return fail('missing username, password, or email');
+        // on purpose not disclosing that the account doesn't exist
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.body.name});
+      if (account) {
+        log.warn('account already exists', req.body.name);
+        return fail('account already exists');
+      }
+
+      createAccount(req.body, (err, account) => {
+        if (err) {
+          return fail('account already exists');
+        } else {
+          sendVerificationEmail(req.body.name);
+
+          // Write the verified username to the session to indicate logged in status
+          req.session.user = account;
+          res.cookie(COOKIE_NAME, JSON.stringify({
+            user: account._id,
+            robot_token: account.robotToken})
+          ).json({status: 'ok'});
+        }
+      });
+    });
+
+    this.router.get('/verify', async (req, res) => {
+      log.debug('verify', req.query);
+
+      const {id, code} = req.query;
+
+      const fail = (error) => {
+        log.debug(error);
+        return res.status(400).send(error);
+      }
+
+      if (!id || !code) {
+        return fail('missing id or code');
+      }
+
+      const error = await verifyCode(id, code);
+      if (error) return fail(error);
+
+      res.redirect(`/?msg=verificationSuccessful`);
     });
 
 
@@ -811,8 +868,12 @@ log.info('Starting cloud app');
 Mongo.init(() => {
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
-  process.env.TR_USER && process.env.TR_PASS &&
-    createAccount(process.env.TR_USER, process.env.TR_PASS);
+  process.env.TR_USER && process.env.TR_PASS && process.env.TR_EMAIL &&
+    createAccount({
+      name: process.env.TR_USER,
+      password: process.env.TR_PASS,
+      email: process.env.TR_EMAIL
+    });
 
   addCapsRoutes();
   robotAgent.addRoutes();

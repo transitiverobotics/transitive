@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 
 import {BrowserRouter as Router, Routes, Route, Link, useParams} from
-'react-router-dom';
+  'react-router-dom';
 import _ from 'lodash';
+import { Alert } from 'react-bootstrap';
 
 import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
 
@@ -204,17 +205,28 @@ const CapabilityWidget = ({type}) => {
   </div>;
 };
 
+const messages = {
+  verificationSuccessful: 'Email verification successful!'
+};
+const Message = ({msg}) => {
+  const [show, setShow] = useState(true);
 
+  return show && <Alert dismissible onClose={() => setShow(false)}>
+    {messages[msg] || msg}
+  </Alert>;
+};
 
+const Portal = () => {
+  const queryParams = Object.fromEntries(new URLSearchParams(location.search));
 
-
-const Portal = () =>
-  <div style={styles.wrapper}>
+  return <div style={styles.wrapper}>
     <div style={styles.sidebar}>
       <Sidebar />
     </div>
 
     <div style={styles.body}>
+      { queryParams.msg && <Message msg={queryParams.msg} /> }
+
       <Routes>
         <Route path="/admin" />
         <Route path="/security" element={<Security />} />
@@ -243,7 +255,7 @@ const Portal = () =>
       </Routes>
     </div>
   </div>;
-
+};
 
 const Apps = () => {
 
@@ -256,6 +268,7 @@ const Apps = () => {
       <Route path="/sac/:org/:device/:scope/:capName/:widget"
         element={<StandAloneComponent />} />
 
+      <Route path="/register" element={<Login mode='register' />} />
       <Route path="/*" element={session ? <Portal /> : <Login />} />
     </Routes>
   </Router>;

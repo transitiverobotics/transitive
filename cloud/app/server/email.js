@@ -1,7 +1,7 @@
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 
 const client = new SESClient({
-  region: 'us-east-1',
+  region: 'us-west-2',
   credentials: {
     accessKeyId: 'AKIARVG4HDENT5QTP56A',
     secretAccessKey: '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',
@@ -11,9 +11,9 @@ const client = new SESClient({
 /** From
 https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-ses/classes/sendemailcommand.html
 */
-const sendEmail = async ({to, subject, body}) => {
+const sendEmail = async ({to, subject, text, html}) => {
   const input = { // SendEmailRequest
-    Source: 'support@transitiverobotics.com',
+    Source: 'Transitive Robotics <support@transitiverobotics.com>',
     Destination: {
       ToAddresses: [to],
     },
@@ -22,16 +22,11 @@ const sendEmail = async ({to, subject, body}) => {
         Data: subject,
         Charset: 'utf-8',
       },
-      Body: {
-        Text: {
-          Data: body,
-          Charset: 'utf-8',
-        },
-        // Html: {
-        //   Data: "STRING_VALUE", // required
-        //   Charset: "STRING_VALUE",
-        // },
-      },
+      Body: (html ? {
+          Html: { Data: html, Charset: 'utf-8' },
+        } : {
+          Text: { Data: text, Charset: 'utf-8' }
+        }),
     },
     // ReplyToAddresses: [
     //   "STRING_VALUE",
@@ -47,10 +42,9 @@ const sendEmail = async ({to, subject, body}) => {
     // ],
     // ConfigurationSetName: "STRING_VALUE",
   };
-  console.log('sendEmail', input);
   const command = new SendEmailCommand(input);
   const response = await client.send(command);
-  console.log('response', response);
+  console.log('send email, response', response);
 };
 
 module.exports = {sendEmail};

@@ -76,14 +76,15 @@ const sendVerificationEmail = async (userId) => {
     const code = randomId(24);
     const protocol = JSON.parse(process.env.TR_SECURE) ? 'https' : 'http';
     const link = `${protocol}://portal.${process.env.TR_HOST
-      }/@transitive-robotics/_robot-agent/verify?id=${userId}&code=${code}`;
+      }/@transitive-robotics/_robot-agent/verify?id=${userId}&code=${
+      encodeURIComponent(code)}`;
 
     await accounts.updateOne({_id: userId}, {$set: {verificationCode: code}});
 
     sendEmail({
       to: account.email,
       subject: 'Verify your email address',
-      body: `Click this link to verify your email address: <a href='${link
+      html: `Click this link to verify your email address: <a href='${link
       }'>Verify ${account.email}</a>`
     });
   }
@@ -96,11 +97,11 @@ const verifyCode = async (userId, code) => {
   const account = await accounts.findOne({_id: userId});
 
   if (!account) {
-    return 'account does not exists';
+    return {error: 'account does not exists'};
   }
 
   if (code != account.verificationCode) {
-    return 'wrong code';
+    return {error: 'wrong code'};
   }
 
   await accounts.updateOne({_id: userId}, {
@@ -113,7 +114,9 @@ const verifyCode = async (userId, code) => {
     $unset: {verificationCode: code}
   });
 
-  return false;
+  const updatedAccount = await accounts.findOne({_id: userId});
+
+  return {account: updatedAccount};
 };
 
 module.exports = {createAccount, changePassword, sendVerificationEmail, verifyCode};

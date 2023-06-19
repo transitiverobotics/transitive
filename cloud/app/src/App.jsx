@@ -78,6 +78,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   const [jwtToken, setJwtToken] = useState();
   const {deviceId = '_fleet'} = useParams();
   const ref = useRef(null);
+  const [error, setError] = useState();
 
   log.debug('Capability', {deviceId, webComponent, capability, props, session});
   ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
@@ -87,8 +88,9 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
         fetchJson('/@transitive-robotics/_robot-agent/getJWT',
           (err, res) => {
             if (err) {
-              log.error(err);
-              logout();
+              log.error(err, res);
+              // logout();
+              res?.error && setError(res.error);
             } else {
               setJwtToken(res.token);
             }
@@ -105,6 +107,10 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
         return () => setJwtToken(null);
       }
     }, [webComponent, capability, session, deviceId]);
+
+  if (error) {
+    return <Alert variant='warning'>{error}</Alert>;
+  }
 
   if (!session) {
     // shouldn't happen but just in case
@@ -206,18 +212,27 @@ const CapabilityWidget = ({type}) => {
 };
 
 const messages = {
-  verificationSuccessful: 'Email verification successful!'
+  verificationSuccessful: 'Email verification successful!',
+  notVerified: 'Welcome! Before you can proceed and add robots to your account, you need to verify your email address. Please check your email.'
 };
 const Message = ({msg}) => {
   const [show, setShow] = useState(true);
+  const hide = () => setShow(false);
 
-  return show && <Alert dismissible onClose={() => setShow(false)}>
+  useEffect(() => {
+    history.replaceState({}, '', location.pathname);
+  }, [msg]);
+
+  return show && <Alert dismissible onClose={hide}>
     {messages[msg] || msg}
   </Alert>;
 };
 
 const Portal = () => {
-  const queryParams = Object.fromEntries(new URLSearchParams(location.search));
+  const {msg} = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+  const {session} = useContext(UserContext);
+
+  log.debug({session});
 
   return <div style={styles.wrapper}>
     <div style={styles.sidebar}>
@@ -225,34 +240,37 @@ const Portal = () => {
     </div>
 
     <div style={styles.body}>
-      { queryParams.msg && <Message msg={queryParams.msg} /> }
+      { msg && <Message msg={msg} /> }
 
-      <Routes>
-        <Route path="/admin" />
-        <Route path="/security" element={<Security />} />
+      { session.verified ? <Routes>
+          <Route path="/admin" />
+          <Route path="/security" element={<Security />} />
 
-        <Route path="/" element={
-            <Capability webComponent='robot-agent-fleet'
-              capability='@transitive-robotics/_robot-agent'
-              device_url='/device'
-              />
-          }/>
+          <Route path="/" element={
+              <Capability webComponent='robot-agent-fleet'
+                capability='@transitive-robotics/_robot-agent'
+                device_url='/device'
+                />
+            }/>
 
-        <Route path="/device/:deviceId" element={
-            <Capability webComponent='robot-agent-device'
-              capability='@transitive-robotics/_robot-agent'
-              fleetURL='/'
-              />
-          }/>
+          <Route path="/device/:deviceId" element={
+              <Capability webComponent='robot-agent-device'
+                capability='@transitive-robotics/_robot-agent'
+                fleetURL='/'
+                />
+            }/>
 
-        {/** per capability and per device page */}
-        <Route path="/device/:deviceId/:scope/:capabilityName"
-          element={<CapabilityWidget type='device'/>} />
+          {/** per capability and per device page */}
+          <Route path="/device/:deviceId/:scope/:capabilityName"
+            element={<CapabilityWidget type='device'/>} />
 
-        <Route path="/fleet/:scope/:capabilityName"
-          element={<CapabilityWidget type='fleet'/>} />
+          <Route path="/fleet/:scope/:capabilityName"
+            element={<CapabilityWidget type='fleet'/>} />
 
-      </Routes>
+        </Routes>
+        :
+        <Message msg='notVerified' />
+      }
     </div>
   </div>;
 };

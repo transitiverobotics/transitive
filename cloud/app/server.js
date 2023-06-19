@@ -674,7 +674,11 @@ class _robotAgent extends Capability {
       // Write the verified username to the session to indicate logged in status
       req.session.user = account;
       res.cookie(COOKIE_NAME,
-        JSON.stringify({user: account._id, robot_token: account.robotToken}))
+        JSON.stringify({
+          user: account._id,
+          robot_token: account.robotToken,
+          verified: account.verified
+        }))
         .json({status: 'ok'});
     });
 
@@ -721,8 +725,8 @@ class _robotAgent extends Capability {
           req.session.user = account;
           res.cookie(COOKIE_NAME, JSON.stringify({
             user: account._id,
-            robot_token: account.robotToken})
-          ).json({status: 'ok'});
+            verified: false,
+          })).json({status: 'ok'});
         }
       });
     });
@@ -741,10 +745,15 @@ class _robotAgent extends Capability {
         return fail('missing id or code');
       }
 
-      const error = await verifyCode(id, code);
+      const {error, account} = await verifyCode(id, code);
       if (error) return fail(error);
 
-      res.redirect(`/?msg=verificationSuccessful`);
+      req.session.user = account; // also log in, in case logged out
+      res.cookie(COOKIE_NAME, JSON.stringify({
+          user: id,
+          verified: account.email,
+          robot_token: account.robotToken
+        })).redirect(`/#msg=verificationSuccessful`);
     });
 
 
@@ -753,6 +762,12 @@ class _robotAgent extends Capability {
 
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
+
+      if (!account.jwtSecret) {
+        res.status(400).end(JSON.stringify({
+          error: 'No JWT secret. Has the account not been activated yet?'}));
+        return;
+      }
 
       const token = jwt.sign(req.body, account.jwtSecret);
       log.debug('responding with', {token});

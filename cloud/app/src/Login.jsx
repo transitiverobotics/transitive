@@ -134,86 +134,88 @@ export const Login = ({mode = undefined}) => {
     ? register(userName, password, email)
     : login(userName, password);
 
-  const form = <Card.Body>
-    <Card.Title>
-      {action}
-    </Card.Title>
-
-    <Form noValidate onSubmit={(e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      submit();
-    }}>
-      <Form.Group className='mb-3' controlId='formUsername'>
-        <Form.Label>Username</Form.Label>
-        <Form.Control type='text'
-          placeholder={isRegister ? 'Lower case, ideally short' : 'Username'}
-          value={userName} onChange={e => setUserName(e.target.value.toLowerCase())}
-          autoComplete='username'
-          required
-          isInvalid={userName.length > 0 && !userName.match(/^[a-z]+[a-z0-9]*$/)}
-          />
-        <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
-      </Form.Group>
-
-      {isRegister && <Form.Group className='mb-3' controlId='formBasicEmail'>
-        <Form.Label>Email</Form.Label>
-        <Form.Control type='email' placeholder='Email'
-          value={email} onChange={e => setEmail(e.target.value)}
-          required
-          />
-      </Form.Group>}
-
-      <Form.Group className='mb-3' controlId='formBasicPassword'>
-        <Form.Label>Password</Form.Label>
-        <Form.Control type='password' placeholder='Password'
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          isInvalid={password.length > 0 && password.length < 8}
-          autoComplete={isRegister ? 'new-password' : 'current-password'}/>
-      </Form.Group>
-
-      {isRegister &&
-          <Form.Group className='mb-3' controlId='formBasicPassword2'>
-            <Form.Label>Repeat Password</Form.Label>
-            <Form.Control type='password' placeholder='Password'
-              value={password2}
-              onChange={e => setPassword2(e.target.value)}
-              isInvalid={password2.length > 0 && password2 != password}
-              autoComplete={isRegister ? 'new-password' : 'current-password'}/>
-          </Form.Group>
-      }
-
-      <div style={styles.conditions}>
-        By clicking the {action} button, you agree to Transitive Robotics's <a
-          href={`${homepage}terms`}>Terms of Service</a> and <a
-          href={`${homepage}privacy.html`}>
-          Privacy Policy</a>.
-      </div>
-
-      <Button variant='primary'
-        disabled={isRegister
-          ? (!userName || !userName.match(/^[a-z]+[a-z0-9]*$/) || !password ||
-            !password2 || (password != password2) || !email ||
-            !email.match(/.@..*\.[a-zA-Z]{2}/))
-          : (!userName || !password)
-        }
-        type='submit'
-      >
+  const form = isRegister && !TR_REGISTRATION_ENABLED
+    ? <div>Sorry, registration is disabled.</div>
+    : <Card.Body>
+      <Card.Title>
         {action}
-      </Button> &nbsp;<span> or {isRegister
-          ? <ActionLink onClick={() => setIsRegister(false)}>
-            Log in
-          </ActionLink>
-          : <ActionLink onClick={() => setIsRegister(true)}>
-            Register
-          </ActionLink>
+      </Card.Title>
+
+      <Form noValidate onSubmit={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        submit();
+      }}>
+        <Form.Group className='mb-3' controlId='formUsername'>
+          <Form.Label>Username</Form.Label>
+          <Form.Control type='text'
+            placeholder={isRegister ? 'Lower case, ideally short' : 'Username'}
+            value={userName} onChange={e => setUserName(e.target.value.toLowerCase())}
+            autoComplete='username'
+            required
+            isInvalid={userName.length > 0 && !userName.match(/^[a-z]+[a-z0-9]*$/)}
+            />
+          <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
+        </Form.Group>
+
+        {isRegister && <Form.Group className='mb-3' controlId='formBasicEmail'>
+          <Form.Label>Email</Form.Label>
+          <Form.Control type='email' placeholder='Email'
+            value={email} onChange={e => setEmail(e.target.value)}
+            required
+            />
+        </Form.Group>}
+
+        <Form.Group className='mb-3' controlId='formBasicPassword'>
+          <Form.Label>Password</Form.Label>
+          <Form.Control type='password' placeholder='Password'
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            isInvalid={password.length > 0 && password.length < 8}
+            autoComplete={isRegister ? 'new-password' : 'current-password'}/>
+        </Form.Group>
+
+        {isRegister &&
+            <Form.Group className='mb-3' controlId='formBasicPassword2'>
+              <Form.Label>Repeat Password</Form.Label>
+              <Form.Control type='password' placeholder='Password'
+                value={password2}
+                onChange={e => setPassword2(e.target.value)}
+                isInvalid={password2.length > 0 && password2 != password}
+                autoComplete={isRegister ? 'new-password' : 'current-password'}/>
+            </Form.Group>
         }
-      </span>
-      {error && <div style={styles.error}>{error}</div>}
-    </Form>
-  </Card.Body>;
+
+        <div style={styles.conditions}>
+          By clicking the {action} button, you agree to Transitive Robotics's <a
+            href={`${homepage}terms`}>Terms of Service</a> and <a
+            href={`${homepage}privacy.html`}>
+            Privacy Policy</a>.
+        </div>
+
+        <Button variant='primary'
+          disabled={isRegister
+            ? (!userName || !userName.match(/^[a-z]+[a-z0-9]*$/) || !password ||
+              !password2 || (password != password2) || !email ||
+              !email.match(/.@..*\.[a-zA-Z]{2}/))
+            : (!userName || !password)
+          }
+          type='submit'
+        >
+          {action}
+        </Button> &nbsp;<span> or {isRegister
+            ? <ActionLink onClick={() => setIsRegister(false)}>
+              Log in
+            </ActionLink>
+            : <ActionLink onClick={() => setIsRegister(true)}>
+              Register
+            </ActionLink>
+          }
+        </span>
+        {error && <div style={styles.error}>{error}</div>}
+      </Form>
+    </Card.Body>;
 
   return <div style={styles.page}>
     <Card style={styles.wrapper}>

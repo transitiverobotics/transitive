@@ -260,7 +260,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   /** get package info */
   app.get('/:package', cors(), async (req, res) => {
-    console.log('GET', req.params);
+    console.log('GET', req.params, req.headers.authorization);
     const package = await packages.findOne({_id: req.params.package});
     if (!package) {
       res.status(404).end();
@@ -272,7 +272,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   /** get package tarball */
   app.get('/:scope1/:packageName/-/:scope/:filename', async (req, res) => {
-    console.log('get tarball', req.url);
+    console.log('get tarball', req.url, req.headers.authorization);
     const file = await tarballs.findOne({
       _id: `${req.params.scope}/${req.params.filename}`});
     if (file) {

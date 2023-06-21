@@ -9,16 +9,16 @@ log.setLevel('debug');
 
 const SALT_ROUNDS = 10;
 
-const createAccount = async ({name, password, email}, cb) => {
+const createAccount = async ({name, password, email, admin}, cb) => {
   if (name == 'bot') {
-    console.error('Sorry, the account name "bot" is reserved');
+    log.error('Sorry, the account name "bot" is reserved');
     return;
   }
 
   const accounts = Mongo.db.collection('accounts');
   const existing = await accounts.findOne({_id: name});
   if (existing) {
-    console.error('An account with that name already exists');
+    log.warn('An account with that name already exists');
     cb && cb('An account with that name already exists');
   } else {
 
@@ -27,24 +27,30 @@ const createAccount = async ({name, password, email}, cb) => {
       _id: name,
       bcryptPassword,
       email,
+      created: new Date(),
     };
 
+    if (admin) {
+      newAccount.verified = true;
+      newAccount.admin = true;
+    }
+
     await accounts.insertOne(newAccount);
-    console.log(`New account created: ${name}`);
+    log.info(`New account created: ${name}`);
     cb && cb(null, newAccount);
   }
 };
 
 const changePassword = async (name, password) => {
   if (name == 'bot') {
-    console.error('Sorry, the password of the reserved "bot" account cannot be changed');
+    log.error('Sorry, the password of the reserved "bot" account cannot be changed');
     return;
   }
 
   const accounts = Mongo.db.collection('accounts');
   const existing = await accounts.findOne({_id: name});
   if (!existing) {
-    console.error('No such account');
+    log.warn('No such account');
     cb && cb('No such account');
   } else {
 
@@ -52,7 +58,7 @@ const changePassword = async (name, password) => {
     const bcryptPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     await accounts.updateOne({_id: existing._id}, {$set: {bcryptPassword}});
-    console.log('Password updated');
+    log.info('Password updated', name);
     cb && cb(null, name);
   }
 };

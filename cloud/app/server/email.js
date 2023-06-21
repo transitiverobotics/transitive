@@ -1,17 +1,23 @@
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 
-const client = new SESClient({
-  region: 'us-west-2',
-  credentials: {
-    accessKeyId: 'AKIARVG4HDENT5QTP56A',
-    secretAccessKey: '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',
-  }
-});
+const client = process.env.TR_AWS_ACCESS_KEY_ID &&
+  process.env.TR_AWS_SECRET_ACCESS_KEY && new SESClient({
+    region: 'us-west-2',
+    credentials: {
+      accessKeyId: process.env.TR_AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.TR_AWS_SECRET_ACCESS_KEY,
+    }
+  });
 
 /** From
 https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-ses/classes/sendemailcommand.html
 */
 const sendEmail = async ({to, subject, text, html}) => {
+  if (!client) {
+    console.log('email sending is disabled');
+    return;
+  }
+
   const input = { // SendEmailRequest
     Source: 'Transitive Robotics <support@transitiverobotics.com>',
     Destination: {

@@ -59,6 +59,7 @@
     "extract-loader": "^5.1.0",
     "jest": "^28.1.0",
     "json-logic-js": "^2.0.2",
+    "prism-react-renderer": "^2.0.5",
     "react": "^17.0.2",
     "react-bootstrap": "^2.1.2",
     "react-dom": "^17.0.2",

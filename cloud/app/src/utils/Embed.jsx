@@ -50,7 +50,7 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
   delete jwtPayloadExample.validity;
   delete jwtPayloadExample.iat;
 
-  const defaultParams = `id=${id} host=${host} ssl=${ssl}`;
+  const defaultParams = `id="${id}" host="${host}" ssl="${ssl}"`;
   const paramString = formatParams({...extra, ...config});
 
   const createToken = () => {
@@ -68,27 +68,21 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
 
   return <div style={{color: 'inherit'}}>
     To embed this widget in another page use:
-    <Code >
-      {`<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="[JWT]"${paramString} />`}
-    </Code>
+    <Code code={`<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="[JWT]"${paramString} />`} />
     where <tt>JWT</tt> is a <a href="https://jwt.io/">JWT token</a> signed
     with your JWT secret (see <Link to='/security'>Security</Link>), carrying
     the payload:
-    <Code>
-      {['{',
-          ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}"`),
-          `  "userId": "[a string that uniquely identifies the current user]"`,
-          `  "validity": [number of seconds this authentication should remain valid]`,
+    <Code code={['{',
+          ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}",`),
+          `  "userId": "user123", // a string that uniquely identifies a user in your context`,
+          `  "validity": 500, // number of seconds this authentication should remain valid`,
           '}'
-        ].join('\n')}
-    </Code>
+        ].join('\n')} />
 
     <div>
       For testing only you can use this ready-to-go snippet. The included JWT
       is valid for the next 12 hours from when this page was loaded.
-      <Code>
-        {`<script src="${bundleURL}"></script>\n<${name} ${defaultParams}\njwt="${jwt}"${paramString}/>`}
-      </Code>
+      <Code code={`<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString}/>`} />
     </div>
 
     <hr/>

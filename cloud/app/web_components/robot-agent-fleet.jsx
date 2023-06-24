@@ -127,7 +127,7 @@ const Fleet = (props) => {
             device_url={device_url} />)
       }
       <ListGroup.Item>
-        Add another device by executing this on your device:
+        Add another device by executing this command on your device:
         <Code
           code={`curl -s "${curlURL}?id=${id}&token=${encodeURIComponent(robot_token)}" | bash`}
         />

@@ -55,7 +55,7 @@ const addSessions = (router, collectionName, secret) => {
 const requireLogin = (req, res, next) => {
   // log.debug(req.session);
   if (!req.session || !req.session.user) {
-    res.status(401).end('Not authorized. You need to be logged in.');
+    res.status(401).json({error: 'Not authorized. You need to be logged in.'});
   } else {
     next();
   }
@@ -410,6 +410,16 @@ app.post('/auth/acl', (req, res) => {
 // billing
 const RUNNING_THRESHOLD = 1 * 60 * 60 * 1000;
 
+/** given an account (object from DB), create the cookie payload string */
+const getCookie = (account) => JSON.stringify({
+  user: account._id,
+  robot_token: account.robotToken,
+  verified: account.verified,
+  has_payment_method: Boolean(
+    account?.stripeCustomer?.invoice_settings?.default_payment_method),
+  free: account.free
+});
+
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
 
@@ -673,13 +683,25 @@ class _robotAgent extends Capability {
 
       // Write the verified username to the session to indicate logged in status
       req.session.user = account;
-      res.cookie(COOKIE_NAME,
-        JSON.stringify({
-          user: account._id,
-          robot_token: account.robotToken,
-          verified: account.verified
-        }))
-        .json({status: 'ok'});
+      res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
+    });
+
+    /** Called by client to refresh the session cookie */
+    this.router.get('/refresh', requireLogin, async (req, res) => {
+      log.debug('refresh');
+
+      const fail = (error) =>
+        res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.session.user._id});
+      if (!account) {
+        log.info('no account for user', req.session.user._id);
+        return fail('invalid session');
+      }
+
+      req.session.user = account;
+      res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
     });
 
 
@@ -728,10 +750,7 @@ class _robotAgent extends Capability {
 
           // Write the verified username to the session to indicate logged in status
           req.session.user = account;
-          res.cookie(COOKIE_NAME, JSON.stringify({
-            user: account._id,
-            verified: false,
-          })).json({status: 'ok'});
+          res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
         }
       });
     });
@@ -876,7 +895,6 @@ app.get('/admin/setLogLevel', (req, res) => {
 // to allow client-side routing:
 app.use('/*', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
-
 
 const server = http.createServer(app);
 

@@ -231,7 +231,6 @@ const Message = ({msg}) => {
 const Portal = () => {
   const {msg} = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
   const {session} = useContext(UserContext);
-
   log.debug({session});
 
   return <div style={styles.wrapper}>

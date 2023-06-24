@@ -75,7 +75,7 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
     <Code code={['{',
           ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}",`),
           `  "userId": "user123", // a string that uniquely identifies a user in your context`,
-          `  "validity": 500, // number of seconds this authentication should remain valid`,
+          `  "validity": 86400, // number of seconds this authentication should remain valid`,
           '}'
         ].join('\n')} />
 

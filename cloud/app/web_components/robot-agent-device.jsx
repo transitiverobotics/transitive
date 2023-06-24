@@ -84,13 +84,13 @@ const getMergedPackageInfo = (robotAgentData) => {
 of human-readable issues. */
 const failsRequirements = (info, pkg) => {
   const requires = pkg.versions?.[0].transitiverobotics?.requires;
-  if (!requires) return false;
+  if (!requires) return [];
 
   const issues = requires.map( req =>
       !jsonLogic.apply(req.rule, info) && req.message
     ).filter(Boolean);
   log.debug('failsRequirements', info, requires, issues);
-  return issues.length == 0 ? null : issues;
+  return issues;
 };
 
 /** display info from OS */
@@ -379,13 +379,19 @@ const Device = (props) => {
           <DropdownButton title="Install capabilities" variant='link'>
             {mapSorted(canBeInstalledPkgs, pkg => {
                 const issues = failsRequirements(latestVersionData.info, pkg);
+
+                const price = pkg.versions?.[0].transitiverobotics?.price;
+                if (price && !props.has_payment_method && !props.free) {
+                  issues.push('This is a premium capability. Please add a payment method (see Billing).');
+                }
+
                 return <Dropdown.Item
                   key={pkg._id}
                   onClick={() => install(pkg)}
-                  disabled={Boolean(issues)}
+                  disabled={issues.length > 0}
                 >
                   {pkg.versions[0].transitiverobotics.title} (v{pkg.version})
-                  {issues && issues.map((message, i) =>
+                  {issues.length > 0 && issues.map((message, i) =>
                     <div key={i} style={styles.issue}>{message}</div>)}
                 </Dropdown.Item>
               })

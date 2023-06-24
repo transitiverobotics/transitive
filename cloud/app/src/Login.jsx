@@ -46,14 +46,20 @@ export const UserContextProvider = ({children}) => {
   const [session, setSession] = useState();
   const [error, setError] = useState();
   const refresh = () => {
-    log.debug('parsing cookie');
     const cookie = parseCookie(document.cookie);
     log.debug('cookie', cookie);
     cookie[COOKIE_NAME] &&
       setSession(JSON.parse(cookie[COOKIE_NAME]));
     setReady(true);
   };
-  useEffect(refresh, []);
+
+  useEffect(() => {
+      // refresh cookie
+      fetchJson(`/@transitive-robotics/_robot-agent/refresh`, (err, res) => {
+        !err && log.debug('refreshed');
+        refresh();
+      });
+    }, []);
 
   /** execute the login */
   const login = (user, password) =>
@@ -153,7 +159,8 @@ export const Login = ({mode = undefined}) => {
             value={userName} onChange={e => setUserName(e.target.value.toLowerCase())}
             autoComplete='username'
             required
-            isInvalid={userName.length > 0 && !userName.match(/^[a-z]+[a-z0-9]*$/)}
+            isInvalid={isRegister && userName.length > 0
+              && !userName.match(/^[a-z]+[a-z0-9]*$/)}
             />
           <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
         </Form.Group>
@@ -172,7 +179,7 @@ export const Login = ({mode = undefined}) => {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            isInvalid={password.length > 0 && password.length < 8}
+            isInvalid={isRegister && password.length > 0 && password.length < 8}
             autoComplete={isRegister ? 'new-password' : 'current-password'}/>
         </Form.Group>
 
@@ -188,8 +195,10 @@ export const Login = ({mode = undefined}) => {
         }
 
         <div style={styles.conditions}>
-          By clicking the {action} button, you agree to Transitive Robotics's <a
-            href={`${homepage}terms`}>Terms of Service</a> and <a
+          By {isRegister ? 'registering' : 'logging in'} you agree to
+          Transitive Robotics's <a
+            href={`${homepage}terms`}>Terms of Service</a>, <a
+            href={`${homepage}eula`}>EULA</a> and <a
             href={`${homepage}privacy.html`}>
             Privacy Policy</a>.
         </div>

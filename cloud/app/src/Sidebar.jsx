@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 
 import { Link, useLocation } from "react-router-dom";
-import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem } from 'react-bootstrap';
+import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge }
+  from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
 import {Login, UserContext} from './Login.jsx';
@@ -59,6 +60,12 @@ const styles = {
   },
   scope: {
     marginTop: '1em'
+  },
+  checkmark: {
+    color: '#1ec21e',
+  },
+  usermenu: {
+    lineHeight: '2em',
   }
 };
 
@@ -108,11 +115,22 @@ export const Sidebar = () => {
         float: 'right'
       }}>logout</Link>
     </div>
-    <div>
-      <PageLink to='/security'>Security</PageLink>
-      <a href='https://billing.transitiverobotics.com/v1/billingPortal'>
-        Billing
-      </a>
+    <div style={styles.usermenu}>
+      <div>
+        <Link to='/security'>Security</Link>
+      </div>
+      <div>
+        <a href={`//billing.${TR_HOST}/v1/billingPortal`}>
+          Billing
+        </a> {
+          session.has_payment_method && <span style={styles.checkmark}>
+            ✓</span>
+        } {
+          session.free && <Badge size='sm' bg='success'
+            title='You are currently on our invite-only free plan'>
+            free</Badge>
+        }
+      </div>
     </div>
   </div>;
 

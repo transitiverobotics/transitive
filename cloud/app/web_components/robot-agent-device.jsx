@@ -156,6 +156,21 @@ const PkgLog = ({response, onHide}) => {
   </Modal>;
 }
 
+/** Price as displayed in package list */
+const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
+    {price?.perMonth ? `\$${price.perMonth}/month` : 'free'}
+  </span>;
+
+/** a package as shown in the install dropdown */
+const Package = ({pkg}) => {
+  const price = pkg.versions?.[0].transitiverobotics?.price;
+  return <div>
+    {pkg.versions[0].transitiverobotics.title} <span
+      style={{ opacity: 0.7, fontSize: 'small' }}>(v{pkg.version})
+    </span> <Price price={price} />
+  </div>;
+};
+
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
 
@@ -165,6 +180,7 @@ const Device = (props) => {
   }
   const {jwt, id, host} = props;
   const ssl = props.ssl && JSON.parse(props.ssl);
+  const session = props.session && JSON.parse(props.session);
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
@@ -376,21 +392,20 @@ const Device = (props) => {
         }
 
         <ListGroup.Item>
-          <DropdownButton title="Install capabilities" variant='link'>
+          <DropdownButton title="Install capabilities" variant='primary'>
             {mapSorted(canBeInstalledPkgs, pkg => {
                 const issues = failsRequirements(latestVersionData.info, pkg);
 
                 const price = pkg.versions?.[0].transitiverobotics?.price;
-                if (price && !props.has_payment_method && !props.free) {
+                if (price && !session.has_payment_method && !session.free) {
                   issues.push('This is a premium capability. Please add a payment method (see Billing).');
                 }
 
-                return <Dropdown.Item
-                  key={pkg._id}
+                return <Dropdown.Item key={pkg._id}
                   onClick={() => install(pkg)}
                   disabled={issues.length > 0}
                 >
-                  {pkg.versions[0].transitiverobotics.title} (v{pkg.version})
+                  <Package pkg={pkg} />
                   {issues.length > 0 && issues.map((message, i) =>
                     <div key={i} style={styles.issue}>{message}</div>)}
                 </Dropdown.Item>

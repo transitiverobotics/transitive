@@ -25,7 +25,7 @@ const styles = {
 const Device = (props) => {
 
   if (!ensureProps(props, ['jwt', 'id', 'host'])) {
-    console.log({props})
+    log.debug({props})
     return <div>missing props</div>;
   }
   const {jwt, id, host} = props;

@@ -59,12 +59,13 @@ const FleetDevice = ({status, info, device, device_url}) => {
 /** Component showing the fleet from the robot-agent perspective */
 const Fleet = (props) => {
 
-  if (!ensureProps(props, ['jwt', 'id', 'robot_token', 'host', 'device_url'])) {
+  if (!ensureProps(props, ['jwt', 'id', 'session', 'host', 'device_url'])) {
     return <div>missing props</div>;
   }
-  const {jwt, id, robot_token, host, device_url} = props;
+  const {jwt, id, host, device_url} = props;
   const ssl = props.ssl && JSON.parse(props.ssl);
   // log.debug('Fleet', host, device_url);
+  const session = props.session && JSON.parse(props.session);
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
@@ -129,7 +130,8 @@ const Fleet = (props) => {
       <ListGroup.Item>
         Add another device by executing this command on your device:
         <Code
-          code={`curl -s "${curlURL}?id=${id}&token=${encodeURIComponent(robot_token)}" | bash`}
+          code={`curl -s "${curlURL}?id=${id}&token=${
+            encodeURIComponent(session.robot_token)}" | bash`}
         />
         For getting started instructions or to pre-install the agent and
         capabilities in a docker image, please see the <a

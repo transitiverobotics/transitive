@@ -129,7 +129,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
       host: TR_HOST,
       ssl,
       ref,
-      ...session,
+      session: JSON.stringify(session),
       ...props,
     }, null);
 

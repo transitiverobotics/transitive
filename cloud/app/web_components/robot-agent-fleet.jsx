@@ -14,9 +14,13 @@ import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
 toFlatObject, getLogger, mergeVersions } from '@transitive-sdk/utils-web';
 
 import { Code } from '../src/utils/Code';
+import { Fold } from '../src/utils/Fold';
+import { Delayed } from '../src/utils/Delayed';
 
 const log = getLogger('robot-agent-fleet');
 log.setLevel('debug');
+
+const F = React.Fragment;
 
 const clone = x => SON.parse(JSON.stringify(x));
 
@@ -69,6 +73,7 @@ const Fleet = (props) => {
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
+
   const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
 
   // TODO: use useEffect
@@ -110,6 +115,8 @@ const Fleet = (props) => {
       return agg;
     }, [0, 0, 0]);  // see heartbeat level in shared.jsx
 
+  const empty = (Object.keys(mergedData).length == 0);
+
   return <div>
     <h5>Devices</h5>
 
@@ -123,19 +130,36 @@ const Fleet = (props) => {
 
 
     <ListGroup variant="flush">
-      {_.map(mergedData, ({status, info, id}) =>
+      {!empty ? _.map(mergedData, ({status, info, id}) =>
           <FleetDevice key={id} status={status} info={info} device={id}
             device_url={device_url} />)
+        :
+        <ListGroup.Item>
+          <i>No devices yet.</i>
+        </ListGroup.Item>
       }
       <ListGroup.Item>
-        Add another device by executing this command on your device:
-        <Code
-          code={`curl -s "${curlURL}?id=${id}&token=${
-            encodeURIComponent(session.robot_token)}" | bash`}
-        />
-        For getting started instructions or to pre-install the agent and
-        capabilities in a docker image, please see the <a
-          href={`//${host}/docs/documentation`}>documentation</a>.
+        <Delayed>
+          <Fold title="Add devices" expanded={empty}>
+            <F>
+              Execute this command on your device to add it:
+              <Code
+                code={`curl -s "${curlURL}?id=${id}&token=${
+                  encodeURIComponent(session.robot_token)}" | bash`}
+                />
+              For instructions on getting started or to pre-install the agent and
+              capabilities in Docker, please see the <a
+                href={`//${host}/docs/documentation`}>documentation</a>.
+
+              If you just want to try it out quickly you can use our example Docker image:
+              <Code language='bash'
+                code={`docker run -it --rm --privileged -v $HOME/.tr_docker:/root/.transitive${
+                  ''} -v /run/udev:/run/udev --name tr-robot --hostname robot1 transitiverobotics/try ${
+                  id} '${session.robot_token}'`}
+                />
+            </F>
+          </Fold>
+        </Delayed>
       </ListGroup.Item>
     </ListGroup>
   </div>

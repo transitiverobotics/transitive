@@ -1,5 +1,8 @@
 import React, {useState} from 'react';
-import { Highlight, themes } from 'prism-react-renderer'
+import { Prism, Highlight, themes } from 'prism-react-renderer'
+// load bash syntax highlighting
+import bashLang from 'refractor/lang/bash';
+bashLang(Prism);
 
 const styles = {
   code: {
@@ -11,12 +14,16 @@ const styles = {
     overflowWrap: 'anywhere',
     whiteSpace: 'pre-wrap',
   }
-}
+};
+
+const theme = themes.vsDark;
+// monkey-patch the theme we use
+theme.plain.color = '#aaa';
 
 /** reusable component for showing code, highlighted using prism */
 export const Code = ({code, language}) => {
   return <Highlight
-    theme={themes.vsDark}
+    theme={theme}
     code={code}
     language={language || 'jsx'}
   >

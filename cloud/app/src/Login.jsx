@@ -47,7 +47,7 @@ export const UserContextProvider = ({children}) => {
   const [error, setError] = useState();
   const refresh = () => {
     const cookie = parseCookie(document.cookie);
-    log.debug('cookie', cookie);
+    // log.debug('cookie', cookie);
     cookie[COOKIE_NAME] &&
       setSession(JSON.parse(cookie[COOKIE_NAME]));
     setReady(true);

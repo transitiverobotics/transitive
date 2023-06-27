@@ -8,7 +8,7 @@ const styles = {
   icon: {
     height: '0.8em',
     width: '0.8em',
-    transition: 'transform 0.3s',
+    transition: 'transform 0.2s',
     verticalAlign: 'baseline',
   },
   body: {
@@ -32,9 +32,9 @@ const ContextAwareToggle = ({ children, eventKey, callback }) => {
 
 /** A reusable folding component, title + body */
 export const Fold = ({title, children, expanded, style}) =>
-  <Accordion defaultActiveKey={expanded && '0'} style={style || {}}>
-    <ContextAwareToggle eventKey="0">{title}</ContextAwareToggle>
-    <Accordion.Collapse eventKey="0" style={styles.body}>
+  <Accordion defaultActiveKey="0" style={style || {}}>
+    <ContextAwareToggle eventKey={expanded && '0'}>{title}</ContextAwareToggle>
+    <Accordion.Collapse eventKey={expanded && '0'} style={styles.body}>
       {children}
     </Accordion.Collapse>
   </Accordion>;

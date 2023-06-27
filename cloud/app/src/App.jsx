@@ -80,7 +80,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   const ref = useRef(null);
   const [error, setError] = useState();
 
-  log.debug('Capability', {deviceId, webComponent, capability, props, session});
+  // log.debug('Capability', {deviceId, webComponent, capability, props, session});
   ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
 
   useEffect(() => {
@@ -181,7 +181,7 @@ const CapabilityWidget = ({type}) => {
       });
     }, [session, scope, capabilityName]);
 
-  log.debug({scope, capability, pkg});
+  // log.debug({scope, capability, pkg});
 
   return <div>
     {type == 'device' ?

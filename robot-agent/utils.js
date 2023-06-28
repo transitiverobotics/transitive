@@ -134,10 +134,52 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
-      } // else: nothing to do, it's already running
+
+      // start watching status.json (from startPackage) and report in mqtt
+      watchStatus(name, 'requested');
+    }
+    // else: nothing to do, it's already running
   });
 };
 
+/** Watch the status.json file of a package, and relay that info to mqtt.
+ * If the file doesn't initially exist, create it and set the provided initial
+ * status.
+ */
+const watchStatus = (name, status) => {
+  const statusFile = `${os.homedir()}/.transitive/packages/${name}/status.json`;
+
+  fs.access(statusFile, fs.constants.R_OK, (err) => {
+    if (err) {
+      fs.writeFileSync(statusFile, JSON.stringify({status}));
+    }
+
+    const watcher = fs.watch(statusFile, {persistence: false},
+      (eventType, filename) => {
+        log.debug(`event type is: ${eventType}`);
+        if (filename) {
+          fs.readFile(statusFile, {encoding: 'utf-8'}, (err, res) => {
+            if (err) {
+              // log.warn('Error reading package status', err);
+              global.data?.update(`${global.AGENT_PREFIX}/status/package/${name}`,
+                null);
+            } else {
+              try {
+                const json = JSON.parse(res);
+                global.data?.update(`${global.AGENT_PREFIX}/status/package/${name}`,
+                  json);
+              } catch (e) {
+                log.warn('Error parsing status.json', e);
+              }
+            }
+          });
+        } else {
+          log.debug('filename not provided');
+        }
+      }
+    );
+  });
+};
 
 /** check whether we, the running process, have password-less sudo rights */
 let _weHaveSudo = null;
@@ -191,15 +233,21 @@ const rotateAllLogs = () => {
 /** A more reliable way to kill all running packages/capabilities, even when
   * they are not cooperating */
 const killAllPackages = () => {
-  const pids = execSync('ps -C unshare.sh -o pid=', {encoding: 'utf-8'})
-      .split('\n').filter(x => x);
-  pids.forEach(pid => {
-    try {
-      execSync(`kill -- -${pid}`);
-    } catch (e) {
-      log.warn(`error killing process group ${pid}`, e);
-    }
-  });
+  // const pids = execSync('ps -C unshare.sh -o pid=', {encoding: 'utf-8'})
+  // .split('\n').filter(x => x);
+  // pids.forEach(pid => {
+  //   try {
+  //     execSync(`kill -- -${pid}`);
+  //   } catch (e) {
+  //     log.warn(`error killing process group ${pid}`, e);
+  //   }
+  // });
+  const cmd = "pkill -f '/home/bin/startPackage.sh @'";
+  try {
+    execSync(cmd);
+  } catch (e) {
+    log.warn(`Error killing packages:`, e);
+  }
 };
 
 

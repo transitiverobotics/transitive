@@ -63,7 +63,7 @@ const getMergedPackageInfo = (robotAgentData) => {
       if (running) {
         const [scope, pkgName, version] = name.slice(1).split('/');
         name = `${scope}/${pkgName}`;
-        rtv[name] = rtv[name] || {};
+        rtv[name] ||= {};
         rtv[name].running = rtv[name].running || {};
         rtv[name].running[version] = 1;
       }
@@ -72,8 +72,18 @@ const getMergedPackageInfo = (robotAgentData) => {
   robotAgentData.desiredPackages &&
     _.forEach(toFlatObject(robotAgentData.desiredPackages), (version, name) => {
       name = name.slice(1); // remove initial slash
-      rtv[name] = rtv[name] || {};
+      rtv[name] ||= {};
       rtv[name].desired = version;
+    });
+
+  robotAgentData?.status?.package &&
+    _.forEach(toFlatObject(robotAgentData.status.package), (status, name) => {
+      if (status) {
+        const [scope, pkgName] = name.slice(1).split('/');
+        name = `${scope}/${pkgName}`;
+        rtv[name] ||= {};
+        rtv[name].status = status;
+      }
     });
 
   return rtv;
@@ -100,7 +110,7 @@ const OSInfo = ({info}) => !info ? <div></div> :
     <h3>{info.os.hostname}</h3>
     <div>
       {info.labels?.map(label =>
-          <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
+          <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
       }
     </div>
     <Form.Text>
@@ -170,6 +180,64 @@ const Package = ({pkg}) => {
     </span> <Price price={price} />
   </div>;
 };
+
+// /** A capability as listed in the list */
+// const ListedCapability = ({name, title, running, desired, status}) =>
+//   <ListGroup.Item key={name}>
+//     <Row>
+//       <Col sm='4' style={styles.rowItem}>
+//         <div>{title}</div>
+//         <div style={styles.subText}>{name}</div>
+//       </Col>
+//       <Col sm='3' style={styles.rowItem}>
+//         { running && !inactive && <div>
+//             <Badge bg="success">
+//               running: v{Object.keys(running).join(', ')}
+//             </Badge>
+//             <Button variant='link' href={`/device/${device}/${name}`}>
+//               view
+//             </Button>
+//           </div>
+//         }
+//         { running && inactive && <div>
+//             <Badge bg="secondary">
+//               installed: v{Object.keys(running).join(', ')}
+//             </Badge>
+//           </div>
+//         }
+//       </Col>
+//       <Col sm='5' style={styles.rowItem}>
+//         {!inactive &&
+//             <div style={{textAlign: 'right'}}>
+//               {
+//                 running && <Button variant='link'
+//                   onClick={() => restartPackage(name)}>
+//                   restart
+//                 </Button>
+//               } {
+//                 running && <Button variant='link'
+//                   onClick={() => stopPackage(name)}>
+//                   stop
+//                 </Button>
+//               } {
+//                 <span title={!desired ? 'pre-installed' : null}>
+//                   <Button variant='link'
+//                     disabled={!desired}
+//                     onClick={() => uninstall(name)}>
+//                     uninstall
+//                   </Button>
+//                 </span>
+//               } {
+//                 <Button variant='link' onClick={() => getPackageLog(name)}>
+//                   get log
+//                 </Button>
+//               }
+//             </div>
+//         }
+//       </Col>
+//     </Row>
+//   </ListGroup.Item>;
+
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
@@ -333,66 +401,71 @@ const Device = (props) => {
       <h5>Capabilities</h5>
       <ListGroup>
         { Object.keys(packages).length > 0 ?
-          mapSorted(packages, ({running, desired}, name) => <ListGroup.Item key={name}>
-            <Row>
-              <Col sm='4' style={styles.rowItem}>
-                <div>{getPkgTitle(name, availablePackages)}</div>
-                <div style={styles.subText}>{name}</div>
-              </Col>
-              <Col sm='3' style={styles.rowItem}>
-                { running && !inactive && <div>
-                    <Badge bg="success">
-                      running: v{Object.keys(running).join(', ')}
-                    </Badge>
-                    <Button variant='link' href={`/device/${device}/${name}`}>
-                      view
-                    </Button>
-                  </div>
-                }
-                { running && inactive && <div>
-                    <Badge bg="secondary">
-                      installed: v{Object.keys(running).join(', ')}
-                    </Badge>
-                  </div>
-                }
-              </Col>
-              <Col sm='5' style={styles.rowItem}>
-                {!inactive &&
-                    <div style={{textAlign: 'right'}}>
-                      {
-                        running && <Button variant='link'
-                          onClick={() => restartPackage(name)}>
-                          restart
-                        </Button>
-                      } {
-                        running && <Button variant='link'
-                          onClick={() => stopPackage(name)}>
-                          stop
-                        </Button>
-                      } {
-                        <span title={!desired ? 'pre-installed' : null}>
-                          <Button variant='link'
-                            disabled={!desired}
-                            onClick={() => uninstall(name)}>
-                            uninstall
-                          </Button>
-                        </span>
-                      } {
-                        <Button variant='link' onClick={() => getPackageLog(name)}>
-                          get log
-                        </Button>
-                      }
+          mapSorted(packages, ({running, desired, status}, name) =>
+            <ListGroup.Item key={name}>
+              <Row>
+                <Col sm='4' style={styles.rowItem}>
+                  <div>{getPkgTitle(name, availablePackages)}</div>
+                  <div style={styles.subText}>{name}</div>
+                </Col>
+                <Col sm='3' style={styles.rowItem}>
+                  { running && !inactive && <div><Badge bg="success">
+                        running: v{Object.keys(running).join(', ')}
+                      </Badge>
+                      <Button variant='link' href={`/device/${device}/${name}`}>
+                        view
+                      </Button>
                     </div>
-                }
-              </Col>
-            </Row>
-          </ListGroup.Item>) :
+                  }
+                  { running && inactive && <div><Badge bg="secondary">
+                        installed: v{Object.keys(running).join(', ')}
+                      </Badge></div>
+                  }
+                  { !running && status && <div><Badge bg="info">
+                        {status}</Badge></div>
+                  }
+                  { !running && !status && !inactive && <div><Badge bg="secondary">
+                        installed
+                      </Badge></div>
+                  }
+                </Col>
+                <Col sm='5' style={styles.rowItem}>
+                  {!inactive &&
+                      <div style={{textAlign: 'right'}}>
+                        {
+                          running && <Button variant='link'
+                            onClick={() => restartPackage(name)}>
+                            restart
+                          </Button>
+                        } {
+                          running && <Button variant='link'
+                            onClick={() => stopPackage(name)}>
+                            stop
+                          </Button>
+                        } {
+                          <span title={!desired ? 'pre-installed' : null}>
+                            <Button variant='link'
+                              disabled={!desired}
+                              onClick={() => uninstall(name)}>
+                              uninstall
+                            </Button>
+                          </span>
+                        } {
+                          <Button variant='link' onClick={() => getPackageLog(name)}>
+                            get log
+                          </Button>
+                        }
+                      </div>
+                  }
+                </Col>
+              </Row>
+            </ListGroup.Item>) :
 
           <ListGroup.Item>No capabilities running.</ListGroup.Item>
         }
 
         <ListGroup.Item>
-          <DropdownButton title="Install capabilities" variant='primary'>
+          <DropdownButton title="Add capabilities" variant='primary'>
             {mapSorted(canBeInstalledPkgs, pkg => {
                 const issues = failsRequirements(latestVersionData.info, pkg);
 
@@ -423,9 +496,8 @@ const Device = (props) => {
 
     <div style={styles.row}>
       <h5>Configuration</h5>
-      {latestVersionData?.info?.config &&
-        <ConfigEditor config={latestVersionData.info.config}
-          updateConfig={updateConfig}/>}
+      {latestVersionData?.info?.config && <ConfigEditor
+        info={latestVersionData.info} updateConfig={updateConfig}/>}
     </div>
   </div>
 };

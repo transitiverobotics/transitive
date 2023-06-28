@@ -24,8 +24,10 @@ const styles = {
 /** Configuration management widget
  * For now just for enabling ROS releases.
 */
-export const ConfigEditor = ({config = {}, updateConfig}) => {
+export const ConfigEditor = ({info = {}, updateConfig}) => {
 
+  const config = info.config;
+  const installedReleases = info.rosReleases || [];
   const {rosReleases} = constants;
   const activeReleases = {1: null, 2: null};
   config.global?.rosReleases?.forEach(r =>
@@ -51,7 +53,8 @@ export const ConfigEditor = ({config = {}, updateConfig}) => {
             >
               <option value={''}>-- disable --</option>
               {releases.map(release => <option value={release} key={release}>
-                {release} {activeReleases[version] == release && '(active)'}
+                {release} {activeReleases[version] == release && '(active)'
+                } {installedReleases.indexOf(release) > -1 && '(present)'}
               </option>)}
             </Form.Select>
           </Col>

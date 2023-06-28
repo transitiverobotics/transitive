@@ -184,6 +184,10 @@ const staticInfo = () => {
   // global.config changes. This is an unusual way to use mqttSync. Normally
   // the data in mqttSync is used directly and always updated directly.
 
+  try {
+    info.rosReleases = fs.readdirSync('/opt/ros');
+  } catch (e) {}
+
   exec('lsb_release -a', (err, stdout, stderr) => {
     if (!err) {
       const output = stdout.trim();

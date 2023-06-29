@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import { FaRegCopy } from 'react-icons/fa';
+import { OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Prism, Highlight, themes } from 'prism-react-renderer'
 // load bash syntax highlighting
 import bashLang from 'refractor/lang/bash';
@@ -13,6 +15,14 @@ const styles = {
     marginTop: '0.5em',
     overflowWrap: 'anywhere',
     whiteSpace: 'pre-wrap',
+    paddingRight: '2em',
+  },
+  copy: {
+    position: 'absolute',
+    right: '2.5em',
+  },
+  checkmark: {
+    color: '#1ec21e',
   }
 };
 
@@ -20,8 +30,33 @@ const theme = themes.vsDark;
 // monkey-patch the theme we use
 theme.plain.color = '#aaa';
 
+const CopyButton = ({code}) => {
+  const [copied, setCopied] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const copy = () => navigator.clipboard.writeText(code);
+
+  return <div style={styles.copy}>
+    <OverlayTrigger overlay={<Tooltip id='copy'>copied</Tooltip>}
+      placement='top-end'
+      show={showTooltip}
+    >
+      <a href='#' onClick={(e) => {
+        e.preventDefault();
+        copy();
+        setCopied(true);
+        setShowTooltip(true);
+        setTimeout(() => setShowTooltip(false), 1000);
+        return false;
+      }}>
+        {copied ? <span style={styles.checkmark}>✓</span>: <FaRegCopy/>}
+      </a>
+    </OverlayTrigger>
+  </div>;
+}
+
 /** reusable component for showing code, highlighted using prism */
 export const Code = ({code, language}) => {
+
   return <Highlight
     theme={theme}
     code={code}
@@ -29,6 +64,8 @@ export const Code = ({code, language}) => {
   >
     {({ className, style, tokens, getLineProps, getTokenProps }) => (
       <pre style={{...styles.code, ...style}}>
+        <CopyButton code={code} />
+
         {tokens.map((line, i) => (
           <div key={i} {...getLineProps({ line })}>
             {line.map((token, key) => (

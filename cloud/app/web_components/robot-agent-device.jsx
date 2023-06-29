@@ -181,63 +181,6 @@ const Package = ({pkg}) => {
   </div>;
 };
 
-// /** A capability as listed in the list */
-// const ListedCapability = ({name, title, running, desired, status}) =>
-//   <ListGroup.Item key={name}>
-//     <Row>
-//       <Col sm='4' style={styles.rowItem}>
-//         <div>{title}</div>
-//         <div style={styles.subText}>{name}</div>
-//       </Col>
-//       <Col sm='3' style={styles.rowItem}>
-//         { running && !inactive && <div>
-//             <Badge bg="success">
-//               running: v{Object.keys(running).join(', ')}
-//             </Badge>
-//             <Button variant='link' href={`/device/${device}/${name}`}>
-//               view
-//             </Button>
-//           </div>
-//         }
-//         { running && inactive && <div>
-//             <Badge bg="secondary">
-//               installed: v{Object.keys(running).join(', ')}
-//             </Badge>
-//           </div>
-//         }
-//       </Col>
-//       <Col sm='5' style={styles.rowItem}>
-//         {!inactive &&
-//             <div style={{textAlign: 'right'}}>
-//               {
-//                 running && <Button variant='link'
-//                   onClick={() => restartPackage(name)}>
-//                   restart
-//                 </Button>
-//               } {
-//                 running && <Button variant='link'
-//                   onClick={() => stopPackage(name)}>
-//                   stop
-//                 </Button>
-//               } {
-//                 <span title={!desired ? 'pre-installed' : null}>
-//                   <Button variant='link'
-//                     disabled={!desired}
-//                     onClick={() => uninstall(name)}>
-//                     uninstall
-//                   </Button>
-//                 </span>
-//               } {
-//                 <Button variant='link' onClick={() => getPackageLog(name)}>
-//                   get log
-//                 </Button>
-//               }
-//             </div>
-//         }
-//       </Col>
-//     </Row>
-//   </ListGroup.Item>;
-
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
@@ -424,10 +367,6 @@ const Device = (props) => {
                   { !running && status && <div><Badge bg="info">
                         {status}</Badge></div>
                   }
-                  { !running && !status && !inactive && <div><Badge bg="secondary">
-                        installed
-                      </Badge></div>
-                  }
                 </Col>
                 <Col sm='5' style={styles.rowItem}>
                   {!inactive &&
@@ -465,26 +404,36 @@ const Device = (props) => {
         }
 
         <ListGroup.Item>
-          <DropdownButton title="Add capabilities" variant='primary'>
-            {mapSorted(canBeInstalledPkgs, pkg => {
-                const issues = failsRequirements(latestVersionData.info, pkg);
+          <Dropdown className="d-inline">
+            <Dropdown.Toggle variant='primary'
+              disabled={!latestVersionData.status?.ready}
+              title={!latestVersionData.status?.ready ?
+                'Wait for agent getting ready' : ''}>
+              Add capabilities
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              {mapSorted(canBeInstalledPkgs, pkg => {
+                  const issues = failsRequirements(latestVersionData.info, pkg);
 
-                const price = pkg.versions?.[0].transitiverobotics?.price;
-                if (price && !session.has_payment_method && !session.free) {
-                  issues.push('This is a premium capability. Please add a payment method (see Billing).');
-                }
+                  const price = pkg.versions?.[0].transitiverobotics?.price;
+                  if (price && !session.has_payment_method && !session.free) {
+                    issues.push('This is a premium capability. Please add a payment method (see Billing).');
+                  }
 
-                return <Dropdown.Item key={pkg._id}
-                  onClick={() => install(pkg)}
-                  disabled={issues.length > 0}
-                >
-                  <Package pkg={pkg} />
-                  {issues.length > 0 && issues.map((message, i) =>
-                    <div key={i} style={styles.issue}>{message}</div>)}
-                </Dropdown.Item>
-              })
-            }
-          </DropdownButton>
+                  return <Dropdown.Item key={pkg._id}
+                    onClick={() => install(pkg)}
+                    disabled={issues.length > 0}
+                  >
+                    <Package pkg={pkg} />
+                    {issues.length > 0 && issues.map((message, i) =>
+                      <div key={i} style={styles.issue}>{message}</div>)}
+                  </Dropdown.Item>
+                })
+              }
+            </Dropdown.Menu>
+          </Dropdown> {!latestVersionData.status?.ready &&
+              <Form.Text>Please wait for agent getting ready..</Form.Text>
+          }
         </ListGroup.Item>
       </ListGroup>
     </div>

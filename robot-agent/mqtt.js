@@ -86,6 +86,8 @@ mqttClient.on('connect', function(connackPacket) {
               mqttSync.data.getByTopic(`${AGENT_PREFIX}/desiredPackages`));
             mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
               (value, key) => ensureDesiredPackages(value));
+            // ready to install packages
+            data.update(`${AGENT_PREFIX}/status/ready`, true);
           });
         });
       }

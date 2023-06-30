@@ -24,9 +24,9 @@ const ContextAwareToggle = ({ children, eventKey, callback }) => {
   );
   const isCurrentEventKey = activeEventKey === eventKey;
   return <a onClick={decoratedOnClick} href=''>
-    <FaChevronRight
-      style={Object.assign(isCurrentEventKey ? {transform: 'rotate(90deg)'} : {},
-        styles.icon)} /> {children}
+    <FaChevronRight style={Object.assign(isCurrentEventKey ?
+        {transform: 'rotate(90deg)'} : {}, styles.icon)}
+      /> {children}
   </a>;
 };
 

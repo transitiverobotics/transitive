@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Modal } from 'react-bootstrap';
+    Modal, Accordion } from 'react-bootstrap';
 
 const _ = {
   map: require('lodash/map'),
@@ -11,6 +11,8 @@ const _ = {
 };
 
 import pako from 'pako';
+import { MdAdd } from 'react-icons/md'
+
 import jsonLogic from '../src/utils/logic';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
@@ -20,6 +22,7 @@ import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
 import { Heartbeat, heartbeatLevel, ensureProps } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
+import { Fold } from '../src/utils/Fold';
 
 const log = getLogger('robot-agent-device');
 log.setLevel('debug');
@@ -34,10 +37,6 @@ const styles = {
   agentVersion: {
     fontSize: 'smaller'
   },
-  issue: {
-    color: '#622',
-    fontSize: 'small'
-  },
   rowItem: {
     display: 'flex',
     justifyContent: 'center',
@@ -46,6 +45,9 @@ const styles = {
   subText: {
     color: '#999',
     fontSize: 'small'
+  },
+  addList: {
+    transition: 'height 1s ease'
   }
 };
 
@@ -172,13 +174,32 @@ const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
   </span>;
 
 /** a package as shown in the install dropdown */
-const Package = ({pkg}) => {
-  const price = pkg.versions?.[0].transitiverobotics?.price;
-  return <div>
-    {pkg.versions[0].transitiverobotics.title} <span
-      style={{ opacity: 0.7, fontSize: 'small' }}>(v{pkg.version})
-    </span> <Price price={price} />
-  </div>;
+const Package = ({pkg, install, issues}) => {
+  const {title, price} = pkg.versions?.[0].transitiverobotics;
+
+  return <Row>
+    <Col sm='4' style={styles.rowItem}>
+      {title} <span
+        style={{ opacity: 0.5, fontSize: 'small' }}>{pkg._id} v{pkg.version}</span>
+    </Col>
+    <Col sm='2' style={styles.rowItem}>
+      <a href={`//${TR_HOST}/caps/${pkg.name.slice(1)}`}>
+        Details
+      </a>
+    </Col>
+    <Col sm='2' style={styles.rowItem}>
+      <Price price={price} />
+    </Col>
+    <Col sm='4' style={styles.rowItem}>
+      <Button variant="outline-primary"
+        onClick={() => install(pkg)}
+        disabled={issues.length > 0}>
+        Add
+      </Button>
+      {issues.length > 0 && issues.map((message, i) =>
+        <Form.Text key={i}>{message}</Form.Text>)}
+    </Col>
+  </Row>;
 };
 
 
@@ -197,6 +218,8 @@ const Device = (props) => {
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
   const {device} = decodeJWT(jwt);
   const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
+
+  const [showAdd, setShowAdd] = useState(false);
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
@@ -340,103 +363,97 @@ const Device = (props) => {
       </ConfirmedButton>
     </div>
 
+
     <div style={styles.row}>
       <h5>Capabilities</h5>
-      <ListGroup>
+      <Accordion defaultActiveKey={['0']} alwaysOpen>
         { Object.keys(packages).length > 0 ?
           mapSorted(packages, ({running, desired, status}, name) =>
-            <ListGroup.Item key={name}>
-              <Row>
-                <Col sm='4' style={styles.rowItem}>
-                  <div>{getPkgTitle(name, availablePackages)}</div>
-                  <div style={styles.subText}>{name}</div>
-                </Col>
-                <Col sm='3' style={styles.rowItem}>
-                  { running && !inactive && <div><Badge bg="success">
-                        running: v{Object.keys(running).join(', ')}
-                      </Badge>
-                      <Button variant='link' href={`/device/${device}/${name}`}>
-                        view
-                      </Button>
-                    </div>
-                  }
-                  { running && inactive && <div><Badge bg="secondary">
-                        installed: v{Object.keys(running).join(', ')}
-                      </Badge></div>
-                  }
-                  { !running && status && <div><Badge bg="info">
-                        {status}</Badge></div>
-                  }
-                </Col>
-                <Col sm='5' style={styles.rowItem}>
-                  {!inactive &&
-                      <div style={{textAlign: 'right'}}>
-                        {
-                          running && <Button variant='link'
-                            onClick={() => restartPackage(name)}>
-                            restart
-                          </Button>
-                        } {
-                          running && <Button variant='link'
-                            onClick={() => stopPackage(name)}>
-                            stop
-                          </Button>
-                        } {
-                          <span title={!desired ? 'pre-installed' : null}>
-                            <Button variant='link'
-                              disabled={!desired}
-                              onClick={() => uninstall(name)}>
-                              uninstall
-                            </Button>
-                          </span>
-                        } {
-                          <Button variant='link' onClick={() => getPackageLog(name)}>
-                            get log
-                          </Button>
-                        }
+            <Accordion.Item eventKey="0" key={name}>
+              <Accordion.Body>
+                <Row>
+                  <Col sm='4' style={styles.rowItem}>
+                    <div>{getPkgTitle(name, availablePackages)}</div>
+                    <div style={styles.subText}>{name}</div>
+                  </Col>
+                  <Col sm='3' style={styles.rowItem}>
+                    { running && !inactive && <div><Badge bg="success">
+                          running: v{Object.keys(running).join(', ')}
+                        </Badge>
+                        <Button variant='link' href={`/device/${device}/${name}`}>
+                          view
+                        </Button>
                       </div>
-                  }
-                </Col>
-              </Row>
-            </ListGroup.Item>) :
+                    }
+                    { running && inactive && <div><Badge bg="secondary">
+                          installed: v{Object.keys(running).join(', ')}
+                        </Badge></div>
+                    }
+                    { !running && status && <div><Badge bg="info">
+                          {status}</Badge></div>
+                    }
+                  </Col>
+                  <Col sm='5' style={styles.rowItem}>
+                    {!inactive &&
+                        <div style={{textAlign: 'right'}}>
+                          {
+                            running && <Button variant='link'
+                              onClick={() => restartPackage(name)}>
+                              restart
+                            </Button>
+                          } {
+                            running && <Button variant='link'
+                              onClick={() => stopPackage(name)}>
+                              stop
+                            </Button>
+                          } {
+                            <span title={!desired ? 'pre-installed' : null}>
+                              <Button variant='link'
+                                disabled={!desired}
+                                onClick={() => uninstall(name)}>
+                                uninstall
+                              </Button>
+                            </span>
+                          } {
+                            <Button variant='link' onClick={() => getPackageLog(name)}>
+                              get log
+                            </Button>
+                          }
+                        </div>
+                    }
+                  </Col>
+                </Row>
+              </Accordion.Body>
+            </Accordion.Item>
+          ) :
 
-          <ListGroup.Item>No capabilities running.</ListGroup.Item>
+          <ListGroup.Item>No capabilities added yet.</ListGroup.Item>
         }
 
-        <ListGroup.Item>
-          <Dropdown className="d-inline">
-            <Dropdown.Toggle variant='primary'
-              disabled={!latestVersionData.status?.ready}
-              title={!latestVersionData.status?.ready ?
-                'Wait for agent getting ready' : ''}>
-              Add capabilities
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {mapSorted(canBeInstalledPkgs, pkg => {
-                  const issues = failsRequirements(latestVersionData.info, pkg);
+        {/* Fold-out for adding more */}
 
-                  const price = pkg.versions?.[0].transitiverobotics?.price;
-                  if (price && !session.has_payment_method && !session.free) {
-                    issues.push('This is a premium capability. Please add a payment method (see Billing).');
-                  }
+        <Accordion.Item eventKey="1">
+          <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
+        </Accordion.Item>
+        {mapSorted(canBeInstalledPkgs, pkg => {
+            const issues = failsRequirements(latestVersionData.info, pkg);
 
-                  return <Dropdown.Item key={pkg._id}
-                    onClick={() => install(pkg)}
-                    disabled={issues.length > 0}
-                  >
-                    <Package pkg={pkg} />
-                    {issues.length > 0 && issues.map((message, i) =>
-                      <div key={i} style={styles.issue}>{message}</div>)}
-                  </Dropdown.Item>
-                })
-              }
-            </Dropdown.Menu>
-          </Dropdown> {!latestVersionData.status?.ready &&
-              <Form.Text>Please wait for agent getting ready..</Form.Text>
-          }
-        </ListGroup.Item>
-      </ListGroup>
+            const price = pkg.versions?.[0].transitiverobotics?.price;
+            if (price && !session.has_payment_method && !session.free) {
+              issues.push('Please add a payment method in Billing.');
+            }
+
+            return <Accordion.Item eventKey="1" key={pkg._id}>
+              <Accordion.Body>
+                <Package {...{pkg, install, issues}} />
+              </Accordion.Body>
+            </Accordion.Item>
+          })
+        }
+      </Accordion>
     </div>
+
+
 
     {latestVersionData.$response?.commands?.getPkgLog &&
         <PkgLog response={latestVersionData.$response?.commands?.getPkgLog}

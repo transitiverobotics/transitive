@@ -176,6 +176,7 @@ const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
 /** a package as shown in the install dropdown */
 const Package = ({pkg, install, issues}) => {
   const {title, price} = pkg.versions?.[0].transitiverobotics;
+  log.debug({issues});
 
   return <Row>
     <Col sm='4' style={styles.rowItem}>

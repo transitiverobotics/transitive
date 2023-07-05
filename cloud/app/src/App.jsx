@@ -138,10 +138,10 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   }
 
   return <div className='capability' style={styles.cap.wrapper}>
-    <div style={styles.cap.embed}>
+    {!props.disableEmbed && <div style={styles.cap.embed}>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
         host={TR_HOST} ssl={ssl} compRef={ref} capability={capability} />
-    </div>
+    </div>}
     <div style={styles.cap.body}>
       {element}
     </div>
@@ -249,6 +249,7 @@ const Portal = () => {
               <Capability webComponent='robot-agent-fleet'
                 capability='@transitive-robotics/_robot-agent'
                 device_url='/device'
+                disableEmbed={true}
                 />
             }/>
 
@@ -256,6 +257,7 @@ const Portal = () => {
               <Capability webComponent='robot-agent-device'
                 capability='@transitive-robotics/_robot-agent'
                 fleetURL='/'
+                disableEmbed={true}
                 />
             }/>
 

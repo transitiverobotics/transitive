@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { Col, Row, Form, Button } from 'react-bootstrap';
+import { Col, Row, Form, Button, DropdownButton, Dropdown } from 'react-bootstrap';
 
 const _ = {
   map: require('lodash/map'),
@@ -43,20 +43,24 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
         const releases = getReleasesForVersion(version).sort();
 
         return <Row key={version} style={styles.rows}>
-          <Form.Label column='sm' sm={4}>ROS {version} release to use</Form.Label>
+          <Col sm={4}>ROS {version} release to use</Col>
           <Col sm={5}>
-            <Form.Select aria-label="Select ROS release to use"
-              value={selected[version] || ''}
-              onChange={e => setSelected(s => {
-                return {...s, [version]: e.target.value};
-              })}
-            >
-              <option value={''}>-- disable --</option>
-              {releases.map(release => <option value={release} key={release}>
-                {release} {activeReleases[version] == release && '(active)'
-                } {installedReleases.indexOf(release) > -1 && '(present)'}
-              </option>)}
-            </Form.Select>
+
+            <DropdownButton title={selected[version] || 'none'} >
+              <Dropdown.Item
+                active={!activeReleases[version]}
+                onClick={() => setSelected(s => ({...s, [version]: null}))}>
+                none
+              </Dropdown.Item>
+              { releases.map(release => <Dropdown.Item key={release}
+                  active={activeReleases[version] == release}
+                  disabled={installedReleases.indexOf(release) == -1}
+                  onClick={() => setSelected(s => ({...s, [version]: release}))}>
+                  {release} {installedReleases.indexOf(release) == -1 &&
+                    '(not installed)'}
+                </Dropdown.Item>
+              )}
+            </DropdownButton>
           </Col>
         </Row>;
       })}

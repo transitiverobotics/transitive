@@ -61,6 +61,15 @@ const requireLogin = (req, res, next) => {
   }
 };
 
+/** simple middleware to check whether the user is logged in as an admin */
+const requireAdmin = (req, res, next) => {
+  if (!req.session?.user?.admin) {
+    res.status(401).json({error: 'Not authorized. You need to be admin.'});
+  } else {
+    next();
+  }
+};
+
 /** lookup which version of the named capability is running on the named device
 */
 const getVersion = (userId, deviceId, scope, capName) => {
@@ -411,13 +420,15 @@ app.post('/auth/acl', (req, res) => {
 const RUNNING_THRESHOLD = 1 * 60 * 60 * 1000;
 
 /** given an account (object from DB), create the cookie payload string */
-const getCookie = (account) => JSON.stringify({
+const createCookie = (account, impersonating = false) => JSON.stringify({
   user: account._id,
   robot_token: account.robotToken,
   verified: account.verified,
   has_payment_method: Boolean(
     account?.stripeCustomer?.invoice_settings?.default_payment_method),
-  free: account.free
+  free: account.free,
+  admin: account.admin || false,
+  impersonating
 });
 
 /** dummy capability just to forward general info about devices */
@@ -683,7 +694,7 @@ class _robotAgent extends Capability {
 
       // Write the verified username to the session to indicate logged in status
       req.session.user = account;
-      res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
+      res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
     });
 
     /** Called by client to refresh the session cookie */
@@ -701,7 +712,9 @@ class _robotAgent extends Capability {
       }
 
       req.session.user = account;
-      res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
+      res.cookie(COOKIE_NAME,
+        createCookie(account, Boolean(req.session.originalUser)))
+        .json({status: 'ok'});
     });
 
 
@@ -750,7 +763,7 @@ class _robotAgent extends Capability {
 
           // Write the verified username to the session to indicate logged in status
           req.session.user = account;
-          res.cookie(COOKIE_NAME, getCookie(account)).json({status: 'ok'});
+          res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
         }
       });
     });
@@ -863,7 +876,57 @@ class _robotAgent extends Capability {
       });
     });
 
-    this.router.get('/admin/startCloudCap/:name/:version', requireLogin,
+    // Admin tools
+
+    this.router.post('/admin/impersonate', requireAdmin, async (req, res) => {
+      log.debug('impersonate', req.body);
+
+      const fail = (error) => {
+        log.debug('/impersonate, fail:', error);
+        return res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+      }
+
+      if (!req.body.name) {
+        return fail('no account name given');
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.body.name});
+      if (!account) {
+        return fail('no such account', req.body.name);
+      }
+
+      // Write the verified username to the session to indicate logged in status
+      req.session.originalUser = req.session.user;
+      req.session.user = account;
+      res.cookie(COOKIE_NAME, createCookie(account, true)).json({status: 'ok'});
+    });
+
+    this.router.get('/admin/deimpersonate', requireLogin, async (req, res) => {
+      log.debug('deimpersonate');
+
+      const fail = (error) => {
+        log.debug('/deimpersonate, fail:', error);
+        return res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+      }
+
+      if (!req.session.originalUser) {
+        return fail('not impersonating');
+      }
+
+      req.session.user = req.session.originalUser;
+      delete req.session.originalUser;
+      res.cookie(COOKIE_NAME, createCookie(req.session.user)).json({status: 'ok'});
+    });
+
+    /** get list of users */
+    this.router.get('/admin/getUsers', requireAdmin, async (req, res) => {
+      const accounts = Mongo.db.collection('accounts');
+      const users = await accounts.find({_id: {$ne: 'bot'}}).toArray();
+      res.json({users});
+    });
+
+    this.router.get('/admin/startCloudCap/:name/:version', requireAdmin,
       (req, res) => {
         docker.ensureRunning(req.params);
         log.debug('manually starting cloud cap for', req.params);

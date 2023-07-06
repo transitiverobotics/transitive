@@ -5,7 +5,8 @@ import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge }
   from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
-import {Login, UserContext} from './Login.jsx';
+import { Login, UserContext } from './Login.jsx';
+import { ActionLink } from './utils/index';
 
 const F = React.Fragment;
 
@@ -90,7 +91,7 @@ const PageLink = ({to, children}) => {
 /** The sidebar */
 export const Sidebar = () => {
   // const { user, isLoggedIn, email } = useAccount();
-  const {session, logout} = useContext(UserContext);
+  const { session, logout, deimpersonate } = useContext(UserContext);
   const isLoggedIn = !!session;
 
   const [runningPackages, setRunningPackages] = useState({});
@@ -102,12 +103,6 @@ export const Sidebar = () => {
       });
     }, []);
 
-  // const deimpersonate = () => {
-  //   localStorage.originalLoginToken &&
-  //     Accounts.loginWithToken(localStorage.originalLoginToken);
-  //   delete localStorage.originalLoginToken;
-  // };
-
   const UserMenu = () => <div>
     <div style={styles.loggedIn}>
       Logged in as {session.user}
@@ -115,6 +110,9 @@ export const Sidebar = () => {
         float: 'right'
       }}>logout</Link>
     </div>
+    { session.admin && <div><Link to='/admin'>Admin</Link></div> }
+    { session.impersonating && <div><ActionLink onClick={deimpersonate}>
+          Stop impersonating</ActionLink></div> }
     <div style={styles.usermenu}>
       <div>
         <Link to='/security'>Security</Link>

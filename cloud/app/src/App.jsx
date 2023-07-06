@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 
-import {BrowserRouter as Router, Routes, Route, Link, useParams} from
+import { BrowserRouter as Router, Routes, Route, Link, useParams } from
   'react-router-dom';
 import _ from 'lodash';
 import { Alert } from 'react-bootstrap';
 
-import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
+import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
 
-import {Login, UserContext, UserContextProvider} from './Login.jsx';
-import {Sidebar} from './Sidebar.jsx';
-import {Security} from './Security.jsx';
-import {StandAloneComponent} from './StandAloneComponent.jsx';
-import {Embed} from './utils/Embed.jsx';
+import { Login, UserContext, UserContextProvider } from './Login.jsx';
+import { Sidebar } from './Sidebar.jsx';
+import { Security } from './Security.jsx';
+import { Admin } from './Admin.jsx';
+import { StandAloneComponent } from './StandAloneComponent.jsx';
+import { Embed } from './utils/Embed.jsx';
 import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
 
@@ -242,7 +243,7 @@ const Portal = () => {
       { msg && <Message msg={msg} /> }
 
       { session.verified ? <Routes>
-          <Route path="/admin" />
+          <Route path="/admin" element={<Admin />}/>
           <Route path="/security" element={<Security />} />
 
           <Route path="/" element={

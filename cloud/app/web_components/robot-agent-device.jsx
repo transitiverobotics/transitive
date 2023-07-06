@@ -354,15 +354,11 @@ const Device = (props) => {
           <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
-      </span>
-      <ActionLink onClick={restartAgent} disabled={inactive}>
+      </span>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
         Restart agent
-      </ActionLink>
-      <ActionLink onClick={stopAll} variant='link' disabled={inactive}>
+      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={stopAll} disabled={inactive}>
         Stop all capabilities
-      </ActionLink>
-      <ConfirmedButton onClick={clear} variant='link'
-        explanation={explanation}>
+      </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear} explanation={explanation}>
         Remove device
       </ConfirmedButton>
     </div>

@@ -105,8 +105,34 @@ export const UserContextProvider = ({children}) => {
       },
       {body: {name: user, password, email}});
 
+  const impersonate = (_id) => {
+    fetchJson(`/@transitive-robotics/_robot-agent/admin/impersonate`,
+      (err, res) => {
+        if (err) {
+          log.error(err);
+        } else {
+          log.debug('impersonating', _id);
+          refresh();
+        }
+      },
+      {body: {name: _id}});
+  };
+
+  const deimpersonate = () => {
+    fetchJson(`/@transitive-robotics/_robot-agent/admin/deimpersonate`,
+      (err, res) => {
+        if (err) {
+          log.error(err);
+        } else {
+          log.debug('stopped impersonating');
+          refresh();
+        }
+      });
+  };
+
   return <UserContext.Provider
-    value={{ready, session, login, logout, register, error}}>
+    value={{ ready, session, login, logout, register, impersonate,
+      deimpersonate, error }}>
     {children}
   </UserContext.Provider>;
 };

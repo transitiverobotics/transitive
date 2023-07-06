@@ -43,10 +43,11 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
         const releases = getReleasesForVersion(version).sort();
 
         return <Row key={version} style={styles.rows}>
-          <Col sm={4}>ROS {version} release to use</Col>
+          <Col sm={3}>ROS {version} release to use</Col>
           <Col sm={5}>
 
-            <DropdownButton title={selected[version] || 'none'} >
+            <DropdownButton title={selected[version] || 'none'}
+              variant='outline-secondary'>
               <Dropdown.Item
                 active={!activeReleases[version]}
                 onClick={() => setSelected(s => ({...s, [version]: null}))}>

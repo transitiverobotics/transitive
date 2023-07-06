@@ -4,6 +4,8 @@ import { Card, Button, Form } from 'react-bootstrap';
 import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-sdk/utils-web';
 
+import { ActionLink } from './utils/index';
+
 const { COOKIE_NAME } = require('../common.js');
 
 const log = getLogger('Login');
@@ -108,14 +110,6 @@ export const UserContextProvider = ({children}) => {
     {children}
   </UserContext.Provider>;
 };
-
-/** A link (anchor) that can be used as a button */
-const ActionLink = ({onClick, children}) =>
-  <a href='#' onClick={(e) => {
-    e.preventDefault();
-    onClick();
-    return false;
-  }}>{children}</a>;
 
 
 /** Login component; updates the context on login/logout events */

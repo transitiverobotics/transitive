@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Modal, Accordion } from 'react-bootstrap';
+    Modal, Accordion, Spinner } from 'react-bootstrap';
 
 const _ = {
   map: require('lodash/map'),
@@ -14,6 +14,7 @@ import pako from 'pako';
 import { MdAdd } from 'react-icons/md'
 
 import jsonLogic from '../src/utils/logic';
+import { ActionLink } from '../src/utils/index';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
@@ -23,6 +24,8 @@ import { Heartbeat, heartbeatLevel, ensureProps } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
+
+const F = React.Fragment;
 
 const log = getLogger('robot-agent-device');
 log.setLevel('debug');
@@ -352,18 +355,23 @@ const Device = (props) => {
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
       </span>
-      <Button onClick={restartAgent} variant='link' disabled={inactive}>
+      <ActionLink onClick={restartAgent} disabled={inactive}>
         Restart agent
-      </Button>
-      <Button onClick={stopAll} variant='link' disabled={inactive}>
+      </ActionLink>
+      <ActionLink onClick={stopAll} variant='link' disabled={inactive}>
         Stop all capabilities
-      </Button>
+      </ActionLink>
       <ConfirmedButton onClick={clear} variant='link'
         explanation={explanation}>
         Remove device
       </ConfirmedButton>
     </div>
 
+    <div style={styles.row}>
+      <h5>Configuration</h5>
+      {latestVersionData?.info?.config && <ConfigEditor
+        info={latestVersionData.info} updateConfig={updateConfig}/>}
+    </div>
 
     <div style={styles.row}>
       <h5>Capabilities</h5>
@@ -433,39 +441,38 @@ const Device = (props) => {
 
         {/* Fold-out for adding more */}
 
-        <Accordion.Item eventKey="1">
-          <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
-        </Accordion.Item>
-        {mapSorted(canBeInstalledPkgs, pkg => {
-            const issues = failsRequirements(latestVersionData.info, pkg);
-
-            const price = pkg.versions?.[0].transitiverobotics?.price;
-            if (price && !session.has_payment_method && !session.free) {
-              issues.push('Please add a payment method in Billing.');
-            }
-
-            return <Accordion.Item eventKey="1" key={pkg._id}>
-              <Accordion.Body>
-                <Package {...{pkg, install, issues}} />
-              </Accordion.Body>
+        { latestVersionData.status?.ready ? <F>
+            <Accordion.Item eventKey="1">
+              <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
             </Accordion.Item>
-          })
+            {mapSorted(canBeInstalledPkgs, pkg => {
+                const issues = failsRequirements(latestVersionData.info, pkg);
+
+                const price = pkg.versions?.[0].transitiverobotics?.price;
+                if (price && !session.has_payment_method && !session.free) {
+                  issues.push('Please add a payment method in Billing.');
+                }
+
+                return <Accordion.Item eventKey="1" key={pkg._id}>
+                  <Accordion.Body>
+                    <Package {...{pkg, install, issues}} />
+                  </Accordion.Body>
+                </Accordion.Item>
+              })
+            }
+          </F>
+          : !inactive && <Accordion.Item eventKey="0">
+            <Accordion.Body><Spinner animation="border" size="sm"
+                /> Waiting for agent getting ready.</Accordion.Body>
+          </Accordion.Item>
         }
       </Accordion>
     </div>
-
-
 
     {latestVersionData.$response?.commands?.getPkgLog &&
         <PkgLog response={latestVersionData.$response?.commands?.getPkgLog}
           onHide={clearPackageLog}/>
     }
-
-    <div style={styles.row}>
-      <h5>Configuration</h5>
-      {latestVersionData?.info?.config && <ConfigEditor
-        info={latestVersionData.info} updateConfig={updateConfig}/>}
-    </div>
   </div>
 };
 

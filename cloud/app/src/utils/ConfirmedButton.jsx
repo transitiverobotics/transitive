@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Button, OverlayTrigger, Popover } from 'react-bootstrap';
+import { ActionLink } from './index.jsx';
 
 const styles = {
   title: {
@@ -15,7 +16,7 @@ const styles = {
 /** A reusable button that requires confirmation before executing onClick */
 export const ConfirmedButton =
   ({style, variant, onClick, children, explanation, as, size}) => {
-    const Comp = as || Button;
+    const Comp = as || ActionLink;
     return <OverlayTrigger trigger="click" placement="bottom" rootClose
       overlay={
         <Popover id="popover-positioned-bottom" title="">

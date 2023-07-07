@@ -30,17 +30,19 @@ export const Admin = () => {
     <h4>Users</h4>
     {users && <Form.Text>{users.length} total</Form.Text>}
 
-    { users?.map(({_id, verified, created}) => {
+    { users?.map(({_id, verified, created, stripeCustomer}) => {
       const date = created && new Date(created);
+
       return <Row key={_id}>
         <Col sm={1} style={{fontWeight: 'bold'}}>{_id}</Col>
-        <Col sm={2}>{verified}</Col>
-        <Col sm={2}>{date?.toLocaleDateString()} {date?.toLocaleTimeString()}</Col>
-        <Col sm={2}>
+        <Col sm={1}>
           <ActionLink onClick={() => impersonate(_id)}>
             impersonate
           </ActionLink>
         </Col>
+        <Col sm={2}>{verified}</Col>
+        <Col sm={2}>{date?.toLocaleString()}</Col>
+        <Col sm={1}>{stripeCustomer && `\$${stripeCustomer.balance / -100}`}</Col>
       </Row>;
     })}
     </div>;

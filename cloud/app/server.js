@@ -427,6 +427,8 @@ const createCookie = (account, impersonating = false) => JSON.stringify({
   has_payment_method: Boolean(
     account?.stripeCustomer?.invoice_settings?.default_payment_method),
   free: account.free,
+  balance: account?.stripeCustomer?.balance,
+  balanceExpires: account?.balanceExpires,
   admin: account.admin || false,
   impersonating
 });
@@ -550,6 +552,30 @@ class _robotAgent extends Capability {
       }
     } catch (e) {
       log.warn(`failed to record usage for`, ns, e);
+    }
+  }
+
+  /** Report usage to the billing portal, and retrieve back a JWT that the cap
+  * on this device can use to start. Publish it in mqtt. */
+  async createBillingUser({orgId}) {
+    const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
+    log.debug({billingUser, billingSecret});
+
+    const params = new URLSearchParams({
+      jwt: jwt.sign({orgId}, billingSecret),
+      host: process.env.HOST  // for bookkeeping
+    });
+
+    try {
+      const response = await fetch(
+        `${BILLING_SERVICE}/v1/create/${billingUser}?${params}`);
+
+      const json = await response.json();
+      if (!json.ok) {
+        log.warn(`failed to create billing user for ${orgId}`, json.error);
+      }
+    } catch (e) {
+      log.warn(`failed to create billing user for ${orgId}`, e);
     }
   }
 
@@ -789,6 +815,9 @@ class _robotAgent extends Capability {
       const {error, account} = await verifyCode(id, code);
       if (error) return fail(error);
 
+      // already create billing account
+      await this.createBillingUser({orgId: id});
+
       req.session.user = account; // also log in, in case logged out
       res.cookie(COOKIE_NAME, JSON.stringify({
           user: id,
@@ -930,6 +959,12 @@ class _robotAgent extends Capability {
       (req, res) => {
         docker.ensureRunning(req.params);
         log.debug('manually starting cloud cap for', req.params);
+        res.json({});
+      });
+
+    this.router.get('/admin/createBillingUser/:orgId', requireAdmin,
+      async (req, res) => {
+        await this.createBillingUser({orgId: req.params.orgId});
         res.json({});
       });
   }

@@ -67,6 +67,9 @@ const styles = {
   },
   usermenu: {
     lineHeight: '2em',
+  },
+  hasTitle: {
+    textDecoration: 'underline dotted #666',
   }
 };
 
@@ -86,6 +89,21 @@ const PageLink = ({to, children}) => {
       </Nav.Link>
     </Nav.Item>
   </div>;
+};
+
+/** return human readable duration until given date */
+const until = (date) => {
+  const diff = new Date(date) - Date.now();
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor(diff / (60 * 60 * 1000));
+  const minutes = Math.floor(diff / (60 * 1000));
+  return (days >= 1
+    ? `${days.toFixed(0)} day${days > 1 ? 's' : ''}`
+    : ( hours >= 1
+      ? `${hours.toFixed(0)} hour${hours > 1 ? 's' : ''}`
+      : `${minutes.toFixed(0)} min${minutes > 1 ? 's' : ''}`
+    )
+  );
 };
 
 /** The sidebar */
@@ -129,6 +147,16 @@ export const Sidebar = () => {
             free</Badge>
         }
       </div>
+      { session.balance < 0 && <div>
+          <Badge size='sm' bg='primary' title='Remaining starting credit'>
+            ${(session.balance / -100).toFixed(2)}
+          </Badge> {session.balanceExpires && <F>
+            credit expires in <span style={styles.hasTitle}
+              title={new Date(session.balanceExpires).toLocaleString()}>
+              {until(session.balanceExpires)}
+            </span></F>}
+        </div>
+      }
     </div>
   </div>;
 

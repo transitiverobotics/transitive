@@ -445,7 +445,10 @@ const Device = (props) => {
                 const issues = failsRequirements(latestVersionData.info, pkg);
 
                 const price = pkg.versions?.[0].transitiverobotics?.price;
-                if (price && !session.has_payment_method && !session.free) {
+                if (price && !session.has_payment_method && !session.free
+                    && !(session.balance < 0 &&
+                      new Date(session.balanceExpires) > new Date())
+                ) {
                   issues.push('Please add a payment method in Billing.');
                 }
 

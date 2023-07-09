@@ -72,6 +72,12 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
   const parameters = getParameters({ files: {
     'package.json': { content: { dependencies: {} }},
     'index.html': { content: tryCode },
+    'sandbox.config.json': { content: {
+      "infiniteLoopProtection": true,
+      "hardReloadOnChange": false,
+      "view": "browser",
+      "template": "static"
+    }}
   }});
 
   const docs = new URL(window.location);

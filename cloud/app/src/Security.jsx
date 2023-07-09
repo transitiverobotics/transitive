@@ -37,9 +37,10 @@ export const Security = () => {
 
     <Form.Text>
       When you embed web components of the capabilities you installed on your
-      fleet into your own web applications, we need to verify that your user is
-      permitted to see your data for that capability. To do that, we use <a
-      href="https://jwt.io/">JSON Web Tokens</a> (JWT).
+      fleet into your own web applications, we need to know that you permit your
+      user to see your data for that capability and robot. You give us that
+      permission by giving us a <a href="https://jwt.io/">JSON Web Tokens
+      </a> (JWT) signed with your secret.
     </Form.Text>
 
     <Form.Group as={Row} controlId="formPlaintextEmail">

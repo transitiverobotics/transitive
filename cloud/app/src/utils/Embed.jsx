@@ -4,6 +4,7 @@ import { Form, InputGroup, FormControl, Button, Modal } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaCode } from 'react-icons/fa';
 import _ from 'lodash';
+import { getParameters } from "codesandbox/lib/api/define";
 
 import {fetchJson, getLogger, decodeJWT} from '@transitive-sdk/utils-web';
 
@@ -66,12 +67,43 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
       {body: {jwt, tokenName, password}});
   };
 
+  const tryCode = `<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString}/>`;
+
+  const parameters = getParameters({ files: {
+    'package.json': { content: { dependencies: {} }},
+    'index.html': { content: tryCode },
+  }});
+
+  const docs = new URL(window.location);
+  docs.hostname = url.hostname.split('.').slice(-2).join('.');
+  docs.pathname = '/docs/Hosted/embedding-in-react';
+  docs.hash = '';
+
   return <div style={{color: 'inherit'}}>
-    To embed this widget in another page use:
-    <Code code={`<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="[JWT]"${paramString} />`} />
-    where <tt>JWT</tt> is a <a href="https://jwt.io/">JWT token</a> signed
-    with your JWT secret (see <Link to='/security'>Security</Link>), carrying
-    the payload:
+    <p>
+      You can embed this widget in other web pages or share it via a link.
+    </p>
+
+    <h6>Testing</h6>
+    <form action="https://codesandbox.io/api/v1/sandboxes/define" method="POST"
+      target="_blank">
+      <input type="hidden" name="parameters" value={parameters} />
+      <Button variant="primary" size='sm' onClick={(e) => {
+        e.preventDefault();
+        e.target.parentNode.submit();
+        return false;
+      }}>
+        Try it in a CodeSandbox
+      </Button><br/>
+      This uses the following ready-to-go HTML snippet. The included <a
+        href="https://jwt.io/">JWT token</a> is valid for the next 12 hours from when this page was loaded.
+      <Code code={tryCode} />
+    </form>
+
+    <h6>Production</h6>
+    In production, use the above HTML snippet, replacing the JWT with a new
+    one signed with your JWT secret (see <Link to='/security'>Security</Link>),
+    carrying the following payload:
     <Code code={['{',
           ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}",`),
           `  "userId": "user123", // a string that uniquely identifies a user in your context`,
@@ -79,17 +111,14 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
           '}'
         ].join('\n')} />
 
-    <div>
-      For testing only you can use this ready-to-go snippet. The included JWT
-      is valid for the next 12 hours from when this page was loaded.
-      <Code code={`<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString}/>`} />
-    </div>
+    When using React, see <a href={`${docs.toString()}`}>Embedding in React</a>.
+    <br/><br/>
 
-    <hr/>
+    <h6>Share</h6>
 
     <div>
-      You can also share this widget on a stand-alone, password-protected page.
-      To do that, set a name and password, then click "Get link".
+      Alternatively, you can share this widget on a stand-alone,
+      password-protected page. Set a name and password, then click "Get link".
       <Form action="#" onSubmit={(e) => {
         e.stopPropagation();
         e.preventDefault();

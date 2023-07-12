@@ -467,8 +467,6 @@ class _robotAgent extends Capability {
 
           // Make sure the docker container for this cap is running
           const {orgId, deviceId, scope, capName, version} = matched;
-          const name = `${scope}/${capName}`;
-          const key = `${name}:${version}`;
 
           if (!this.isRunning(orgId, deviceId)) {
             log.debug('Device is not live', orgId, deviceId);
@@ -476,6 +474,8 @@ class _robotAgent extends Capability {
           }
 
           if (!matched.capName.startsWith('_')) {
+            const name = `${scope}/${capName}`;
+            const key = `${name}:${version}`;
             if (process.env.NODOCKER) {
               log.info('NODOCKER: not starting docker container for', key);
             } else {

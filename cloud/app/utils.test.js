@@ -1,4 +1,4 @@
-const {getNextInRange} = require('./utils');
+const {getNextInRange, getVersionRange} = require('./utils');
 
 test('getNextInRange', () => {
   expect(getNextInRange([1,4,6,20,200], [5, 10])).toStrictEqual({min: 5, max: 5});
@@ -37,4 +37,11 @@ test('getNextInRange', () => {
   expect(getNextInRange([1,4,6,20,200], [10000, 9000], 20))
     .toStrictEqual(null);
 
+});
+
+
+test('getVersionRange', () => {
+  expect(getVersionRange('1.2.3', 'minor')).toEqual('1.2.x');
+  expect(getVersionRange('1.2.3', 'patch')).toEqual('1.2.3');
+  expect(getVersionRange('1.2.3', 'major')).toEqual('1.x.x');
 });

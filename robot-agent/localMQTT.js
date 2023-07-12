@@ -20,6 +20,18 @@ const PORT = 1883;
 // subscription options for upstream client: required to see the retain flag
 const subOptions = {rap: true};
 
+/** try parsing JSON, return null if unsuccessful */
+const tryJSONParse = (string) => {
+  try {
+    return JSON.parse(string);
+  } catch (e) {
+    return null;
+  }
+};
+
+/** return topic with slash in front if it doesn't have one yet */
+const ensureSlash = (topic) => `${(topic[0] == '/' ? '' : '/')}${topic}`;
+
 /** Start the local mqtt broker. upstreamClient is the upstream mqtt client */
 const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
 
@@ -64,17 +76,16 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
   });
 
   aedes.on('clientReady', (client) => {
-    log.info('clientReady', client.id);
-    upstreamClient.publish(
-      `${agentPrefix}/status/runningPackages/${client.id}`, 'true',
-      {retain: true});
+    log.info('clientReady', client.id, client.meta);
+    const path = [agentPrefix, 'status', 'runningPackages', client.id ];
+    const version = client.meta?.version || client.id.split('/').at(-1);
+    upstreamClient.publish(path.join('/'), JSON.stringify(version), {retain: true});
   });
 
   aedes.on('clientDisconnect', (client) => {
     log.info('clientDisconnect', client.id);
-    upstreamClient.publish(
-      `${agentPrefix}/status/runningPackages/${client.id}`, 'false',
-      {retain: true});
+    const path = [agentPrefix, 'status', 'runningPackages', client.id ];
+    upstreamClient.publish(path.join('/'), 'false', {retain: true});
   });
 
 
@@ -82,16 +93,19 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
   // Security
 
   aedes.authenticate = (client, username, password, callback) => {
-    log.debug('authenticate', client.id);
+    log.debug('authenticate', client.id, username);
     // During ExecStartPre of each package, a random password is written
     // into it's private folder (only readable by that package and us). Using
     // this here for authentication.
     const parts = client.id.split('/');
-    if (parts.length < 2) {
+    // We abuse the username field as a JSON formatted meta field
+    client.meta = tryJSONParse(username);
+
+    if (parts.length < 3) {
       callback({
-        msg: `invalid client id ${client.id}, needs to in format PKG_NAME/VERSION`});
+        msg: `invalid client id ${client.id}, needs to be SCOPE/NAME/VERSION`});
     } else {
-      const pkgName = parts.slice(0,-1).join('/');
+      const pkgName = parts.slice(0,2).join('/');
       log.debug('check password', pkgName);
       fs.readFile(`packages/${pkgName}/password`, (err, correctPassword) => {
         callback(err, !err && correctPassword && password
@@ -104,8 +118,8 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
   aedes.authorizePublish = (client, packet, callback) => {
     // overwrite packet: force client to its namespace
     if (!packet.topic.startsWith('$SYS')) {
-      const slash = packet.topic.startsWith('/') ? '' : '/';
-      packet.topic = `${prefix}/${client.id}${slash}${packet.topic}`;
+      const topic = ensureSlash(packet.topic);
+      packet.topic = `${prefix}/${client.id}${topic}`;
     }
     callback(null)
   }
@@ -113,8 +127,8 @@ const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
   aedes.authorizeSubscribe = (client, subscription, callback) => {
     // overwrite subscription: force client to its namespace
     if (!subscription.topic.startsWith('$SYS')) {
-      const slash = subscription.topic.startsWith('/') ? '' : '/';
-      subscription.topic = `${prefix}/${client.id}${slash}${subscription.topic}`;
+      const topic = ensureSlash(subscription.topic);
+      subscription.topic = `${prefix}/${client.id}${topic}`;
     }
     callback(null, subscription);
   }

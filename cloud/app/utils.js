@@ -1,3 +1,4 @@
+const semver = require('semver');
 
 /** given a list of used numbers, find the next contiguous range of ports in the
 * given range that is not yet used */
@@ -31,4 +32,17 @@ const getNextInRange = (allUsed, range, count = 1) => {
   return null;
 };
 
-module.exports = {getNextInRange};
+/** Given a semver and a release type (version namespace), generate the version
+*  range for it. Example: getVersionRange('1.2.3', 'minor') => 1.2.x
+*/
+const getVersionRange = (version, type) => {
+  const range = semver.parse(version);
+  const releaseTypes = ['major', 'minor', 'patch'];
+  for (let i = releaseTypes.length - 1; releaseTypes[i] != type; i-- ) {
+    const releaseType = releaseTypes[i];
+    range[releaseType] &&= 'x';
+  }
+  return range.format();
+};
+
+module.exports = { getNextInRange, getVersionRange };

@@ -160,7 +160,9 @@ export const Login = ({mode = undefined}) => {
     ? register(userName, password, email)
     : login(userName, password);
 
-  const form = isRegister && !TR_REGISTRATION_ENABLED
+  const enabled = JSON.parse(TR_REGISTRATION_ENABLED);
+
+  const form = isRegister && !enabled
     ? <div>Sorry, registration is disabled.</div>
     : <Card.Body>
       <Card.Title>

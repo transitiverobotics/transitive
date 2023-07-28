@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useReducer } from 'react';
 
 import { FaCircle, FaRegCircle, FaRegQuestionCircle } from 'react-icons/fa';
 
@@ -20,8 +20,18 @@ export const heartbeatLevel = (heartbeat) => {
 }
 
 export const Heartbeat = ({heartbeat}) => {
+  const [ignored, forceUpdate] = useReducer(x => x + 1, 0);
+
+  const date = new Date(heartbeat);
+  useEffect(() => {
+      // force an update a while after last heartbeat to show offline if necessary
+      const timeout = date - Date.now() + WARNING_THRESHOLD + 1;
+      setTimeout(forceUpdate, timeout);
+    }, [heartbeat]);
+
   const level = levels[heartbeatLevel(heartbeat)];
   const Comp = level.comp;
+
   return <span
     style={{
       color: level.color,
@@ -29,7 +39,7 @@ export const Heartbeat = ({heartbeat}) => {
       fontSize: '0.5rem',
       verticalAlign: 'text-bottom'
     }}
-    title={`${level.label}: ${(new Date(heartbeat)).toLocaleString()}`}>
+    title={`${level.label}: ${date.toLocaleString()}`}>
     <Comp />
   </span>
 };

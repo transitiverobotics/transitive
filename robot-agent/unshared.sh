@@ -2,24 +2,25 @@
 
 # WARNING: DO NOT RUN THIS SCRIPT DIRECTLY! Run it in an `unshare -m`.
 
-echo "preparing sandbox for $TRPACKAGE ($USER)"
 
 RODIR=/tmp/_tr_ro
 TRHOME=/tmp/_tr_home
-if [[ -z $USER ]]; then
-  if [[ $SUDO_USER ]]; then
-    USER=$SUDO_USER;
-  else
-    USER=$(id -un);
+REALUSER=$USER
+if [[ $SUDO_USER ]]; then
+  REALUSER=$SUDO_USER;
+else
+  if [[ -z $REALUSER ]]; then
+    REALUSER=$(id -un);
   fi;
 fi
+echo "preparing sandbox for $TRPACKAGE ($REALUSER)"
 
 mkdir -p $RODIR
 # hide some folders by bind-mounting an empty read-only folder on top of them
 mount -o bind,ro $RODIR /var
 
-# $USER is not root when we are in an `unshare -r`
-if [[ $USER != "root" ]]; then
+# $REALUSER is not root when we are in an `unshare -r`
+if [[ $REALUSER != "root" ]]; then
   # create fs overlays for /usr and /opt; will be bind-mounted later
   # TODO: this doesn't need to be per-capability; can't we create this once and
   # then use nsenter (or similar) to share that setup among caps?
@@ -34,7 +35,7 @@ else
   echo "we are root, not using overlays";
 fi;
 
-mkdir -p $TRHOME/$USER
+mkdir -p $TRHOME/$REALUSER
 mkdir -p $TRHOME/transitive
 mount --bind $HOME/.transitive/packages/$TRPACKAGE $TRHOME/transitive
 
@@ -45,7 +46,7 @@ for folder in usr bin sbin opt lib etc var run; do
   fi
 done
 
-if [[ $USER != "root" ]]; then
+if [[ $REALUSER != "root" ]]; then
   # bind-mount our merged overlay directories onto /usr and /opt
   for folder in usr opt; do
     mount --bind $TMP/$folder/merged /$folder
@@ -53,8 +54,8 @@ if [[ $USER != "root" ]]; then
 fi;
 
 mount --rbind $TRHOME /home
-rm -f $TRHOME/$USER/.transitive
-ln -s /home $TRHOME/$USER/.transitive
+rm -f $TRHOME/$REALUSER/.transitive
+ln -s /home $TRHOME/$REALUSER/.transitive
 
 # fonts
 rm -f /$HOME/.fonts
@@ -64,13 +65,15 @@ ln -sf /home/usr/share/fonts /$HOME/.fonts
 if [[ $SUDO_COMMAND ]]; then
   # when using SUDO we need to use `su`, otherwise we don't have write permissions
   # in the fake /home/transitive
-  chown -R $SUDO_UID:$SUDO_GID $TRHOME/$USER
-  su $USER bash -c "cd && $*"
+  echo "sheding sudo and becoming $REALUSER again"
+  chown -R $SUDO_UID:$SUDO_GID $TRHOME/$REALUSER
+  su $REALUSER bash -c "cd && $*"
 elif [[ $(id -u) == 0 ]]; then
-  echo "we are root, staying root"
+  echo "we are root (possibly fake), staying root"
   bash -c "cd && $*"
 else
   # when being root or in an `unshare -r` we become nobody. If we need to be the
   # original user instead we can try revertuid (see tmp/experiments/revertuid).
+  echo "becoming nobody"
   unshare -U bash -c "cd && $*"
 fi;

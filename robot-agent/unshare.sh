@@ -13,8 +13,7 @@ if [[ $(id -u) == 0 ]]; then
 elif (sudo -k -n whoami >/dev/null 2>/dev/null); then
   # we have passwordless sudo
   echo "using sudo for $USER"
-  # we need to preserve the environment and set USER and HOME back to the outside
-  # user inside the sudo
+  # we need to preserve the environment
   sudo -E unshare -m $PWD/unshared.sh $@
 else
   # we have neither: use a fake root shell. Note that in this case the

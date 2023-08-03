@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 
 import { FaCircle, FaRegCircle, FaRegQuestionCircle } from 'react-icons/fa';
 
@@ -21,12 +21,14 @@ export const heartbeatLevel = (heartbeat) => {
 
 export const Heartbeat = ({heartbeat}) => {
   const [ignored, forceUpdate] = useReducer(x => x + 1, 0);
+  const [timer, setTimer] = useState();
 
   const date = new Date(heartbeat);
   useEffect(() => {
       // force an update a while after last heartbeat to show offline if necessary
+      timer && clearTimeout(timer);
       const timeout = date - Date.now() + WARNING_THRESHOLD + 1;
-      setTimeout(forceUpdate, timeout);
+      setTimer(setTimeout(forceUpdate, timeout));
     }, [heartbeat]);
 
   const level = levels[heartbeatLevel(heartbeat)];

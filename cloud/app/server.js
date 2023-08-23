@@ -647,16 +647,21 @@ class _robotAgent extends Capability {
     // for each device, mergeVersions of _robot-agent, then get running
     _.each(org, (device, deviceId) => {
       const versions = device['@transitive-robotics']['_robot-agent'];
-      const running = mergeVersions(versions, 'status').status.runningPackages;
+      const merged = mergeVersions(versions, 'status');
+      if (!merged.status) {
+        log.warn(`no status for device ${organization}/${deviceId}:`, merged);
+        return;
+      }
+      const running = merged.status.runningPackages;
 
       forMatchIterator(running, ['+scope', '+capName', '+version'],
-      (value, topic, {scope, capName, version}) => {
-        if (!value) return;
-        // only set version if greater than last one found
-        const current = _.get(runningPackages, [scope, capName]);
-        (!current || versionCompare(current, version) <= 0) &&
+        (value, topic, {scope, capName, version}) => {
+          // if (!value) return;
+          // only set version if greater than last one found
+          const current = _.get(runningPackages, [scope, capName]);
+          (!current || versionCompare(current, version) <= 0) &&
             _.set(runningPackages, [scope, capName], version);
-      });
+        });
     });
 
     // this.data.forPathMatch([organization, '+device',

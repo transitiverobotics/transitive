@@ -17,8 +17,7 @@ import jsonLogic from '../src/utils/logic';
 import { ActionLink } from '../src/utils/index';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-    mqttTopicMatch, toFlatObject, getLogger, mqttClearRetained, pathMatch }
-  from '@transitive-sdk/utils-web';
+    toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
 import { Heartbeat, heartbeatLevel, ensureProps } from './shared';
 import { ConfigEditor } from './config-editor';
@@ -240,19 +239,6 @@ const Device = (props) => {
         mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
         log.debug('adding publish', `${prefix}/+/desiredPackages`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
-
-        // mqttSync.mqtt.on('message', (topic, payload, packet) => {
-        //   if (pathMatch(`${prefix}/+/$response/#`, topic)) {
-        //     if (pathMatch(`${prefix}/+/$response/commands/getPkgLog/#`, topic)) {
-        //       const results = JSON.parse(payload.toString());
-        //       const stdout = decompress(results.stdout);
-        //       const stderr = decompress(results.stdout);
-        //       log.info(`Got response for ${topic}:`, {stdout, stderr});
-        //     } else {
-        //       log.info(`Got unhandled response for ${topic}:`, payload?.toString());
-        //     }
-        //   }
-        // });
       }}, [mqttSync]);
 
   log.debug('data', data);

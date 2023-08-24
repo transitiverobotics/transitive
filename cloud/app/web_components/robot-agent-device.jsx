@@ -11,7 +11,7 @@ const _ = {
 };
 
 import pako from 'pako';
-import { MdAdd } from 'react-icons/md'
+import { MdAdd } from 'react-icons/md';
 
 import jsonLogic from '../src/utils/logic';
 import { ActionLink } from '../src/utils/index';

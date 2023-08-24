@@ -48,7 +48,6 @@ const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs} =
   require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
-const ensureROS = require('./ensureROS');
 
 const log = getLogger('index.js');
 log.setLevel('debug');
@@ -110,10 +109,9 @@ const updateAllPackages = () => {
 /** update self and all packages */
 const update = () => {
   if (!process.env.TR_DEVMODE) {
-    selfUpdate(() => ensureROS(updateAllPackages));
+    selfUpdate(updateAllPackages);
   } else {
-    // ensureROS();
-    ensureROS(updateAllPackages);
+    updateAllPackages();
   }
 }
 

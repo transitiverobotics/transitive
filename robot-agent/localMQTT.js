@@ -13,6 +13,7 @@ const persistence = require('aedes-persistence')();
 const Aedes = require('aedes-preunsub');
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('localMQTT');
+log.setLevel('info');
 
 const PORT = 1883;
 

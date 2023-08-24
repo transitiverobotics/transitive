@@ -10,6 +10,14 @@ getROSRelease() {
   esac
 }
 
+tryToSourceROS() {
+  ROS_RELEASE=$1
+  if [ -e /opt/ros/$ROS_RELEASE/setup.bash ]; then
+    echo "found ROS $ROS_RELEASE, sourcing it";
+    . /opt/ros/$ROS_RELEASE/setup.bash;
+  fi
+}
+
 # set -e
 
 cd /home/transitive
@@ -20,10 +28,13 @@ if [ "$TR_ROS_RELEASES" ]; then
   done;
 else
   # automatically decide which ROS1 release to source based on OS
-  ROS_RELEASE=$(getROSRelease)
-  if [ -e /opt/ros/$ROS_RELEASE/setup.bash ]; then
-    . /opt/ros/$ROS_RELEASE/setup.bash;
-  fi
+  tryToSourceROS $(getROSRelease)
+
+  # ROS 2:
+  tryToSourceROS foxy
+  tryToSourceROS galactic
+  tryToSourceROS humble
+  tryToSourceROS iron
 fi
 
 PATH=/home/usr/bin:$PATH

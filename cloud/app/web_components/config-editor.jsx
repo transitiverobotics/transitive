@@ -40,8 +40,10 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
   return <div>
     <Row style={styles.rows}>
       <Col sm={3}>ROS releases to use</Col>
-      <Col sm={5}>
-        <Form.Check type='checkbox' label='auto'
+      <Col sm={9}>
+        <Form.Check type='checkbox'
+          label={`Auto: use applicable ROS installations in /opt/ros (currently: ${
+            installedReleases.length == 0 ? 'none' : installedReleases.join(' + ')})`}
           checked={selected.auto}
           onChange={(e) => setSelected(s => ({...s, auto: e.target.checked}))}
           title='Automatically use all ROS installations in /opt/ros'

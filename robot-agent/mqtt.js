@@ -187,7 +187,7 @@ const staticInfo = () => {
   // the data in mqttSync is used directly and always updated directly.
 
   try {
-    info.rosReleases = fs.readdirSync('/opt/ros');
+    info.rosReleases = fs.readdirSync('/opt/ros').filter(name => name != 'rolling');
   } catch (e) {}
 
   exec('lsb_release -a', (err, stdout, stderr) => {

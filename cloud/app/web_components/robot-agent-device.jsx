@@ -329,9 +329,17 @@ const Device = (props) => {
     });
   };
 
-  const explanation = `This will delete all meta-data for this device. If the
+  const explanation = `This will delete all meta data for this device. If the
     agent is still running, the device will come back but will require a
-    restart of the agent in order to get back all meta-data, such as the hostname.`;
+    restart of the agent in order to get back all meta data, such as the hostname.`;
+
+  // Augment the `info` object with derived variables for testing requirements
+  const info = latestVersionData.info;
+  // active ROS releases are those that are installed and permitted by the
+  // current config to be sourced
+  info.activeRosReleases = !info.config.global?.rosReleases ? info.rosReleases :
+    info.rosReleases.filter(release =>
+      info.config.global.rosReleases.includes(release));
 
   return <div>
     <div style={styles.row}>
@@ -428,7 +436,7 @@ const Device = (props) => {
               <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
             </Accordion.Item>
             {mapSorted(canBeInstalledPkgs, pkg => {
-                const issues = failsRequirements(latestVersionData.info, pkg);
+                const issues = failsRequirements(info, pkg);
 
                 const price = pkg.versions?.[0].transitiverobotics?.price;
                 if (price && !session.has_payment_method && !session.free

@@ -41,43 +41,43 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
     <Row style={styles.rows}>
       <Col sm={3}>ROS releases to use</Col>
       <Col sm={9}>
-        <Form.Check type='checkbox'
-          label={`Auto: use applicable ROS installations in /opt/ros (currently: ${
-            installedReleases.length == 0 ? 'none' : installedReleases.join(' + ')})`}
-          checked={selected.auto}
+        <Form.Check type='checkbox' label={'Auto'} checked={selected.auto}
           onChange={(e) => setSelected(s => ({...s, auto: e.target.checked}))}
-          title='Automatically use all ROS installations in /opt/ros'
+          title='Automatically use all ROS installations found in /opt/ros'
         />
+        <Form.Text>
+          {`Use applicable ROS installations in /opt/ros, found: ${
+            installedReleases.length == 0 ? 'none' : installedReleases.join(' + ')}`}
+        </Form.Text>
+        {[1, 2].map(version => {
+          const releases = getReleasesForVersion(version).sort();
+
+          return <Row key={version} style={styles.rows}>
+            <Col sm={2}>ROS {version}</Col>
+            <Col sm={5}>
+              <DropdownButton title={selected[version] || 'none'}
+                variant='outline-secondary'
+                disabled={selected.auto}
+              >
+                <Dropdown.Item
+                  active={!activeReleases[version]}
+                  onClick={() => setSelected(s => ({...s, [version]: null}))}>
+                  none
+                </Dropdown.Item>
+                { releases.map(release => <Dropdown.Item key={release}
+                    active={activeReleases[version] == release}
+                    disabled={installedReleases.indexOf(release) == -1}
+                    onClick={() => setSelected(s => ({...s, [version]: release}))}>
+                    {release} {installedReleases.indexOf(release) == -1 &&
+                      '(not installed)'}
+                  </Dropdown.Item>
+                )}
+              </DropdownButton>
+            </Col>
+          </Row>;
+        })}
       </Col>
     </Row>
-    {[1, 2].map(version => {
-      const releases = getReleasesForVersion(version).sort();
-
-      return <Row key={version} style={styles.rows}>
-        <Col sm={3}>ROS {version}</Col>
-        <Col sm={5}>
-
-          <DropdownButton title={selected[version] || 'none'}
-            variant='outline-secondary'
-            disabled={selected.auto}
-            >
-            <Dropdown.Item
-              active={!activeReleases[version]}
-              onClick={() => setSelected(s => ({...s, [version]: null}))}>
-              none
-            </Dropdown.Item>
-            { releases.map(release => <Dropdown.Item key={release}
-                active={activeReleases[version] == release}
-                disabled={installedReleases.indexOf(release) == -1}
-                onClick={() => setSelected(s => ({...s, [version]: release}))}>
-                {release} {installedReleases.indexOf(release) == -1 &&
-                  '(not installed)'}
-              </Dropdown.Item>
-            )}
-          </DropdownButton>
-        </Col>
-      </Row>;
-    })}
     <Button
       disabled={_.isEqual(selected, activeReleases)}
       onClick={() => updateConfig({'global.rosReleases':

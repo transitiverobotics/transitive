@@ -216,13 +216,20 @@ const messages = {
   verificationSuccessful: 'Email verification successful!',
   notVerified: 'Welcome! Before you can proceed and add robots to your account, you need to verify your email address. Please check your email.'
 };
-const Message = ({msg}) => {
+const Message = ({msg, session}) => {
   const [show, setShow] = useState(true);
   const hide = () => setShow(false);
 
   useEffect(() => {
     history.replaceState({}, '', location.pathname);
   }, [msg]);
+
+  useEffect(() => {
+      // events to report to Google Analytics
+      msg == 'verificationSuccessful' && gtag('event', 'email_verified', {
+        email_address: session.verified
+      });
+    }, [msg]);
 
   return show && <Alert dismissible onClose={hide}>
     {messages[msg] || msg}
@@ -240,7 +247,7 @@ const Portal = () => {
     </div>
 
     <div style={styles.body}>
-      { msg && <Message msg={msg} /> }
+      { msg && <Message msg={msg} session={session} /> }
 
       { session.verified ? <Routes>
           <Route path="/admin" element={<Admin />}/>

@@ -768,11 +768,6 @@ class _robotAgent extends Capability {
       const fail = (error) =>
         res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
 
-      if (!process.env.TR_REGISTRATION_ENABLED) {
-        log.warn('registration is disabled');
-        return fail('registration is disabled');
-      }
-
       if (!req.body.name || !req.body.password || !req.body.email) {
         log.debug('missing credentials', req.body);
         return fail('missing username, password, or email');
@@ -807,10 +802,6 @@ class _robotAgent extends Capability {
       const fail = (error) => {
         log.debug(error);
         return res.status(400).send(error);
-      }
-
-      if (!process.env.TR_REGISTRATION_ENABLED) {
-        return fail('registration is disabled');
       }
 
       if (!id || !code) {

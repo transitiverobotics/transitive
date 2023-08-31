@@ -15,7 +15,9 @@ WHITE="\033[37m"
 NORMAL="\033[0;39m"
 
 ARCH=$(dpkg --print-architecture)
-NODEURL=https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/nodejs_16.14.2-deb-1nodesource1_${ARCH}.deb
+# NODEURL=https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/nodejs_16.14.2-deb-1nodesource1_${ARCH}.deb
+# no longer available! now self hosting:
+NODEURL=https://transitiverobotics.com/static/nodejs_16.20.2-1nodesource1_${ARCH}.deb
 NODEDEB=/tmp/transitive_nodejs16.deb
 DIR=~/.transitive
 NODE=$DIR/usr/bin/node

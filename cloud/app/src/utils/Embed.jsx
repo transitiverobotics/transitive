@@ -64,7 +64,7 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl, config = {}
           setLink(`${currentHost}/sac/${id}/${deviceId}/${jwtPayload.capability}/${name}?token=${tokenName}`);
         }
       },
-      {body: {jwt, tokenName, password}});
+      {body: {jwt, tokenName, password, config}});
   };
 
   const tryCode = `<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString}/>`;

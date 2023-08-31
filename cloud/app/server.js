@@ -212,13 +212,20 @@ const addCapsRoutes = () => {
     }
     delete permissions.password;
 
+    const config = account.capTokens[token].config;
+    delete account.capTokens[token].config;
+
     const payload = Object.assign({}, permissions, {
       id: org,
       userId: token,
       validity: 3600 * 24,
     });
 
-    const json = {token: jwt.sign(payload, account.jwtSecret)};
+    const json = {
+      token: jwt.sign(payload, account.jwtSecret),
+      config,
+      tokenName: token
+    };
     log.debug('responding with', json, 'and setting cookie', TOKEN_COOKIE);
     req.session.token = json.token;
     res.cookie(TOKEN_COOKIE, JSON.stringify(json)).json(json);
@@ -271,7 +278,7 @@ const addCapsRoutes = () => {
     log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
     const payload = await parseJWTCookie(req.cookies[TOKEN_COOKIE]);
-    // log.debug({payload});
+    log.debug({payload});
     capsProxy.web(req, res, {target: `http://${host}:8085`,
       headers: {'jwt-payload': JSON.stringify(payload)}});
   });
@@ -874,6 +881,7 @@ class _robotAgent extends Capability {
       delete payload.validity;
       delete payload.iat;
       payload.password = req.body.password;
+      payload.config = req.body.config;
       const modifier = {[`capTokens.${req.body.tokenName}`]: payload};
       const updateResult = await accounts.updateOne(
         {_id: req.session.user._id}, {$set: modifier});

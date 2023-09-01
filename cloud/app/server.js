@@ -36,8 +36,8 @@ const log = getLogger('server');
 log.setLevel('debug');
 
 
-const addSessions = (router, collectionName, secret) => {
-  router.use(session({
+const addSessions = (router, collectionName, secret, options = {}) => {
+  const obj = {
     secret,
     name: collectionName,
     resave: false,
@@ -48,7 +48,9 @@ const addSessions = (router, collectionName, secret) => {
       collectionName
     }),
     cookie: {domain: `.${process.env.HOST}`}
-  }));
+  };
+  options.genid && (obj.genid = options.genid);
+  router.use(session(obj));
 };
 
 /** simple middleware to check whether the user is logged in */
@@ -889,6 +891,31 @@ class _robotAgent extends Capability {
 
       res.json({});
     });
+
+    /** revoke the caps token */
+    this.router.delete('/capsToken/:tokenName', requireLogin, async (req, res) => {
+      log.debug('delete capsToken');
+      if (!req.params.tokenName) {
+        res.status(400).end('missing tokenName');
+        return;
+      }
+
+      const unset = {};
+      unset[`capTokens.${req.params.tokenName}`] = 1;
+      const accounts = Mongo.db.collection('accounts');
+      const updateResult = await accounts.updateOne(
+        {_id: req.session.user._id}, {$unset: unset});
+      log.debug({updateResult});
+
+      // TODO: also terminate all active token sessions with this token.
+      // This is not easy, since users store the JWT in their cookie and use
+      // that without first checking the session. Also, the session store only
+      // contains the token name in the JSON.stringified `session` field (as
+      // userId).
+
+      res.json({});
+    });
+
 
     this.router.get('/runningPackages', requireLogin, async (req, res) => {
       res.json(this.getLatestRunningVersions(req.session.user._id));

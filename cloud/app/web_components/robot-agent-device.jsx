@@ -334,12 +334,14 @@ const Device = (props) => {
     restart of the agent in order to get back all meta data, such as the hostname.`;
 
   // Augment the `info` object with derived variables for testing requirements
-  const info = latestVersionData.info;
+  const info = latestVersionData?.info;
   // active ROS releases are those that are installed and permitted by the
   // current config to be sourced
-  info.activeRosReleases = !info.config.global?.rosReleases ? info.rosReleases :
-    info.rosReleases.filter(release =>
-      info.config.global.rosReleases.includes(release));
+  info && (info.activeRosReleases = !info.config.global?.rosReleases
+      ? info.rosReleases // use all found releases
+      : info.rosReleases.filter(release =>
+        info.config.global.rosReleases.includes(release))
+  );
 
   return <div>
     <div style={styles.row}>

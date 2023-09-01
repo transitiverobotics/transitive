@@ -1,9 +1,13 @@
 import React, {useEffect, useState, useContext} from 'react';
-import { Form, Row, Col, Dropdown } from 'react-bootstrap';
+import { Form, Row, Col, ListGroup } from 'react-bootstrap';
+import { FaTrashAlt } from 'react-icons/fa';
+
+import _ from 'lodash';
 
 import {getLogger, fetchJson} from '@transitive-sdk/utils-web';
 import {UserContext} from './Login.jsx';
 const log = getLogger('Security.jsx');
+log.setLevel('debug');
 
 const styles = {
   wrapper: {
@@ -11,6 +15,32 @@ const styles = {
     margin: 'auto',
     marginTop: '2em'
   },
+};
+
+/** list cap tokens and allow deleting them */
+const CapTokens = ({tokens}) => {
+
+  log.debug({tokens});
+
+  return <ListGroup>
+    {_.map(tokens, (obj, name) => <ListGroup.Item key={name}
+        className="d-flex justify-content-between align-items-start"
+      >
+        <div className="ms-2 me-auto">
+          <div className="fw-bold">{name}</div>
+          <div>{obj.device}/{obj.capability}</div>
+          {obj.config && <div>
+            Config: <pre>{JSON.stringify(obj.config, true, 2)}</pre>
+          </div>}
+        </div>
+        <button type="button" className="btn-close" aria-label="Close alert"
+          style={{background: 'none', lineHeight: 0}}
+        >
+          <FaTrashAlt />
+        </button>
+      </ListGroup.Item>
+    )}
+  </ListGroup>;
 };
 
 export const Security = () => {
@@ -51,14 +81,7 @@ export const Security = () => {
         <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
       </Col>
 
-      {/* TODO: list them and give options to delete them
-
-        */ account.capTokens && <pre>
-          {JSON.stringify(account.capTokens, true, 2)}
-        </pre>}
-
+      <CapTokens tokens={account.capTokens}/>
     </Form.Group>
-
-    <Dropdown.Divider />
   </div>;
 };

@@ -354,7 +354,8 @@ const Device = (props) => {
         Restart agent
       </ActionLink>&nbsp;&nbsp; <ActionLink onClick={stopAll} disabled={inactive}>
         Stop all capabilities
-      </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear} explanation={explanation}>
+      </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
+        explanation={explanation} question='Remove device?'>
         Remove device
       </ConfirmedButton>
     </div>

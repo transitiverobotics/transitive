@@ -122,10 +122,12 @@ const Fleet = (props) => {
 
     <div>
       {counts[0]} online, {counts[1]} offline, {counts[2]} inactive {
-        stale.length > 0 && <ConfirmedButton onClick={clear} variant='link'
-        explanation={explanation} style={{verticalAlign: 'initial'}}>
-        Remove inactive devices
-      </ConfirmedButton>}
+        stale.length > 0 && <ConfirmedButton
+          onClick={clear} variant='link' style={{verticalAlign: 'initial'}}
+          question='Remove inactive devices?'
+          explanation={explanation}>
+          Remove inactive devices
+        </ConfirmedButton>}
     </div>
 
 

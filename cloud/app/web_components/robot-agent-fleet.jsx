@@ -22,8 +22,15 @@ log.setLevel('debug');
 
 const F = React.Fragment;
 
-const clone = x => SON.parse(JSON.stringify(x));
-
+const styles = {
+  version: {
+    opacity: 0.5,
+    fontSize: 'smaller',
+  },
+  cap: {
+    marginRight: '1em'
+  }
+};
 
 const explanation = `This will remove the data for all inactive devices.
   They will reappear if they reconnect, but all capability data will be gone.`;
@@ -49,9 +56,12 @@ const FleetDevice = ({status, info, device, device_url}) => {
       { /* list running packages */
         _.map(status.runningPackages,
           (scope, scopeName) => _.map(scope, (versions, name) =>
-            <span title={scopeName} key={name}>{name}: v{
-                Object.keys(_.pickBy(versions, running => running)).join(',')
-              } </span>
+            <span style={styles.cap} title={scopeName} key={name}>{name}
+              <span style={styles.version}> v{
+                  Object.keys(_.pickBy(versions, running => running)).join(',')
+                }
+              </span>
+            </span>
           ))
       }
     </div>

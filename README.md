@@ -13,20 +13,22 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 # Key Features
 
-- data synchronization between robot, cloud, and UI (like Meteor)
-  - roadmap: RPC across robot, cloud, UI
-- provides full-stack-package management (like Debian/ROS, but cross-device)
-  - package definition (allows sharing of packages with third-party developers)
-  - deployment mechanism
-  - handles cross-device version dependencies
-- sandboxing of third-party capabilities (like iOS and Android)
-  - both on robot/device and cloud
-- UI component abstraction (web components)
-- authentication and authorization
-  - for robots in the fleet
-  - for web application users
-  - for third-party apps
-
+- Data synchronization between robot, cloud, and UI
+  - Reactively re-render UI elements when data on a robot changes
+- Full-stack package management
+  - Notion of packages that allows sharing with third-parties
+  - Deployment mechanism incl. auto-updates over-the-air
+  - Handles cross-device version dependencies
+- Sandboxing of capabilities
+  - Both on robot and in the cloud
+- UI component abstraction
+  - Using [Web Components](https://www.webcomponents.org/introduction)
+  - Easy to embed in other web applications
+  - Easy to embed in React, Angular, etc.
+- Authentication and authorization
+  - For robots in the fleet
+  - For web application users
+  - For third-party apps
 
 # Setup
 
@@ -45,3 +47,10 @@ by [Transitive Robotics](https://transitiverobotics.com)
   Then go to http://portal.YOUR-DOMAIN.NAME
 
 From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.
+
+
+---
+
+#### License
+
+Apache 2.0.

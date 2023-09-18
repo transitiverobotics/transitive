@@ -28,33 +28,20 @@ by [Transitive Robotics](https://transitiverobotics.com)
   - for third-party apps
 
 
-# [intended] Installation
+# Setup
 
-Install dependencies: mosquitto, mongodb, node.js.
+- Go into the `cloud/` directory.
+- Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).
 
-**TODO**: how to set configuration for mosquitto (and download auth-plugin)? a configure script as part of `@transitive-robotics/cloud`? a postinstall script, and require sudo? require `sudo npm -g install`?
- - yes, also needed to create `master` user and password (stored as bcrypt hash in db)
- - or just do everything via docker-compose or similar?
- - when and where to generate master certs for mqtt?
- - or use something like `npm create @transitive-sdk/deployment` like Vite.js (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)
+## Development
 
-On your cloud server run
-```
-npm install @transitive-robotics/cloud
+```sh
+./dev.sh
 ```
 
+## Production
 
-# [intended] Setup
-
-1. use the CLI tool to create a new account
-1. start the cloud agent (`npx transitive [--dev]`)
-1. open cloud interface (in dev at http://localhost:8000, in production at https://your-hostname)
-  1. log in and go to your fleet page
-  1. copy the curl command
-1. ssh into your robot or other device
-1. paste and execute the curl command
-1. develop a package, then
-  1. log into your local registry by running `npm login --registry=http://localhost:6000`
-    - enter your account credentials
-  1. publish your package to your local registry by running `npm publish`
-    - there should be a `.npmrc` file in your project folder that sets your local registry for your scope
+```sh
+docker-compose build
+docker-compose up -d
+```

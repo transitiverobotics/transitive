@@ -51,27 +51,6 @@ services:
     logging:
       driver: local
 
-  homepage:
-    build:
-      context: ./homepage
-      args:
-        - MONGO_URL=mongodb://mongodb
-        - MONGO_DB=transitive
-    image: transitive/homepage:latest
-    restart: always
-    volumes:
-      - ${TR_VAR_DIR:-.}/static:/app/build/static
-    ports:
-      - 3000:3000
-    depends_on:
-      - mongodb
-    env_file:
-      - .env
-    networks:
-      - default
-    logging:
-      driver: local
-
   cloud:
     build:
       context: ./app

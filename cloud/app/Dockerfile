@@ -3,9 +3,6 @@ FROM node:16.14.2 as base
 ARG TR_HOST
 ENV TR_HOST=${TR_HOST:-localhost}
 
-ARG TR_REGISTRATION_ENABLED
-ENV TR_REGISTRATION_ENABLED=${TR_REGISTRATION_ENABLED:-false}
-
 RUN mkdir -p /app
 COPY package*.json /app/
 WORKDIR /app

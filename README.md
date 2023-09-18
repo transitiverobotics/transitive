@@ -32,16 +32,16 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 - Go into the `cloud/` directory.
 - Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).
+- In *development*:
+  ```sh
+  ./dev.sh
+  ```
+  Then go to http://portal.localhost:8000
+- In *production*:
+  ```sh
+  docker-compose build
+  docker-compose up -d
+  ```
+  Then go to http://portal.YOUR-DOMAIN.NAME
 
-## Development
-
-```sh
-./dev.sh
-```
-
-## Production
-
-```sh
-docker-compose build
-docker-compose up -d
-```
+From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.

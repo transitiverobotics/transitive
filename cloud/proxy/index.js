@@ -3,6 +3,15 @@
 const os = require('os');
 const fs = require('fs');
 
+/** try parsing JSON, return null if unsuccessful */
+const tryJSONParse = (string) => {
+  try {
+    return JSON.parse(string);
+  } catch (e) {
+    return null;
+  }
+};
+
 const port = process.env.PORT || 8000; // always 443 in production
 const hostname = process.env.HOST || `${os.hostname()}.local`;
 const production = process.env.PRODUCTION ?
@@ -27,61 +36,39 @@ proxy.on("error", function(err, req, res) {
 // -----------------------------------------------------------------------
 // Routing logic
 
-const routingTable = dockerCompose ? {
-    registry: 'registry:6000', // npm registry
-    portal: 'cloud:9000',
-    data: 'cloud:9000',
-    auth: 'cloud:9000',
-    install: 'cloud:9000/install',
-    repo: 'cloud:9000/repo', // binaries we host for packages, may go away
-    mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
-    billing: 'billing:7000', // billing portal: only run by Transitive Robotics
-    foxglove: 'foxglove:8080', // run separately, for now
-    default: 'homepage:3000'
-  } : { // when not started via docker-compose (for local dev):
-    registry: 'localhost:6000',
-    portal: 'localhost:9000',
-    data: 'localhost:9000',
-    auth: 'localhost:9000',
-    install: 'localhost:9000/install',
-    repo: 'localhost:9000/repo',
-    mqtt: 'localhost:9001',
-    billing: 'localhost:7000',
-    default: 'localhost:3000'
-  };
+const routingTable = {
+  registry: 'registry:6000', // npm registry
+  portal: 'cloud:9000',
+  data: 'cloud:9000',
+  auth: 'cloud:9000',
+  install: 'cloud:9000/install',
+  repo: 'cloud:9000/repo', // binaries we host for packages, may go away
+  mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
+  // parse env var that may list additional hosts to add
+...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
+};
 
-const pathTable = {
-  // '/billing': 'billing:7000'
+/** Given the request, return the target `service:port` to route to */
+const getTarget = (req) => {
+  const subdomain = req.headers.host.slice(0, -host.length - 1);
+  if (subdomain.includes('.')) {
+    console.warn('Refusing to proxy to qualified domain', subdomain);
+    return routingTable['']; // send to default instead
+  }
+  return routingTable[subdomain] || `${subdomain}:3000`;
 };
 
 /** route the request */
 const handleRequest = (req, res) => {
-  const hostname = req.headers.host.split(':')[0];
-
-  let target = routingTable.default;
-  const pathMatch = Object.keys(pathTable).find(path => req.url.startsWith(path));
-  const hostMatch = routingTable[hostname.split('.')[0]];
-  if (pathMatch) {
-    target = pathTable[pathMatch];
-    req.url = req.url.slice(pathMatch.length);
-  } else if (hostMatch) {
-    target = hostMatch;
-  }
-
+  const target = getTarget(req);
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
-  if (target) {
-    proxy.web(req, res, { target: `http://${target}` });
-  } else {
-    proxy.web(req, res, { target: `http://${routingTable.default}` });
-  }
+  proxy.web(req, res, { target: `http://${target}` });
 };
 
 /** handler for web socket upgrade */
 const handleUpgrade = function(req, socket, head) {
   console.log('ws:', req.headers.host, req.url);
-  const host = routingTable[req.headers.host.split('.')[0]];
-  const target = `ws://${host || routingTable.default}`;
-  proxy.ws(req, socket, head, {ws: true, target});
+  proxy.ws(req, socket, head, {ws: true, target: `ws://${getTarget(req)}`});
 };
 
 
@@ -123,14 +110,14 @@ if (production) {
       configDir: `./greenlock.d`,
       maintainerEmail: process.env.TR_SSL_EMAIL,
       cluster: false,
-      staging: false, // false == production, i.e., get actual certs from Let's Encrypt
+      staging: false, // `false` means production, i.e., get actual certs from Let's Encrypt
     };
   }).ready((glx) => {
       // we need the raw https server
       const server = glx.httpsServer();
-      // We'll proxy websockets too
+      // we'll proxy websockets too
       server.on("upgrade", handleUpgrade);
-      // servers a node app that proxies requests
+      // serves a node app that proxies requests
       glx.serveApp(handleRequest);
     }
   );

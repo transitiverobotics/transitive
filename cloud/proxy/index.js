@@ -48,6 +48,8 @@ const routingTable = {
 ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
 };
 
+console.log('using routes', routingTable);
+
 /** Given the request, return the target `service:port` to route to */
 const getTarget = (req) => {
   const subdomain = req.headers.host.slice(0, -host.length - 1);
@@ -89,7 +91,7 @@ const updateConfig = () => {
   config.sites = [{
     subject: host,
     altnames: Object.keys(routingTable).map(prefix =>
-      prefix == 'default' ? host : `${prefix}.${host}`)
+      prefix == '' ? host : `${prefix}.${host}`)
   }];
 
   fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
@@ -123,6 +125,11 @@ if (production) {
   );
 
 } else {
+
+  console.log({
+    altnames: Object.keys(routingTable).map(prefix =>
+      prefix == '' ? host : `${prefix}.${host}`)
+  });
 
   // in dev we don't support SSL
   const http = require('http');

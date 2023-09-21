@@ -92,8 +92,8 @@ const build = async ({name, version, pkgInfo}) => {
 
   // generate .npmrc
   fs.writeFileSync(path.join(dir, '.npmrc'),
-    // `@transitive-robotics:registry=http://registry:6000\n`);
-    `@transitive-robotics:registry=http://registry.${process.env.TR_HOST}\n`);
+    `@transitive-robotics:registry=http://registry:6000\n`);
+    // `@transitive-robotics:registry=http://registry.${process.env.TR_HOST}\n`);
   // this is what it will be called inside the docker container started here
   // by dockerrode; see extrahosts below to see where it points.
 
@@ -143,8 +143,8 @@ const build = async ({name, version, pkgInfo}) => {
         'package.json', '.npmrc', '.dockerignore', 'cloud_runner.js']
     }, {
       networkmode: 'host', // #DEBUG,
-      // extrahosts: `registry:${REGISTRY_HOST}`,
-      extrahosts: `registry.${HOSTNAME}:${REGISTRY_HOST}`,
+      extrahosts: `registry:${REGISTRY_HOST}`,
+      // extrahosts: `registry.${HOSTNAME}:${REGISTRY_HOST}`,
       t: tagName
     });
   stream.on('data', chunk =>
@@ -197,7 +197,9 @@ const start = async ({name, version, pkgInfo}) => {
     // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
     // ExtraHosts: ['mqtt:host-gateway'],
     // ExtraHosts: [`registry:${REGISTRY_HOST}`], // for updates
-    ExtraHosts: [`registry.${HOSTNAME}:${REGISTRY_HOST}`], // for updates
+    ExtraHosts: [ // for updates, yes, we need both
+      `registry:${REGISTRY_HOST}`,
+      `registry.${HOSTNAME}:${REGISTRY_HOST}`],
     NetworkMode: 'cloud_caps',
     Init: true, // start an init process that reaps zombies, e.g., sshd's
     // TODO: Do I need to set a logging policy to avoid huge logs?

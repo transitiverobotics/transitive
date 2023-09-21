@@ -54,6 +54,9 @@ if [[ $REALUSER != "root" ]]; then
 fi;
 
 mount --rbind $TRHOME /home
+# When running as real root we need to do the above for /root as well:
+mount --rbind $TRHOME /root
+
 rm -f $TRHOME/$REALUSER/.transitive
 ln -s /home $TRHOME/$REALUSER/.transitive
 

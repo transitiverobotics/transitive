@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "Christian Fritz",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "dependencies": {
     "@transitive-sdk/utils": "^0.6.8",
     "aedes-preunsub": "^0.45.0",

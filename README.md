@@ -11,7 +11,7 @@
 
 by [Transitive Robotics](https://transitiverobotics.com)
 
-# Key Features
+### Key Features
 
 - Data synchronization between robot, cloud, and UI
   - Reactively re-render UI elements when data on a robot changes
@@ -30,7 +30,7 @@ by [Transitive Robotics](https://transitiverobotics.com)
   - For web application users
   - For third-party apps
 
-# Setup
+## Setup
 
 - Go into the `cloud/` directory.
 - Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).
@@ -48,9 +48,10 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.
 
+## Get in Touch
 
----
+We love to collaborate! We welcome all comments, questions, and suggestions. Please join the Slack community: https://transitiverobotics.com/slack.
 
-#### License
+## License
 
 Apache 2.0.

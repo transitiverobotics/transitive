@@ -1,6 +1,3 @@
-*Disclaimer: This is a preview of the actual open-source release we will make. Do not yet build on top of this repo, since the git commit history will change again in the future.*
-
-
 <p align="center">
   <a href="https://transitiverobotics.com">
     <img src="https://transitiverobotics.com/img/logo.svg" style="height: 64px">

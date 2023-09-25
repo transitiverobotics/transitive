@@ -31,19 +31,38 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 - Go into the `cloud/` directory.
 - Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).
-- In *development*:
-  ```sh
-  ./dev.sh
-  ```
-  Then go to http://portal.localhost:8000
-- In *production*:
-  ```sh
-  docker-compose build
-  docker-compose up -d
-  ```
-  Then go to http://portal.YOUR-DOMAIN.NAME
+- Start all services:
+  - In *development*:
+    - `./dev.sh`
+    - Ensure all required subdomains are set up, see [below](#setting-up-subdomains).
+    - Go to http://portal.localhost:8000
+  - In *production*:
+    - `docker-compose build && docker-compose up -d`
+    - Add all required subdomains to your DNS records as CNAMES or using a wildcard.
+    - Then go to http://portal.YOUR-DOMAIN.NAME
 
 From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.
+
+### Setting up subdomains
+
+In development, you need to ensure that your dev machine is reachable under all these subdomains names: `portal registry data mqtt install`. So if your `HOST` in `.env` is `hostname.local:8000`, then `portal.hostname.local:8000`, etc., need to resolve to
+`hostname.local:8000`.
+
+For local development, i.e., when using yout dev machine itself as a robot/device to connect to your deployment, you can simply add those to your `/etc/hosts`. If you are testing with robots and devices on your local network or in docker, we recommend using mDNS. For instance, you can use the following script to publish the alternate names on your local network using Avahi.
+
+```sh
+#!/bin/bash
+# call with IP to use as argument
+
+IP=$1
+HOST=$(hostname)
+ALIASES="portal registry data mqtt install"
+
+for name in $ALIASES; do
+  echo $name;
+  /usr/bin/avahi-publish -a -R $name.${HOST,,}.local $IP &
+done
+```
 
 ## Get in Touch
 

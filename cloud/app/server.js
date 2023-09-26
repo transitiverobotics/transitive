@@ -23,7 +23,6 @@ const docker = require('./docker');
 const installRouter = require('./install');
 const {createAccount, sendVerificationEmail, verifyCode} =
   require('./server/accounts');
-// const {sendEmail} = require('./server/email');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';

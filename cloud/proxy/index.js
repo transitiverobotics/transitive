@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 const os = require('os');
 const fs = require('fs');
@@ -24,9 +24,9 @@ console.log({host, production});
 
 // ------------------------------------------------------------------
 
-const proxy = require("http-proxy").createProxyServer({ xfwd: true });
+const proxy = require('http-proxy').createProxyServer({ xfwd: true });
 // catches error events during proxying
-proxy.on("error", function(err, req, res) {
+proxy.on('error', function(err, req, res) {
   console.error(err);
   res.statusCode = 500;
   res.end();
@@ -52,17 +52,17 @@ console.log('using routes', routingTable);
 
 /** Given the request, return the target `service:port` to route to */
 const getTarget = (req) => {
-  const subdomain = req.headers.host.slice(0, -host.length - 1);
-  if (subdomain.includes('.')) {
-    console.warn('Refusing to proxy to qualified domain', subdomain);
-    return routingTable['']; // send to default instead
-  }
-  return routingTable[subdomain] || `${subdomain}:3000`;
+  const subdomain = req.headers.host.split('.')[0];
+  return routingTable[subdomain] || routingTable[''];
 };
 
 /** route the request */
 const handleRequest = (req, res) => {
   const target = getTarget(req);
+  if (!target) {
+    res.status(404).send('Not found');
+    return;
+  }
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
   proxy.web(req, res, { target: `http://${target}` });
 };
@@ -70,7 +70,12 @@ const handleRequest = (req, res) => {
 /** handler for web socket upgrade */
 const handleUpgrade = function(req, socket, head) {
   console.log('ws:', req.headers.host, req.url);
-  proxy.ws(req, socket, head, {ws: true, target: `ws://${getTarget(req)}`});
+  const target = getTarget(req);
+  if (!target) {
+    res.status(404).send('Not found');
+    return;
+  }
+  proxy.ws(req, socket, head, {ws: true, target: `ws://${target}`});
 };
 
 
@@ -105,7 +110,7 @@ if (production) {
 
   updateConfig();
 
-  require("greenlock-express").init(() => {
+  require('greenlock-express').init(() => {
     // Greenlock Config
     return {
       packageRoot: __dirname,
@@ -118,7 +123,7 @@ if (production) {
       // we need the raw https server
       const server = glx.httpsServer();
       // we'll proxy websockets too
-      server.on("upgrade", handleUpgrade);
+      server.on('upgrade', handleUpgrade);
       // serves a node app that proxies requests
       glx.serveApp(handleRequest);
     }

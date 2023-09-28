@@ -1052,10 +1052,4 @@ Mongo.init(() => {
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);
   });
-
-  // sendEmail({
-  //   to: 'christian@transitiverobotics.com',
-  //   subject: 'test1',
-  //   body: 'first email sent from code'
-  // });
 });

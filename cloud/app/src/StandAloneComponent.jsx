@@ -111,11 +111,12 @@ export const StandAloneComponent = (props = {}) => {
   }
 
   const ssl = (location.protocol == 'https:');
+  const host = location.host.replace('portal.', '');
 
   const element = React.createElement(widget, {
       jwt: jwtToken,
       id: org,
-      host: TR_HOST,
+      host,
       ssl,
       ...props,
       ...config // apply pre-configured options, if set in token

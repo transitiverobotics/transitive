@@ -121,6 +121,8 @@ export const Sidebar = () => {
       });
     }, []);
 
+  const billingHost = location.host.replace('portal.', 'billing.');
+
   const UserMenu = () => <div>
     <div style={styles.loggedIn}>
       Logged in as {session.user}
@@ -136,7 +138,7 @@ export const Sidebar = () => {
         <Link to='/security'>Security</Link>
       </div>
       <div>
-        <a href={`//billing.${TR_HOST}/v1/billingPortal`}>
+        <a href={`//${billingHost}/v1/billingPortal`}>
           Billing
         </a> {
           session.has_payment_method && <span style={styles.checkmark}>

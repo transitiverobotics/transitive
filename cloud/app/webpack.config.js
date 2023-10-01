@@ -78,10 +78,5 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
   },
-  plugins: [
-    new webpack.DefinePlugin({
-      'TR_HOST': JSON.stringify(process.env.TR_HOST || `${os.hostname()}:8000`),
-    })
-  ],
   watch: true
 };

@@ -179,6 +179,7 @@ const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
 const Package = ({pkg, install, issues}) => {
   const {title, price} = pkg.versions?.[0].transitiverobotics;
   log.debug({issues});
+  const host = location.host.replace('portal.', '');
 
   return <Row>
     <Col sm='4' style={styles.rowItem}>
@@ -186,7 +187,7 @@ const Package = ({pkg, install, issues}) => {
         style={{ opacity: 0.5, fontSize: 'small' }}>{pkg._id} v{pkg.version}</span>
     </Col>
     <Col sm='2' style={styles.rowItem}>
-      <a href={`//${TR_HOST}/caps/${pkg.name.slice(1)}`}>
+      <a href={`//${host}/caps/${pkg.name.slice(1)}`}>
         Details
       </a>
     </Col>

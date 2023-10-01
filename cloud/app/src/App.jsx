@@ -123,11 +123,12 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   }
 
   const ssl = (location.protocol == 'https:');
+  const host = location.host.replace('portal.', '');
 
   const element = React.createElement(webComponent, {
       jwt: jwtToken,
       id: session.user,
-      host: TR_HOST,
+      host,
       ssl,
       ref,
       session: JSON.stringify(session),
@@ -141,7 +142,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   return <div className='capability' style={styles.cap.wrapper}>
     {!props.disableEmbed && <div style={styles.cap.embed}>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
-        host={TR_HOST} ssl={ssl} compRef={ref} capability={capability} />
+        host={host} ssl={ssl} compRef={ref} capability={capability} />
     </div>}
     <div style={styles.cap.body}>
       {element}

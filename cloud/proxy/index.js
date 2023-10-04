@@ -16,8 +16,6 @@ const port = process.env.PORT || 8000; // always 443 in production
 const hostname = process.env.HOST || `${os.hostname()}.local`;
 const production = process.env.PRODUCTION ?
   JSON.parse(process.env.PRODUCTION) : false;
-const dockerCompose = process.env.DOCKER_COMPOSE ?
-  JSON.parse(process.env.DOCKER_COMPOSE) : false;
 const host = production ? hostname : `${hostname}:${port}`;
 
 console.log({host, production});

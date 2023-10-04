@@ -25,7 +25,7 @@ const {createAccount, sendVerificationEmail, verifyCode} =
   require('./server/accounts');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
-const REGISTRY = process.env.TR_REGISTRY || 'localhost:6000';
+const REGISTRY = process.env.TR_REGISTRY || 'registry.transitiverobotics.com';
 const PORT = process.env.TR_CLOUD_PORT || 9000;
 const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
   'https://billing.transitiverobotics.com';
@@ -515,19 +515,22 @@ class _robotAgent extends Capability {
 
   /** Given an org id, get the billing user and secret */
   async getBillingCreds(orgId) {
-    const billingUser = process.env.TR_BILLING_USER || orgId;
+
+    // for self-hosting: username and JWT secret from transitiverobotics.com
+    // (not the local org's secret).
+    const {TR_BILLING_USER, TR_BILLING_SECRET} = process.env;
+    if (TR_BILLING_USER && TR_BILLING_SECRET) {
+      return {TR_BILLING_USER, TR_BILLING_SECRET};
+    }
 
     // Get secret to use to sign usage record. We allow overriding this for
     // self-hosting, where this needs to be set to a secret from
     // transitiverobotics.com (not the local org's secret).
-    let billingSecret = process.env.TR_BILLING_SECRET;
-    if (!billingSecret) {
-      const account =
-        await Mongo.db.collection('accounts').findOne({_id: billingUser});
-      billingSecret = account?.jwtSecret;
-    }
+    const account =
+      await Mongo.db.collection('accounts').findOne({_id: orgId});
+    const billingSecret = account?.jwtSecret;
 
-    return {billingUser, billingSecret};
+    return {billingUser: orgId, billingSecret};
   }
 
 
@@ -563,8 +566,6 @@ class _robotAgent extends Capability {
     }
   }
 
-  /** Report usage to the billing portal, and retrieve back a JWT that the cap
-  * on this device can use to start. Publish it in mqtt. */
   async createBillingUser({orgId}) {
     const {billingUser, billingSecret} = await this.getBillingCreds(orgId);
     log.debug({billingUser, billingSecret});

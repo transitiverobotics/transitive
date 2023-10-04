@@ -14,13 +14,14 @@ services:
   # a minimal container that ensures certificates are present in the shared,
   # mounted volume
   ensure_certs:
-    image: ensure_certs
+    image: transitive/ensure_certs:latest
     build: ./certs
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/generated
 
+  # MongoDB with replset, required to watch for changes
   mongodb:
-    build: ./mongo # with replset, required to watch for changes
+    build: ./mongo
     image: transitive/mongo:latest
     restart: always
     command: --replSet rs0

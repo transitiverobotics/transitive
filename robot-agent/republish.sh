@@ -3,20 +3,18 @@
 # sym-link and run inside a npm package folder
 
 rm -f .npmrc
-if [[ -n $TR_BOT_TOKEN && -n $TR_REGISTRY ]]; then
-  echo "//$TR_REGISTRY/:_authToken=$TR_BOT_TOKEN" > .npmrc
-  HOST=http://$TR_REGISTRY
-  echo "wrote ~/.npmrc file with token"
-elif [[ $# > 0 ]]; then
-  HOST=$1
-else
-  HOST=http://registry.localhost:8000
+if [[ -z $TR_BOT_TOKEN ]]; then
+  echo "Missing TR_BOT_TOKEN"
+  exit 1;
 fi;
 
-echo "@transitive-robotics:registry=$HOST" >> .npmrc
+echo "//registry:6000/:_authToken=$TR_BOT_TOKEN" > .npmrc
+REGISTRY=http://registry:6000
+echo "wrote ~/.npmrc file with token"
+echo "@transitive-robotics:registry=$REGISTRY" >> .npmrc
 
 echo "using config: $(npm config ls)"
-echo "fetching latest version from registry; $HOST"
+echo "fetching latest version from registry; $REGISTRY"
 NAME=$(npm pkg get name | xargs)
 LOCAL=$(npm pkg get version | xargs)
 REMOTE=$(npm show $NAME version)

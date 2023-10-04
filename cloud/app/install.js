@@ -39,6 +39,20 @@ router.get('/', (req, res) => {
   res.end(replaceVariables(text, req));
 });
 
+/** custom handler for .npmrc file */
+router.get('/files/.npmrc', (req, res) => {
+
+  const {TR_CUSTOM_SCOPE} = processs.env;
+  const lines = TR_CUSTOM_SCOPE ? [
+      `@transitive-robotics=https://registry.transitiverobotics.com`,
+      `@${TR_CUSTOM_SCOPE}=[PROTOCOL]registry.[TR_HOST]`
+    ] : [
+      `@transitive-robotics:registry=[PROTOCOL]registry.[TR_HOST]`
+    ];
+
+  res.end(replaceVariables(lines.join('\n'), req));
+});
+
 router.get('/files/:filename', (req, res) => {
   // prevent reading outside of the assets sub-folder
   const filename = req.params.filename;

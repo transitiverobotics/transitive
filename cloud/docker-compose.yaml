@@ -81,7 +81,9 @@ services:
       #DEV- ./app/common.js:/app/common.js
       #DEV- ./app/server:/app/server
       #DEV- ./app/install.js:/app/install.js
-      #DEV- ../../transitive-caps/:/app/transitive-caps
+      # In dev we allow serving local dev files for capability bundles. This
+      # assumes a specific directory layout.
+      #DEV- ../../caps/:/app/transitive-caps
     env_file:
       - .env
     ports:
@@ -102,9 +104,8 @@ services:
     env_file:
       - .env
     ports:
-      - 8000:8000
-      - 80:80   #NODEV
-      - 443:443 #NODEV
+      - 80:80
+      - 443:443
     networks:
       - default
       - shared

@@ -80,7 +80,7 @@ const sendVerificationEmail = async (userId) => {
     }
 
     const code = randomId(24);
-    const protocol = JSON.parse(process.env.TR_SECURE) ? 'https' : 'http';
+    const protocol = JSON.parse(process.env.PRODUCTION || false) ? 'https' : 'http';
     const link = `${protocol}://portal.${process.env.TR_HOST
       }/@transitive-robotics/_robot-agent/verify?id=${userId}&code=${
       encodeURIComponent(code)}`;

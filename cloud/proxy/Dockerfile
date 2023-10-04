@@ -5,6 +5,7 @@ WORKDIR /app
 RUN npm ci --omit dev
 
 VOLUME /app/greenlock.d
-EXPOSE 8000
+EXPOSE 80
+EXPOSE 443
 
 CMD ["npm", "start"]

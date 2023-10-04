@@ -12,11 +12,13 @@ const tryJSONParse = (string) => {
   }
 };
 
-const port = process.env.PORT || 8000; // always 443 in production
-const hostname = process.env.HOST || `${os.hostname()}.local`;
-const production = process.env.PRODUCTION ?
-  JSON.parse(process.env.PRODUCTION) : false;
-const host = production ? hostname : `${hostname}:${port}`;
+const host = process.env.TR_HOST;
+const production = JSON.parse(process.env.PRODUCTION || 'false');
+
+if (!host) {
+  console.error('Error: No TR_HOST env var set.');
+  process.exit(1);
+}
 
 console.log({host, production});
 
@@ -137,6 +139,7 @@ if (production) {
   // in dev we don't support SSL
   const http = require('http');
   const server = http.createServer(handleRequest);
+  const port = 80;
   server.on('upgrade', handleUpgrade);
   server.listen(port);
   console.log(`listening on port ${port}`)

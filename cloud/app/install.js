@@ -42,7 +42,7 @@ router.get('/', (req, res) => {
 /** custom handler for .npmrc file */
 router.get('/files/.npmrc', (req, res) => {
 
-  const {TR_CUSTOM_SCOPE} = processs.env;
+  const {TR_CUSTOM_SCOPE} = process.env;
   const lines = TR_CUSTOM_SCOPE ? [
       `@transitive-robotics=https://registry.transitiverobotics.com`,
       `@${TR_CUSTOM_SCOPE}=[PROTOCOL]registry.[TR_HOST]`

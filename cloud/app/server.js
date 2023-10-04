@@ -26,7 +26,7 @@ const {createAccount, sendVerificationEmail, verifyCode} =
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const REGISTRY = process.env.TR_REGISTRY || 'registry.transitiverobotics.com';
-const PORT = process.env.TR_CLOUD_PORT || 9000;
+const PORT = 9000;
 const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
   'https://billing.transitiverobotics.com';
 
@@ -46,7 +46,7 @@ const addSessions = (router, collectionName, secret, options = {}) => {
       dbName: Mongo.db.databaseName,
       collectionName
     }),
-    cookie: {domain: `.${process.env.HOST}`}
+    cookie: {domain: `.${process.env.TR_HOST}`}
   };
   options.genid && (obj.genid = options.genid);
   router.use(session(obj));
@@ -545,7 +545,7 @@ class _robotAgent extends Capability {
     // log.debug(`updateSubscriptions: cap ${capability} is running`);
     const params = new URLSearchParams({
       jwt: jwt.sign({deviceId, capability}, billingSecret),
-      host: process.env.HOST  // for bookkeeping
+      host: process.env.TR_HOST  // for bookkeeping
     });
 
     try {
@@ -572,7 +572,7 @@ class _robotAgent extends Capability {
 
     const params = new URLSearchParams({
       jwt: jwt.sign({orgId}, billingSecret),
-      host: process.env.HOST  // for bookkeeping
+      host: process.env.TR_HOST  // for bookkeeping
     });
 
     try {

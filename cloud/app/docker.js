@@ -106,7 +106,7 @@ const build = async ({name, version, pkgInfo}) => {
 
   // generate Dockerfile
   const certsFolder = `/app/node_modules/${name}/cloud/certs`;
-  const externalIp = await dns.promises.lookup(process.env.HOST, {family: 4});
+  const externalIp = await dns.promises.lookup(process.env.TR_HOST, {family: 4});
   log.debug({externalIp});
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:16',
@@ -114,7 +114,7 @@ const build = async ({name, version, pkgInfo}) => {
       'COPY . /app/',
       'WORKDIR /app',
       `RUN ln -s /app/node_modules/${name} /app/pkg`,
-      `ENV HOST=${process.env.HOST}`,
+      `ENV TR_HOST=${process.env.TR_HOST}`,
       `ENV EXTERNAL_IP=${externalIp.address}`,
       'ENV TRANSITIVE_IS_CLOUD=1',
       // Required in order to install indirect dependencies from the

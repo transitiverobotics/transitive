@@ -1039,7 +1039,7 @@ log.info('Starting cloud app');
 Mongo.init(() => {
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
-  process.env.TR_USER && process.env.TR_PASS && process.env.TR_EMAIL &&
+  process.env.TR_USER && process.env.TR_PASS &&
     createAccount({
       name: process.env.TR_USER,
       password: process.env.TR_PASS,

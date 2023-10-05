@@ -14,7 +14,7 @@ services:
   # a minimal container that ensures certificates are present in the shared,
   # mounted volume
   ensure_certs:
-    image: transitive/ensure_certs:latest
+    image: transitiverobotics/ensure_certs:latest
     build: ./certs
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/generated
@@ -22,9 +22,11 @@ services:
   # MongoDB with replset, required to watch for changes
   mongodb:
     build: ./mongo
-    image: transitive/mongo:latest
+    image: transitiverobotics/mongo:latest
     restart: always
     command: --replSet rs0
+    extra_hosts:
+      - mongodb:127.0.0.1 # required for init script to set up replset
     volumes:
       - ${TR_VAR_DIR:-.}/db:/data/db
     networks:
@@ -36,7 +38,7 @@ services:
 
   mosquitto:
     build: ./mosquitto
-    image: transitive/mosquitto:latest
+    image: transitiverobotics/mosquitto:latest
     restart: always
     depends_on:
       - ensure_certs
@@ -59,7 +61,7 @@ services:
         - TR_HOST=${TR_HOST:-localhost}
       target: prod
       #DEVtarget: dev
-    image: transitive/cloud:latest
+    image: transitiverobotics/cloud:latest
     tty: true # to get colored logging output
     restart: always
     depends_on:
@@ -97,7 +99,7 @@ services:
 
   proxy:
     build: ./proxy
-    image: transitive/proxy:latest
+    image: transitiverobotics/proxy:latest
     restart: always
     volumes:
       - ${TR_VAR_DIR:-.}/greenlock.d:/app/greenlock.d
@@ -114,7 +116,7 @@ services:
 
   registry:
     build: ./registry
-    image: transitive/registry:latest
+    image: transitiverobotics/registry:latest
     restart: always
     depends_on:
       - mongodb
@@ -131,7 +133,7 @@ services:
   # Once the registry is up, republish the robot-agent to it, in case it changed
   publish:
     build: ../robot-agent
-    image: transitive/publish:latest
+    image: transitiverobotics/publish_agent:latest
     depends_on:
       - registry
     env_file:

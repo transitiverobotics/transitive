@@ -31,8 +31,9 @@ const createAccount = async ({name, password, email, admin}, cb) => {
     };
 
     if (admin) {
-      newAccount.verified = true;
       newAccount.admin = true;
+      newAccount.verified = true;
+      newAccount.free = true;
     }
 
     await accounts.insertOne(newAccount);

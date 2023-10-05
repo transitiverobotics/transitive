@@ -28,13 +28,14 @@ const createAccount = async ({name, password, email, admin}, cb) => {
       bcryptPassword,
       email,
       created: new Date(),
+      ...admin && {
+        admin: true,
+        verified: true,
+        free: true,
+        jwtSecret: randomId(16),
+        robotToken: randomId(12),
+      }
     };
-
-    if (admin) {
-      newAccount.admin = true;
-      newAccount.verified = true;
-      newAccount.free = true;
-    }
 
     await accounts.insertOne(newAccount);
     log.info(`New account created: ${name}`);

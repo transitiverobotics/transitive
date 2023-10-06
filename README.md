@@ -43,9 +43,8 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.
 
-> ### Regarding Subdomains
-> Transitive uses a number of subdomains, such as "portal." and "data.". In production you need to make sure they all resolve for your domain to your host. In development, the COMPOSE_PROFILES variable in .env should be set to "dev", in which case it will start a small mDNS service to take care of it. Just make sure your machine and any local robots you are testing with can resolve mDNS domains. On Ubuntu this is usually the case when the libnss-mdns package is installed. You may need to enable mdns4 in your /etc/nsswitch.conf. <br/>&nbsp;
-
+#### Regarding Subdomains
+Transitive uses a number of subdomains, such as `portal.` and `data.`. In production you need to make sure they all resolve for your domain to your host. In development, the `COMPOSE_PROFILES` variable in `.env` should be set to `dev`, in which case it will start a small mDNS service to take care of it. Just make sure your machine and any local robots you are testing with can resolve mDNS domains. See [README.md in mDNS service](cloud/tools/mDNS/README.md).
 
 ## Get in Touch
 

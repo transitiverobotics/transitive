@@ -18,3 +18,10 @@ function compose() {
 }
 
 compose build && compose up -d
+
+if (getent hosts random-subdomain-3245234.$TR_HOST > /dev/null); then
+  echo "mDNS verification successful"
+else
+  echo "mDNS verification failed. Please follow the instructions in"
+  echo "https://github.com/transitiverobotics/transitive/blob/main/cloud/tools/mDNS/README.md"
+fi;

@@ -41,7 +41,8 @@ services:
     image: transitiverobotics/mosquitto:latest
     restart: always
     depends_on:
-      - ensure_certs
+      ensure_certs:
+        condition: service_completed_successfully
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
       - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
@@ -65,8 +66,10 @@ services:
     tty: true # to get colored logging output
     restart: always
     depends_on:
-      - ensure_certs
-      - mongodb
+      mongodb:
+        condition: service_started
+      ensure_certs:
+        condition: service_completed_successfully
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs

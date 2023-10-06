@@ -1,0 +1,15 @@
+{
+  "name": "mdns",
+  "version": "1.0.0",
+  "description": "A tiny mDNS service to route all subdomains of $HOSTNAME.local to itself",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "multicast-dns": "^7.2.5"
+  }
+}

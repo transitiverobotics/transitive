@@ -43,26 +43,9 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 From the portal you can add robots and other devices just like with the hosted version, i.e., by executing the `curl` command shown there.
 
-### Setting up subdomains
+> ### Regarding Subdomains
+> Transitive uses a number of subdomains, such as "portal." and "data.". In production you need to make sure they all resolve for your domain to your host. In development, the COMPOSE_PROFILES variable in .env should be set to "dev", in which case it will start a small mDNS service to take care of it. Just make sure your machine and any local robots you are testing with can resolve mDNS domains. On Ubuntu this is usually the case when the libnss-mdns package is installed. You may need to enable mdns4 in your /etc/nsswitch.conf. <br/>&nbsp;
 
-In development, you need to ensure that your dev machine is reachable under all these subdomains names: `portal registry data mqtt install`. So if your `TR_HOST` in `.env` is `hostname.local`, then `portal.hostname.local`, etc., need to resolve to
-`hostname.local`.
-
-For local development, i.e., when using yout dev machine itself as a robot/device to connect to your deployment, you can simply add those to your `/etc/hosts`. If you are testing with robots and devices on your local network or in docker, we recommend using mDNS. For instance, you can use the following script to publish the alternate names on your local network using Avahi.
-
-```sh
-#!/bin/bash
-# call with IP to use as argument
-
-IP=$1
-HOSTNAME=$(hostname)
-ALIASES="portal registry data mqtt install"
-
-for name in $ALIASES; do
-  echo $name;
-  /usr/bin/avahi-publish -a -R $name.${HOSTNAME,,}.local $IP &
-done
-```
 
 ## Get in Touch
 

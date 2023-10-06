@@ -108,6 +108,7 @@ services:
     ports:
       - 80:80
       - 443:443
+      - 5353:5353 # for mDNS (only used in dev)
     networks:
       - default
       - shared
@@ -138,3 +139,16 @@ services:
       - registry
     env_file:
       - .env
+
+  # In Dev: run a small mDNS service to allow local testing with subdomains
+  mdns:
+    build: ./tools/mDNS
+    image: transitiverobotics/mdns:latest
+    restart: always
+    env_file:
+      - .env
+    network_mode: host
+    logging:
+      driver: local
+    profiles:
+      - dev

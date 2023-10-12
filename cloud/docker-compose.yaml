@@ -111,7 +111,6 @@ services:
     ports:
       - 80:80
       - 443:443
-      - 5353:5353 # for mDNS (only used in dev)
     networks:
       - default
       - shared

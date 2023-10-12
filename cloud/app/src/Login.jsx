@@ -217,7 +217,7 @@ export const Login = ({mode = undefined}) => {
         Transitive Robotics's <a
           href={`${homepage}terms`}>Terms of Service</a>, <a
           href={`${homepage}eula`}>EULA</a> and <a
-          href={`${homepage}privacy.html`}>
+          href={`${homepage}privacy`}>
           Privacy Policy</a>.
       </div>
 

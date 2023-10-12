@@ -544,7 +544,7 @@ class _robotAgent extends Capability {
 
     // log.debug(`updateSubscriptions: cap ${capability} is running`);
     const params = new URLSearchParams({
-      jwt: jwt.sign({deviceId, capability}, billingSecret),
+      jwt: jwt.sign({orgId, deviceId, capability}, billingSecret),
       host: process.env.TR_HOST  // for bookkeeping
     });
 

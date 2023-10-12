@@ -16,7 +16,8 @@ const _ = require('lodash');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability } = require('@transitive-sdk/utils');
+mergeVersions, forMatchIterator, Capability, tryJSONParse } =
+  require('@transitive-sdk/utils');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
 const docker = require('./docker');
@@ -25,7 +26,6 @@ const {createAccount, sendVerificationEmail, verifyCode} =
   require('./server/accounts');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
-const REGISTRY = process.env.TR_REGISTRY || 'registry.transitiverobotics.com';
 const PORT = 9000;
 const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
   'https://billing.transitiverobotics.com';
@@ -520,7 +520,7 @@ class _robotAgent extends Capability {
     // (not the local org's secret).
     const {TR_BILLING_USER, TR_BILLING_SECRET} = process.env;
     if (TR_BILLING_USER && TR_BILLING_SECRET) {
-      return {TR_BILLING_USER, TR_BILLING_SECRET};
+      return {billingUser: TR_BILLING_USER, billingSecret : TR_BILLING_SECRET};
     }
 
     // Get secret to use to sign usage record. We allow overriding this for
@@ -689,9 +689,29 @@ class _robotAgent extends Capability {
       // TODO: do not hard-code store url (once #82)
       // TODO: add authentication headers (once #84), npm token as Bearer
       const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
-      const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
+
+      // const trLocal = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL);
+      // const REGISTRY = trLocal ? (process.env.TR_REGISTRY || 'registry:6000')
+      //   : 'registry.transitiverobotics.com';
+
+      // const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
+      // const data = await response.json();
+
+      const localRegistry = process.env.TR_REGISTRY || 'registry:6000';
+      const response = await fetch(`http://${localRegistry}/-/custom/all?q=${selector}`);
       const data = await response.json();
-      log.trace('availablePackages', data);
+
+      if (!tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) &&
+        process.env.TR_BILLING_USER && process.env.TR_BILLING_SECRET) {
+        // also fetch available packages from Transitive Robotics's public repo
+        const publicResponse = await fetch(
+          `https://registry.transitiverobotics.com/-/custom/all?q=${selector}`);
+        const publicData = await publicResponse.json();
+        Object.assign(data, publicData);
+      }
+
+      // log.debug('availablePackages', data);
+
       res.set({'Access-Control-Allow-Origin': '*'});
       res.json(data);
     });

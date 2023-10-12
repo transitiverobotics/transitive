@@ -69,12 +69,12 @@ if [[ ! -e $FLAG_FILE ]]; then
   echo "" >> var/lib/dpkg/status.d/nodejs/control
 
   printStep "Downloading files"
-  curl -sf [host]/files/package.json -o package.json
-  curl -sf [host]/files/.npmrc -o .npmrc
-  curl -sf [host]/files/.env -o .env
+  curl -sf [install_host_url]/files/package.json -o package.json
+  curl -sf [install_host_url]/files/.npmrc -o .npmrc
+  curl -sf [install_host_url]/files/.env -o .env
 
   echo "TR_USERID=[id]" >> .env
-  echo "TR_INSTALL_HOST=[host]" >> .env
+  echo "TR_INSTALL_HOST=[install_host_url]" >> .env
   echo "TR_ROBOT_TOKEN=[token]" >> .token
 
   # make sure we have the github.com host key file, so ssh fetches work in npm

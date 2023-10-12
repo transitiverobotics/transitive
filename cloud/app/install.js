@@ -9,7 +9,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
-const { getLogger } = require('@transitive-sdk/utils');
+const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 const log = getLogger(module.id);
 log.setLevel('debug');
 
@@ -18,12 +18,18 @@ const router = express.Router();
 /** replace all [VAR] occurences in `text` with the value of VAR in env, created
   from request parameters */
 const replaceVariables = (text, req) => {
+  const protocol = `${req.headers['x-forwarded-proto']}://`;
+  const host = req.headers['x-forwarded-host'].replace(/^install\./, '');
+  const tr_local_registry = `${protocol}registry.${host}`;
+
   const env = {
     docker: 'false', // default, can be set to true in query
     ...req.query,
-    host: `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`,
-    PROTOCOL: `${req.headers['x-forwarded-proto']}://`,
-    TR_HOST: req.headers['x-forwarded-host'].replace(/^install\./, '')
+    host,
+    install_host_url: `${protocol}${req.headers['x-forwarded-host']}`,
+    tr_registry: tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ? tr_local_registry
+      : 'https://registry.transitiverobotics.com',
+    tr_local_registry
   };
   return text.replace(/\[(\w*)\]/g, (match, varname) => env[varname] || match);
 };
@@ -40,18 +46,18 @@ router.get('/', (req, res) => {
 });
 
 /** custom handler for .npmrc file */
-router.get('/files/.npmrc', (req, res) => {
+// router.get('/files/.npmrc', (req, res) => {
 
-  const {TR_CUSTOM_SCOPE} = process.env;
-  const lines = TR_CUSTOM_SCOPE ? [
-      `@transitive-robotics=https://registry.transitiverobotics.com`,
-      `@${TR_CUSTOM_SCOPE}=[PROTOCOL]registry.[TR_HOST]`
-    ] : [
-      `@transitive-robotics:registry=[PROTOCOL]registry.[TR_HOST]`
-    ];
+//   const {TR_CUSTOM_SCOPE} = process.env;
+//   const lines = TR_CUSTOM_SCOPE ? [
+//       `@transitive-robotics=https://registry.transitiverobotics.com`,
+//       `@${TR_CUSTOM_SCOPE}=[protocol]registry.[TR_HOST]`
+//     ] : [
+//       `@transitive-robotics:registry=[protocol]registry.[TR_HOST]`
+//     ];
 
-  res.end(replaceVariables(lines.join('\n'), req));
-});
+//   res.end(replaceVariables(lines.join('\n'), req));
+// });
 
 router.get('/files/:filename', (req, res) => {
   // prevent reading outside of the assets sub-folder

@@ -33,7 +33,13 @@ theme.plain.color = '#aaa';
 const CopyButton = ({code}) => {
   const [copied, setCopied] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  // This only works in secure contexts (https)
   const copy = () => navigator.clipboard.writeText(code);
+
+  if (!navigator.clipboard?.writeText) {
+    // not available in unsecure context (i.e., http://)
+    return <div style={styles.copy}></div>;
+  }
 
   return <div style={styles.copy}>
     <OverlayTrigger overlay={<Tooltip id='copy'>copied</Tooltip>}

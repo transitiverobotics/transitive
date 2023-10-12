@@ -7,7 +7,7 @@ const Docker = require('dockerode');
 const fetch = require('node-fetch');
 const _ = require('lodash');
 const semver = require('semver');
-const { getLogger } = require('@transitive-sdk/utils');
+const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 
 const { getNextInRange } = require('./utils');
 
@@ -50,11 +50,26 @@ const parseTagName = (imageTag) => {
 /** Ensure the given version of the given package is running. If not, start
   it in a docker container. */
 const ensureRunning = async ({name, version}) => {
-  // fetch package.json for name, check manifest, use that to determine
-  // at which version-level to check for "running"
-  const pkgInfo = await (
-    await fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`))
-    .json();
+  // const pkgInfo = await (
+  //   await fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`))
+  //   .json();
+
+  // fetch package.json for `name` from the registry corresponding to the scope
+  const localRegistry = 'http://registry:6000';
+  const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
+    localRegistry : 'https://registry.transitiverobotics.com';
+
+  const registry = (name.startsWith('@transitive-robotics/') ? trRegistry
+    : localRegistry);
+
+  let pkgInfo;
+  try {
+    pkgInfo =
+      await (await fetch(`${registry}/${encodeURIComponent(name)}`)).json();
+  } catch (e) {
+    log.error(`Failed to retrieve package info for ${name} from ${registry}`);
+    return;
+  }
 
   const list = await docker.listContainers();
   const tagName = getTagName({name, version});
@@ -90,12 +105,17 @@ const build = async ({name, version, pkgInfo}) => {
   fs.writeFileSync(path.join(dir, 'package.json'),
     JSON.stringify(packageJson, true, 2));
 
-  // generate .npmrc
-  fs.writeFileSync(path.join(dir, '.npmrc'),
-    `@transitive-robotics:registry=http://registry:6000\n`);
-    // `@transitive-robotics:registry=http://registry.${process.env.TR_HOST}\n`);
-  // this is what it will be called inside the docker container started here
+  const localRegistry = 'http://registry:6000';
+  // This is what it will be called inside the docker container started here
   // by dockerrode; see extrahosts below to see where it points.
+  const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
+    localRegistry : 'https://registry.transitiverobotics.com';
+
+  // generate .npmrc
+  fs.writeFileSync(path.join(dir, '.npmrc'), [
+      `@transitive-robotics:registry=${trRegistry}`,
+      `@local:registry=${localRegistry}`
+    ].join('\n'));
 
   fs.writeFileSync(path.join(dir, '.dockerignore'), [
       'node_modules',
@@ -144,7 +164,6 @@ const build = async ({name, version, pkgInfo}) => {
     }, {
       networkmode: 'host', // #DEBUG,
       extrahosts: `registry:${REGISTRY_HOST}`,
-      // extrahosts: `registry.${HOSTNAME}:${REGISTRY_HOST}`,
       t: tagName
     });
   stream.on('data', chunk =>
@@ -196,7 +215,6 @@ const start = async ({name, version, pkgInfo}) => {
     // ExtraHosts: ["host.docker.internal:host-gateway"]
     // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
     // ExtraHosts: ['mqtt:host-gateway'],
-    // ExtraHosts: [`registry:${REGISTRY_HOST}`], // for updates
     ExtraHosts: [ // for updates, yes, we need both
       `registry:${REGISTRY_HOST}`,
       `registry.${HOSTNAME}:${REGISTRY_HOST}`],

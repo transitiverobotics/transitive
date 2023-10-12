@@ -4,7 +4,7 @@ const os = require('os');
 const net = require('net');
 const mdns = require('multicast-dns')();
 
-const host = process.env.TR_HOST || `${os.hostname()}.local`;
+const host = (process.env.TR_HOST || `${os.hostname()}.local`).toLowerCase();
 
 // ------------------------------------------------------------------
 // Start mDNS service to enable all subdomains of `host`.
@@ -33,7 +33,7 @@ const startMDNS = async () => {
   console.log(`Starting mDNS service to point all subdomains *.${host} to ${ip}.`);
 
   mdns.on('query', function(query) {
-    const name = query.questions[0].name;
+    const name = query.questions[0].name.toLowerCase();
     name?.endsWith(host) && mdns.respond({
       answers: [{
         name,

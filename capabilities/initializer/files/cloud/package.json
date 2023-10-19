@@ -1,0 +1,11 @@
+{
+  "main": "main.js",
+  "scripts": {
+    "start": "while (true); do node main.js; sleep 2; done;"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@transitive-sdk/utils": "^0.7.4"
+  }
+}

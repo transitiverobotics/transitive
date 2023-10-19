@@ -19,11 +19,11 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 mergeVersions, forMatchIterator, Capability, tryJSONParse } =
   require('@transitive-sdk/utils');
 
-const { COOKIE_NAME, TOKEN_COOKIE } = require('./common.js');
+const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
 const {createAccount, sendVerificationEmail, verifyCode} =
-  require('./server/accounts');
+  require('./accounts');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -34,6 +34,7 @@ const log = getLogger('server');
 // log.setLevel('info');
 log.setLevel('debug');
 
+const cwd = process.cwd();
 
 const addSessions = (router, collectionName, secret, options = {}) => {
   const obj = {
@@ -160,8 +161,8 @@ const app = express();
 //   next();
 // });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(cors(), express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(cwd, 'public')));
+app.use(cors(), express.static(path.join(cwd, 'dist')));
 app.use(express.json());
 
 // router for standalone-component pages
@@ -247,26 +248,27 @@ const addCapsRoutes = () => {
   capsRouter.use('/', express.static(docker.RUN_DIR));
 
   /** for DEV: ignore version number and serve (latest) from relative path, see
-  docker-compose or create symlink `ln -s ../../transitive-caps .` */
-  capsRouter.use('/:scope/:capabilityName/:version/', (req, res, next) => {
-    const filePath = path.resolve('transitive-caps/',
-      req.params.capabilityName,
-      req.path.slice(1) // drop initial slash
-    );
-    log.debug('checking for dev bundle', filePath);
-    fs.access(filePath, (err) => {
-      if (err) {
-        next();
-      } else {
-        // This also triggers if filePath is a parent directory of a
-        // non-existing file; it does the right thing and falls back to the
-        // /caps route
-        log.info('trying to send capability bundle from dev:', filePath);
-        res.sendFile(filePath);
-      }
+  docker-compose 'cloud_dev' */
+  !tryJSONParse(process.env.PRODUCTION) && process.env.COMPOSE_PROFILES == 'dev'
+    && capsRouter.use('/:scope/:capabilityName/:version/', (req, res, next) => {
+      const filePath = path.resolve('caps',
+        req.params.scope,
+        req.params.capabilityName,
+        req.path.slice(1) // drop initial slash from filename
+      );
+      log.debug('checking for dev bundle', filePath);
+      fs.access(filePath, (err) => {
+        if (err) {
+          next();
+        } else {
+          // This also triggers if filePath is a parent directory of a
+          // non-existing file; it does the right thing and falls back to the
+          // /caps route
+          log.info('trying to send capability bundle from dev:', filePath);
+          res.sendFile(filePath);
+        }
+      });
     });
-  });
-
 
   /** http proxy for reverse proxying to web servers run by caps */
   const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
@@ -288,7 +290,7 @@ const addCapsRoutes = () => {
 
 /** Serve the js bundles of capabilities */
 app.use('/running/@transitive-robotics/_robot-agent',
-  express.static(path.resolve(__dirname)));
+  express.static(cwd));
 
 app.get('/running/:scope/:capName/*', (req, res) => {
   log.debug(`getting ${req.path}`, req.query, req.params);
@@ -686,16 +688,8 @@ class _robotAgent extends Capability {
   addRoutes() {
     this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
-      // TODO: do not hard-code store url (once #82)
       // TODO: add authentication headers (once #84), npm token as Bearer
       const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
-
-      // const trLocal = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL);
-      // const REGISTRY = trLocal ? (process.env.TR_REGISTRY || 'registry:6000')
-      //   : 'registry.transitiverobotics.com';
-
-      // const response = await fetch(`http://${REGISTRY}/-/custom/all?q=${selector}`);
-      // const data = await response.json();
 
       const localRegistry = process.env.TR_REGISTRY || 'registry:6000';
       const response = await fetch(`http://${localRegistry}/-/custom/all?q=${selector}`);
@@ -1043,7 +1037,7 @@ app.get('/admin/setLogLevel', (req, res) => {
 
 // to allow client-side routing:
 app.use('/*', (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'index.html')));
+  res.sendFile(path.join(cwd, 'public', 'index.html')));
 
 const server = http.createServer(app);
 

@@ -215,7 +215,7 @@ const start = async ({name, version, pkgInfo}) => {
     // ExtraHosts: ["host.docker.internal:host-gateway"]
     // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
     // ExtraHosts: ['mqtt:host-gateway'],
-    ExtraHosts: [ // for updates, yes, we need both
+    ExtraHosts: [ // for updates; yes, we need both
       `registry:${REGISTRY_HOST}`,
       `registry.${HOSTNAME}:${REGISTRY_HOST}`],
     NetworkMode: 'cloud_caps',

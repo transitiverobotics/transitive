@@ -5,17 +5,24 @@ set -o allexport
 . .env
 set +o allexport
 
+# Detect Docker Compose (standalone or plugin)
+if ( docker-compose help > /dev/null 2>&1 ); then
+  function compose() {
+    docker-compose $@
+  }
+elif ( docker compose help > /dev/null 2>&1 ); then
+  function compose() {
+    docker compose $@
+  }
+else
+  echo "** Error: you don't appear to have Docker Compose installed."
+  echo "Please see https://docs.docker.com/compose/install/."
+  exit 1;
+fi;
+
 # We need to create the certs folder to make sure the generated certs have the
 # right owner (see certs/generate.sh).
 mkdir -p $TR_VAR_DIR/certs
-
-# Enable lines commented out with #DEV and remove those marked #NODEV.
-# This allows us to use slightly different setups in dev than in prod.
-COMPOSE=$(sed -e 's/#DEV//' -e 's/.*#NODEV//' docker-compose.yaml)
-
-function compose() {
-  echo "$COMPOSE" | docker-compose -f - $@
-}
 
 compose build && compose up -d
 

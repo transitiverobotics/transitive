@@ -1,8 +1,27 @@
-# Lines commented out with #DEV will get uncommented by docker-compose-dev which
-# is just:
-# `sed 's/#DEV//' docker-compose.yaml | docker-compose -f - $@`
-
 version: "3.9"
+
+# An "extension": cloud service definition shared between dev and prod
+x-cloud: &shared_cloud
+  container_name: cloud
+  image: transitiverobotics/cloud:latest
+  tty: true # to get colored logging output
+  restart: always
+  depends_on:
+    mongodb:
+      condition: service_started
+    ensure_certs:
+      condition: service_completed_successfully
+  env_file:
+    - .env
+  ports:
+    - 9000:9000
+  networks:
+    - default
+    - caps
+    - shared
+  logging:
+    driver: local
+
 
 networks:
   caps:
@@ -55,50 +74,39 @@ services:
     logging:
       driver: local
 
-  cloud:
+  cloud_prod:
+    <<: *shared_cloud
+    profiles:
+      - prod
     build:
       context: ./app
       args:
         - TR_HOST=${TR_HOST:-localhost}
       target: prod
-      #DEVtarget: dev
-    image: transitiverobotics/cloud:latest
-    tty: true # to get colored logging output
-    restart: always
-    depends_on:
-      mongodb:
-        condition: service_started
-      ensure_certs:
-        condition: service_completed_successfully
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/user/0:/run/user/0
+      - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
+
+  cloud_dev:
+    <<: *shared_cloud
+    profiles:
+      - dev
+    build:
+      context: ./app
+      args:
+        - TR_HOST=${TR_HOST:-localhost}
+      target: dev
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
-      # - ${TR_VAR_DIR:-.}/certs:/app/certs
       - /run/user/0:/run/user/0
-      # DEV- ./app:/app # Not working, still, even after removing certs folder
-      #DEV- ./app/src:/app/src
-      #DEV- ./app/web_components:/app/web_components
-      #DEV- ./app/public:/app/public
-      #DEV- ./app/assets:/app/assets
-      #DEV- ./app/docker.js:/app/docker.js
-      #DEV- ./app/server.js:/app/server.js
-      #DEV- ./app/utils.js:/app/utils.js
-      #DEV- ./app/common.js:/app/common.js
-      #DEV- ./app/server:/app/server
-      #DEV- ./app/install.js:/app/install.js
+      - ./app/src:/app/src
+      - ./app/web_components:/app/web_components
+      - ./app/server:/app/server
       # In dev we allow serving local dev files for capability bundles. This
       # assumes a specific directory layout.
-      #DEV- ../../caps/:/app/transitive-caps
-    env_file:
-      - .env
-    ports:
-      - 9000:9000
-    networks:
-      - default
-      - caps
-      - shared
-    logging:
-      driver: local
+      - /tmp/caps:/app/caps:ro
 
   proxy:
     build: ./proxy

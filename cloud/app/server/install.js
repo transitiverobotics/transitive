@@ -123,5 +123,10 @@ router.post('/csr', (req, res) => {
   req.pipe(outstream);
 });
 
+/** For developing capabilities, which may live in a different folder on a dev's
+*  machine, we want to be able to look up the local path to the TR var folder. */
+router.get('/var-folder-location', (req, res) => {
+  res.send(process.env.TR_VAR_DIR);
+});
 
 module.exports = router;

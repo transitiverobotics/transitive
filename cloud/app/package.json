@@ -34,7 +34,7 @@
     "build-dev": "npx webpack --mode=development",
     "build": "npx webpack --mode=production --no-watch",
     "dev": "NODOCKER=1 node server.js",
-    "start": "node server.js"
+    "start": "node server/server.js"
   },
   "eslintConfig": {},
   "browserslist": {

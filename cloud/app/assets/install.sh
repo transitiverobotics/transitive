@@ -19,7 +19,9 @@ ARCH=$(dpkg --print-architecture)
 # no longer available! now self hosting:
 # NODEURL=https://transitiverobotics.com/static/nodejs_16.20.2-1nodesource1_${ARCH}.deb
 #
-NODEURL=https://public-package-repo.s3.us-west-2.amazonaws.com/nodejs_16.20.2-1nodesource1_${ARCH}.deb
+# NODEURL=https://public-package-repo.s3.us-west-2.amazonaws.com/nodejs_16.20.2-1nodesource1_${ARCH}.deb
+# also works:
+NODEURL=https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/nodejs_16.20.2-deb-1nodesource1_${ARCH}.deb
 NODEDEB=/tmp/transitive_nodejs16.deb
 DIR=~/.transitive
 NODE=$DIR/usr/bin/node

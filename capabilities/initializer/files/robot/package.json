@@ -1,0 +1,17 @@
+{
+  "main": "main.js",
+  "scripts": {
+    "test": "jest --watch *.test.js",
+    "start": "node --preserve-symlinks $NODE_ARGS main.js",
+    "preall": "[[ -e preall.sh ]] && bash preall.sh"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@transitive-sdk/utils": "^0.7.4"
+  },
+  "optionalDependencies": {
+    "rclnodejs": "0.22.2",
+    "rosnodejs": "github:chfritz/rosjs"
+  }
+}

@@ -8,6 +8,10 @@ if [ ! -e ca.crt ]; then
   echo "Generating a certificate authority certificate and key, without passphrase."
   openssl req -new -x509 -days 36500 -extensions v3_ca -keyout ca.key -out ca.crt -nodes -subj="/CN=Transitive Robotics"
   echo "CA certificate ready."
+
+  # Create the serial number file for the CA in order to ensure the right ownership
+  echo "01" > ca.srl
+
   # make sure the new files are owned by the same user and the containing folder
   chown $OWNER ca.*
 else

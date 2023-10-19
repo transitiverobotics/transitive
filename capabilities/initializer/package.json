@@ -1,0 +1,24 @@
+{
+  "name": "@transitive-sdk/create",
+  "version": "0.1.4",
+  "description": "An initializer package for creating new Transitive capabilities",
+  "bin": {
+    "create": "create.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "transitive",
+    "robotics"
+  ],
+  "author": "Christian Fritz",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "shelljs": "^0.8.5"
+  }
+}

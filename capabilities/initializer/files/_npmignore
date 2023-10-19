@@ -1,0 +1,14 @@
+rundev.sh
+publish.sh
+docker.sh
+tmux.sh
+_npmrc
+tmp
+wasm
+**/.npmrc
+**/node_modules
+**/certs
+**/package-lock.json
+**/billing_token.txt
+dist/*.js.map
+web/

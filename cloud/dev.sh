@@ -24,7 +24,10 @@ fi;
 # right owner (see certs/generate.sh).
 mkdir -p $TR_VAR_DIR/certs
 
-compose build && compose up -d
+# For dev: create a folder read by cloud-app where capabilities can be updated live
+mkdir -p /tmp/caps
+
+compose build && compose up -d $@
 
 if (getent hosts random-subdomain-3245234.$TR_HOST > /dev/null); then
   echo "mDNS verification successful"

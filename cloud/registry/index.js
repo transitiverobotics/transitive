@@ -257,14 +257,29 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   });
 
 
-  /** get package info */
+  /** get package info
+   * Test with, e.g., `npm v @transitive-robotics/terminal --json | fx`
+  */
   app.get('/:package', cors(), async (req, res) => {
     console.log('GET', req.params, req.headers.authorization);
     const package = await packages.findOne({_id: req.params.package});
     if (!package) {
       res.status(404).end();
     } else {
+      // Post-process
+
+      // Change URL of dist.tarball to reflect the hostname that was used in
+      // request (see transitive#376).
+      package.versions.forEach(version => {
+        if (version.dist?.tarball) {
+          const {pathname} = new URL(version.dist.tarball);
+          version.dist.tarball = `${req.protocol}://${req.headers.host}${pathname}`;
+        }
+      });
+
+      // npm expects versions to he an object with version numbers as keys
       package.versions = _.keyBy(package.versions, 'version');
+
       res.json(package);
     }
   });

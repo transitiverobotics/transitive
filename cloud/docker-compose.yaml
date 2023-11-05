@@ -138,6 +138,7 @@ services:
     networks:
       - default
       - shared
+      - caps
     logging:
       driver: local
 

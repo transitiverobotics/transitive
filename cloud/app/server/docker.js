@@ -147,23 +147,15 @@ const build = async ({name, version, pkgInfo}) => {
       `CMD ["node", "cloud_runner.js", "${name}"]`
     ].join('\n'));
 
-  /** now build the equivalent of this docker-compose:
-  version: "3.7"
-  services:
-    test:
-      build:
-        context: .
-        network: host
-      image: "${name}:${version}"
-  */
+  /* build the image */
   log.debug('building the image');
   const stream = await docker.buildImage({
       context: dir,
       src: ['Dockerfile', 'certs',
         'package.json', '.npmrc', '.dockerignore', 'cloud_runner.js']
     }, {
-      networkmode: 'host', // #DEBUG,
-      extrahosts: `registry:${REGISTRY_HOST}`,
+      networkmode: 'cloud_caps',
+      // extrahosts: `registry:${REGISTRY_HOST}`,
       t: tagName
     });
   stream.on('data', chunk =>
@@ -212,15 +204,10 @@ const start = async ({name, version, pkgInfo}) => {
       `${process.env.TR_VAR_DIR}/caps/common:/persistent/common`,
       `${process.env.TR_VAR_DIR}/caps/${name}:/persistent/self`,
     ],
-    // ExtraHosts: ["host.docker.internal:host-gateway"]
-    // ExtraHosts: [`mqtt:${mosquittoIP || 'host-gateway'}`]
-    // ExtraHosts: ['mqtt:host-gateway'],
-    ExtraHosts: [ // for updates; yes, we need both
-      `registry:${REGISTRY_HOST}`,
-      `registry.${HOSTNAME}:${REGISTRY_HOST}`],
+    // ExtraHosts: [],
     NetworkMode: 'cloud_caps',
     Init: true, // start an init process that reaps zombies, e.g., sshd's
-    // TODO: Do I need to set a logging policy to avoid huge logs?
+    LogConfig: { Type: 'local' }
   };
 
   let ExposedPorts;

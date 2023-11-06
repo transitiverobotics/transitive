@@ -273,7 +273,9 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
       package.versions.forEach(version => {
         if (version.dist?.tarball) {
           const {pathname} = new URL(version.dist.tarball);
-          version.dist.tarball = `${PROTOCOL}://${req.headers.host}${pathname}`;
+          const protocol= req.headers['x-forwarded-proto'] || PROTOCOL;
+          const host = req.headers['x-forwarded-host'] || req.headers.host;
+          version.dist.tarball = `${protocol}://${host}${pathname}`;
         }
       });
 

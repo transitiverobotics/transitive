@@ -166,6 +166,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     console.log(`receiving package ${data.name}`);
 
     // ensure all tarball URLs use our global hostname, not localhost
+    // TODO: still needed after transitive#376 ?
     _.each(data.versions, ({dist}) => {
       if (dist.tarball) {
         const {pathname} = new URL(dist.tarball);
@@ -273,7 +274,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
       package.versions.forEach(version => {
         if (version.dist?.tarball) {
           const {pathname} = new URL(version.dist.tarball);
-          const protocol= req.headers['x-forwarded-proto'] || PROTOCOL;
+          const protocol= req.headers['x-forwarded-proto'] || 'http';
           const host = req.headers['x-forwarded-host'] || req.headers.host;
           version.dist.tarball = `${protocol}://${host}${pathname}`;
         }

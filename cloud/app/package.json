@@ -23,8 +23,6 @@
     "node-fetch": "^2.6.7",
     "pako": "^2.0.4",
     "prompt": "^1.2.1",
-    "react-icons": "^4.2.0",
-    "react-router-dom": "^6.2.1",
     "semver": "^7.5.4",
     "stripe": "^9.6.0",
     "yargs": "^17.3.1"
@@ -64,9 +62,13 @@
     "prism-react-renderer": "^2.0.5",
     "react": "^17.0.2",
     "react-bootstrap": "^2.1.2",
+    "react-data-table-component": "^7.5.4",
     "react-dom": "^17.0.2",
+    "react-icons": "^4.11.0",
+    "react-router-dom": "^6.2.1",
     "react-web-component-style-loader": "^0.1.4-alpha",
     "refractor": "^4.8.1",
+    "styled-components": "^5.3.11",
     "webpack": "^5.68.0",
     "webpack-cli": "^4.9.2",
     "webpack-node-externals": "^3.0.0"

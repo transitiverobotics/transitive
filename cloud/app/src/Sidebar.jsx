@@ -40,16 +40,18 @@ const styles = {
     marginLeft: '1em'
   },
   pageLink: {
-    background: '#4444',
+    background: '#40404530',
     // lineHeight: '2em',
-    margin: '0.2em 0 0.2em 0',
+    margin: '0.2em 0.5em 0.2em 0',
     // padding: '.25em 0.25em .25em 1em',
-    borderRadius: '1.25em 0 0 1.25em',
+    // borderRadius: '1.25em 0 0 1.25em',
+    borderRadius: '4px',
     whiteSpace: 'nowrap',
     textAlign: 'left',
   },
   pageLinkActive: {
-    background: 'linear-gradient(45deg, #23559c25, #18901335)',
+    background: '#404048a0',
+    // background: 'linear-gradient(45deg, #23559c25, #18901335)',
     color: '#fff',
     fontWeight: 'bold'
   },
@@ -70,6 +72,10 @@ const styles = {
   },
   hasTitle: {
     textDecoration: 'underline dotted #666',
+  },
+  section: {
+    marginTop: '1em',
+    fontWeight: 'bold'
   }
 };
 
@@ -167,7 +173,7 @@ export const Sidebar = () => {
   const OtherFleetCaps = () => {
     return _.map(runningPackages, (capNames, scope) =>
       <div key={scope} style={styles.scope}>
-        {scope}:
+        {scope}
         <div style={styles.subsection}>
           {_.map(capNames, (version, name) => <div key={name}>
             <PageLink to={`/fleet/${scope}/${name}`} title={version}>
@@ -188,8 +194,8 @@ export const Sidebar = () => {
     </div>
 
     <div style={styles.views}>
-      <h5>Fleet Widgets</h5>
-      <PageLink to='/'>General</PageLink>
+      <PageLink to='/'>Devices</PageLink>
+      <div style={styles.section}>Fleet Widgets</div>
       <OtherFleetCaps />
     </div>
 

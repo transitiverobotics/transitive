@@ -45,9 +45,9 @@ const Device = (props) => {
 
   return <div>
     <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
-    <span style={styles.name}>
+    <a href={`/device/${device}`} style={styles.name}>
       {!ready ? '' : mergedData?.info?.os?.hostname || device}
-    </span>
+    </a>
     {mergedData?.info?.labels?.map(label =>
         <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
     }

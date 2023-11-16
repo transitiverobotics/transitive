@@ -127,6 +127,16 @@ const Fleet = (props) => {
 
   const empty = (Object.keys(mergedData).length == 0);
 
+  const localDev = !location.hostname.endsWith('transitiverobotics.com');
+  const dockerCommand = ['docker run -it --rm --privileged',
+      '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',
+      localDev && '-v /var/run/dbus:/var/run/dbus',
+      localDev && '-v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket',
+      '--name tr-robot --hostname robot1 transitiverobotics/try',
+      `${id} '${session.robot_token}'`,
+      localDev && location.origin.replace('portal', 'install')
+    ].filter(Boolean).join(' ');
+
   return <div>
     <h5>Devices</h5>
 
@@ -163,12 +173,8 @@ const Fleet = (props) => {
               capabilities in Docker, please see the <a
                 href={`//${host}/docs/documentation`}>documentation</a>.
 
-              If you just want to try it out quickly you can use our example Docker image:
-              <Code language='bash'
-                code={`docker run -it --rm --privileged -v $HOME/.tr_docker:/root/.transitive${
-                  ''} -v /run/udev:/run/udev --name tr-robot --hostname robot1 transitiverobotics/try ${
-                  id} '${session.robot_token}'`}
-                />
+              If you just want to try it out quickly you can use our example
+              Docker image: <Code language='bash' code={dockerCommand} />
             </F>
           </Fold>
         </Delayed>

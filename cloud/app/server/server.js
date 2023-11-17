@@ -325,10 +325,8 @@ app.get('/running/:scope/:capName/*', (req, res) => {
   }
 */
 app.post('/auth/user', async (req, res) => {
-  // log.debug('/auth/user', req.body);
 
   const accounts = Mongo.db.collection('accounts');
-  // const devices = Mongo.db.collection('devices');
 
   const token = req.body.password;
   if (!token) {
@@ -377,7 +375,11 @@ app.post('/auth/acl', (req, res) => {
     const requested = parseMQTTTopic(req.body.topic);
     // whether or not the request is just for reading
     const readAccess = (req.body.acc == 1 || req.body.acc == 4);
-    const allowed = id == requested.organization &&
+    const allowed =
+      // check that browser-user isn't trying to write to different org:
+      id == permitted.id &&
+      // check that JWT-permitted org matches topic org
+      id == requested.organization &&
       permitted.validity &&
       (permitted.iat + permitted.validity) * 1e3 > Date.now() &&
       (

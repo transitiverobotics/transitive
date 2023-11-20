@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams } from
   'react-router-dom';
 import _ from 'lodash';
-import { Alert } from 'react-bootstrap';
+import { Alert, Form } from 'react-bootstrap';
 
 import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
 
@@ -82,7 +82,8 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   const [error, setError] = useState();
 
   // log.debug('Capability', {deviceId, webComponent, capability, props, session});
-  ensureWebComponentIsLoaded(capability, webComponent, session && session.user, deviceId);
+  const {ready} = ensureWebComponentIsLoaded(capability, webComponent,
+    session && session.user, deviceId);
 
   useEffect(() => {
       if (session) {
@@ -122,6 +123,10 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
     return <div>Authenticating...</div>;
   }
 
+  if (!ready) {
+    return <div>Loading components</div>;
+  }
+
   const ssl = (location.protocol == 'https:');
   const host = location.host.replace('portal.', '');
 
@@ -155,14 +160,18 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   type = device | fleet
 */
 const CapabilityWidget = ({type}) => {
-  const {deviceId, scope, capabilityName} = useParams();
+  const {deviceId = '_fleet', scope, capabilityName} = useParams();
   const {session} = useContext(UserContext);
   const capability = `${scope}/${capabilityName}`;
   const webComponent = `${capabilityName}-${type}`;
   const [pkg, setPkg] = useState({});
 
+  // load all widgets defined for this capability and type
+  const {ready} = ensureWebComponentIsLoaded(capability, webComponent,
+    session && session.user, deviceId);
+
   const pkgUrl = session?.user &&
-    `/running/${capability}/package.json?userId=${session.user}&deviceId=${deviceId || '_fleet'}`;
+    `/running/${capability}/package.json?userId=${session.user}&deviceId=${deviceId}`;
   /** TODO: Could we replace this^ with a call like
     fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`)).json();
     as in docker.js?
@@ -185,6 +194,14 @@ const CapabilityWidget = ({type}) => {
 
   // log.debug({scope, capability, pkg});
 
+  // See whether the capability exposes a runtime component definition
+  const componentDef = window.transitive?.[webComponent];
+  log.debug({ready});
+
+  if (!ready) {
+    return <div>Loading components</div>;
+  }
+
   return <div>
     {type == 'device' ?
       <Capability simple={true} webComponent='robot-agent-device-header'
@@ -193,12 +210,14 @@ const CapabilityWidget = ({type}) => {
     }
     <div>&nbsp;</div>
 
-    <h4>{pkg?.title || capability}</h4>
+    <h4>{pkg?.title || componentDef?.title || capability}</h4>
     <Capability webComponent={webComponent} capability={capability}/>
 
-    {pkg?.widgets && Object.keys(pkg.widgets).length > 0 && <div>
+    { /* Show widgets defined in package: remove once they all use the runtime
+      definition below */
+      pkg?.widgets && Object.keys(pkg.widgets).length > 0 && <div>
         <h6 style={styles.additional}>
-          Additional widgets provided by this capability
+          Additional UI components provided by this capability
         </h6>
         {_.map(pkg.widgets, (def, name) => <div key={name}>
             <h5>{def.title}</h5>
@@ -210,6 +229,25 @@ const CapabilityWidget = ({type}) => {
         )}
       </div>
     }
+
+    { /* Show all widgets defined at runtime, i.e., in window.transitive */
+      componentDef?.widgets && Object.keys(componentDef.widgets).length > 0 && <div>
+        <h6 style={styles.additional}>
+          Additional UI components provided by this capability
+        </h6>
+        {_.map(componentDef.widgets, (def, name) => <div key={name}>
+            <h5>{def.title}</h5>
+            <Form.Text>
+              {def.description}
+            </Form.Text>
+            <Capability webComponent={name} capability={capability}
+              jwtExtras={def.topics ? {topics: def.topics} : {}}
+              />
+          </div>
+        )}
+      </div>
+    }
+
   </div>;
 };
 

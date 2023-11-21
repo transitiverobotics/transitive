@@ -81,8 +81,11 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   const ref = useRef(null);
   const [error, setError] = useState();
 
+  // For additional widgets: allow overriding bundle name
+  const bundle = props.bundle || webComponent;
+
   // log.debug('Capability', {deviceId, webComponent, capability, props, session});
-  const {ready} = ensureWebComponentIsLoaded(capability, webComponent,
+  const {ready} = ensureWebComponentIsLoaded(capability, bundle,
     session && session.user, deviceId);
 
   useEffect(() => {
@@ -147,7 +150,9 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   return <div className='capability' style={styles.cap.wrapper}>
     {!props.disableEmbed && <div style={styles.cap.embed}>
       <Embed jwt={jwtToken} name={webComponent} deviceId={deviceId}
-        host={host} ssl={ssl} compRef={ref} capability={capability} />
+        host={host} ssl={ssl} compRef={ref} capability={capability}
+        bundle={bundle}
+        />
     </div>}
     <div style={styles.cap.body}>
       {element}
@@ -242,6 +247,7 @@ const CapabilityWidget = ({type}) => {
             </Form.Text>
             <Capability webComponent={name} capability={capability}
               jwtExtras={def.topics ? {topics: def.topics} : {}}
+              bundle={webComponent}
               />
           </div>
         )}

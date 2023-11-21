@@ -16,6 +16,7 @@ subscripts["postinstall"]="postall"
 declare -A npmCommands
 npmCommands["install"]=1
 npmCommands["update"]=1
+npmCommands["rebuild"]=1
 
 SUBSCRIPT=${subscripts[$npm_lifecycle_event]:-$npm_lifecycle_event}
 

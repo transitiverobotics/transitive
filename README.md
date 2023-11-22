@@ -27,7 +27,12 @@ by [Transitive Robotics](https://transitiverobotics.com)
   - For web application users
   - For third-party apps
 
+
 ## Setup
+
+Unless you want to hack on the Transitive core, you'll most likely have an easier time following our self-hosting instructions: http://homedesk.local/docs/develop/self-hosting
+
+## Alternatively: run from source
 
 - Go into the `cloud/` directory.
 - Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).

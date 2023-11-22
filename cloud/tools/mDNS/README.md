@@ -16,3 +16,5 @@ For this to work you'll need to make sure your system is configured to resolve m
   .local
   ```
   to it. This will take effect immediately, no service restarts are required.
+
+When everything is working you should be able to `ping any-domain-you-make-up.$HOSTNAME.local`. If that is not the case, then something isn't working.

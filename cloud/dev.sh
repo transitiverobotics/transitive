@@ -20,6 +20,13 @@ else
   exit 1;
 fi;
 
+if ( ! dpkg -l avahi-daemon ); then
+  echo "You don't have avahi-daemon installed. Please run"
+  echo " sudo apt-get install -y avahi-daemon"
+  echo "and then try again."
+  exit 2;
+fi;
+
 # We need to create the certs folder to make sure the generated certs have the
 # right owner (see certs/generate.sh).
 mkdir -p $TR_VAR_DIR/certs

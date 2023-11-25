@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createWebComponent, useTransitive, getLogger }
   from '@transitive-sdk/utils-web';
 
-const log = getLogger('webrtc-video');
+const log = getLogger('my-new-capability');
 log.setLevel('debug');
 
 const [scope, capabilityName] = TR_PKG_NAME.split('/');

@@ -156,6 +156,9 @@ services:
     build: ./tools/mDNS
     image: transitiverobotics/mdns:latest
     restart: always
+    volumes:
+      - /etc/nsswitch.conf:/nsswitch.conf
+      - /etc/mdns.allow:/mdns.allow
     env_file:
       - .env
     network_mode: host

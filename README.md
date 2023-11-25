@@ -10,27 +10,28 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 ### Key Features
 
-- Data synchronization between robot, cloud, and UI
-  - Reactively re-render UI elements when data on a robot changes
-- Full-stack package management
-  - Notion of packages that allows sharing with third-parties
-  - Deployment mechanism incl. auto-updates over-the-air
-  - Handles cross-device version dependencies
-- Sandboxing of capabilities
-  - Both on robot and in the cloud
-- UI component abstraction
-  - Using [Web Components](https://www.webcomponents.org/introduction)
-  - Easy to embed in other web applications
-  - Easy to embed in React, Angular, etc.
-- Authentication and authorization
-  - For robots in the fleet
-  - For web application users
-  - For third-party apps
+1. Data synchronization between robot, cloud, and UI ("MQTTSync")
+   - Transparent and efficient data-sharing without the need for APIs
+   - Reactively re-render UI elements when data on a robot changes
+2. Full-stack package management
+   - Notion of packages ("capabilities") that provides encapsulation and allows sharing with third-parties
+   - Deployment mechanism incl. over-the-air auto-updates
+   - Handles cross-device version dependencies
+   - Sandboxing of capabilities, both on robot and in the cloud
+   - UI component abstraction
+     - Using [Web Components](https://www.webcomponents.org/introduction)
+     - Easy to embed in other web applications
+     - Easy to embed in React, Angular, etc.
+3. Authentication and authorization
+   - For robots in the fleet
+   - For web application users
+   - For third-party apps
 
 
 ## Setup
 
-Unless you want to hack on the Transitive core, you'll most likely have an easier time following our self-hosting instructions: http://homedesk.local/docs/develop/self-hosting
+Unless you want to hack on the Transitive core, you'll most likely have an easier time following our self-hosting instructions: https://transitiverobotics.com/docs/develop/self-hosting.
+
 
 ## Alternatively: run from source
 

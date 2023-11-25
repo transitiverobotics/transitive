@@ -2,9 +2,9 @@
   "name": "mdns",
   "version": "1.0.0",
   "description": "A tiny mDNS service to route all subdomains of $HOSTNAME.local to itself",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "bash enable_mdns.sh && node server.js"
   },
   "keywords": [],
   "author": "",

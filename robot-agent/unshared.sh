@@ -15,15 +15,18 @@ else
 fi
 echo "preparing sandbox for $TRPACKAGE ($REALUSER)"
 
-mkdir -p $RODIR
-# hide some folders by bind-mounting an empty read-only folder on top of them
+mkdir -p $RODIR/run
+# hide the /var folder by bind-mounting an empty read-only folder on top of it
 mount -o bind,ro $RODIR /var
+# we need to bind mount /run back to /var/run for avahi/mdns to work
+mount --rbind /run /var/run
 
 # $REALUSER is not root when we are in an `unshare -r`
 if [[ $REALUSER != "root" ]]; then
   # create fs overlays for /usr and /opt; will be bind-mounted later
   # TODO: this doesn't need to be per-capability; can't we create this once and
   # then use nsenter (or similar) to share that setup among caps?
+  # No, I don't think so. There is no merging of mount namespaces I think.
   mkdir -p $HOME/.transitive/tmp
   TMP=$(mktemp -d -p $HOME/.transitive/tmp)
   for folder in usr opt; do

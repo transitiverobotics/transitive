@@ -16,7 +16,7 @@ const _ = require('lodash');
 
 const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability, tryJSONParse } =
+mergeVersions, forMatchIterator, Capability, tryJSONParse, clone } =
   require('@transitive-sdk/utils');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
@@ -149,7 +149,17 @@ const parseJWTCookie = async (cookie) => {
   return {};
 };
 
-
+/** Get package info for the named package (e.g., @transitive-robotics/terminal)
+ * from registry.
+ */
+const getPackageInfo = async (package) => {
+  const localRegistry = `http://${process.env.TR_REGISTRY || 'registry:6000'}`;
+  const host = process.env.TR_REGISTRY_IS_LOCAL ? localRegistry
+    : 'https://registry.transitiverobotics.com';
+  const response = await fetch(`${host}/${encodeURIComponent(package)}`);
+  const json = await response.json();
+  return json;
+};
 
 // ----------------------------------------------------------------------
 
@@ -461,7 +471,19 @@ class _robotAgent extends Capability {
         '/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages');
       this.mqttSync.subscribe(
         '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat');
+      this.mqttSync.subscribe(
+        '/+/+/@transitive-robotics/_robot-agent/+/desiredPackages');
+      this.mqttSync.subscribe(
+        '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages');
+
       this.mqttSync.publish('/+/+/+/+/+/billing/token');
+      this.mqttSync.publish(
+        '/+/+/@transitive-robotics/_robot-agent/+/desiredPackages',
+        {atomic: true});
+      this.mqttSync.publish(
+        '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages',
+        {atomic: true});
+
       this.data.subscribePathFlat(
         '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
         async (value, topic, matched, tags) => {
@@ -562,8 +584,37 @@ class _robotAgent extends Capability {
         // got token, share with device
         log.debug(`got token for /${ns.join('/')}`);
         this.data.update([...ns, 'billing', 'token'], json.token);
+
       } else {
         log.warn(`failed to get token for`, ns, json.error);
+
+        // Move cap from desiredPackages to disabledPackages if it cost money
+        const pkg = await getPackageInfo(`${scope}/${capName}`);
+        if (pkg.transitiverobotics.price) {
+          // figure out which version the device is running, make the change there
+          let agentVersion = '0.0.0';
+          this.data.forPathMatch([orgId, deviceId, '@transitive-robotics',
+              '_robot-agent', '+version', 'status', 'heartbeat'],
+            (value, topic, {version}) => {
+              value && (versionCompare(version, agentVersion) > 0) &&
+                (agentVersion = version);
+            });
+          const agentNS = [orgId, deviceId, '@transitive-robotics',
+            '_robot-agent', agentVersion];
+
+          const desired = clone(
+            this.data.get([...agentNS, 'desiredPackages']) || {});
+          delete desired?.[scope]?.[capName];
+
+          const disabled = clone(
+            this.data.get([...agentNS, 'disabledPackages']) || {});
+          disabled[scope] ||= {};
+          disabled[scope][capName] = true;
+
+          log.debug('updating', {desired, disabled, ns});
+          this.data.update([...agentNS, 'desiredPackages'], desired);
+          this.data.update([...agentNS, 'disabledPackages'], disabled);
+        }
       }
     } catch (e) {
       log.warn(`failed to record usage for`, ns, e);

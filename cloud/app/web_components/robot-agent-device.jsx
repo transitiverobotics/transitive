@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Modal, Accordion, Spinner } from 'react-bootstrap';
+    Modal, Accordion, Spinner, Alert } from 'react-bootstrap';
 
 const _ = {
   map: require('lodash/map'),
@@ -12,6 +12,7 @@ const _ = {
 
 import pako from 'pako';
 import { MdAdd } from 'react-icons/md';
+import { FaExclamationTriangle } from "react-icons/fa";
 
 import jsonLogic from '../src/utils/logic';
 import { ActionLink } from '../src/utils/index';
@@ -78,6 +79,13 @@ const getMergedPackageInfo = (robotAgentData) => {
       name = name.slice(1); // remove initial slash
       rtv[name] ||= {};
       rtv[name].desired = version;
+    });
+
+  robotAgentData.disabledPackages &&
+    _.forEach(toFlatObject(robotAgentData.disabledPackages), (value, name) => {
+      name = name.slice(1); // remove initial slash
+      rtv[name] ||= {};
+      rtv[name].disabled = value;
     });
 
   robotAgentData?.status?.package &&
@@ -240,6 +248,7 @@ const Device = (props) => {
         mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
         log.debug('adding publish', `${prefix}/+/desiredPackages`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
+        mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
       }}, [mqttSync]);
 
   log.debug('data', data);
@@ -275,6 +284,12 @@ const Device = (props) => {
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
     mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, null);
+  };
+
+  const reinstall = (pkgName) => {
+    log.debug(`reinstalling ${pkgName}`);
+    mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, '*');
+    mqttSync.data.update(`${versionPrefix}/disabledPackages/${pkgName}`, null);
   };
 
   const restartAgent = () => {
@@ -344,6 +359,12 @@ const Device = (props) => {
         info.config.global.rosReleases.includes(release))
   );
 
+  const hasDisabled = Object.values(packages).some(p => p.disabled);
+
+  // user has a way to pay for premium caps
+  const canPay = session.has_payment_method || session.free
+    || (session.balance < 0 && new Date(session.balanceExpires) > new Date());
+
   return <div>
     <div style={styles.row}>
       <OSInfo info={latestVersionData?.info}/>
@@ -369,9 +390,14 @@ const Device = (props) => {
 
     <div style={styles.row}>
       <h5>Capabilities</h5>
+      { hasDisabled && <Alert variant='danger'>
+        <FaExclamationTriangle /> Some capabilities have been disabled because your free trial has expired.
+        Please add a payment method in Billing and reinstall the capabilities.
+      </Alert>}
+
       <Accordion defaultActiveKey={['0']} alwaysOpen>
         { Object.keys(packages).length > 0 ?
-          mapSorted(packages, ({running, desired, status}, name) =>
+          mapSorted(packages, ({running, desired, status, disabled}, name) =>
             <Accordion.Item eventKey="0" key={name}>
               <Accordion.Body>
                 <Row>
@@ -395,6 +421,9 @@ const Device = (props) => {
                     { !running && status && <div><Badge bg="info">
                           {status}</Badge></div>
                     }
+                    { disabled && <div><Badge bg="danger">
+                          disabled</Badge></div>
+                    }
                   </Col>
                   <Col sm='5' style={styles.rowItem}>
                     {!inactive &&
@@ -410,11 +439,21 @@ const Device = (props) => {
                               stop
                             </Button>
                           } {
-                            <span title={!desired ? 'pre-installed' : null}>
+                            !disabled && <span
+                              title={!desired ? 'pre-installed' : null}>
                               <Button variant='link'
                                 disabled={!desired}
                                 onClick={() => uninstall(name)}>
                                 uninstall
+                              </Button>
+                            </span>
+                          } {
+                            disabled && <span title={!session.has_payment_method
+                              ? 'You need to add a payment method.' : null}>
+                              <Button variant='link'
+                                disabled={!canPay}
+                                onClick={() => reinstall(name)}>
+                                reinstall
                               </Button>
                             </span>
                           } {
@@ -443,10 +482,7 @@ const Device = (props) => {
                 const issues = failsRequirements(info, pkg);
 
                 const price = pkg.versions?.[0].transitiverobotics?.price;
-                if (price && !session.has_payment_method && !session.free
-                    && !(session.balance < 0 &&
-                      new Date(session.balanceExpires) > new Date())
-                ) {
+                if (price && !canPay) {
                   issues.push('Please add a payment method in Billing.');
                 }
 

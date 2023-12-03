@@ -108,7 +108,7 @@ const Fleet = (props) => {
   }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname));
 
   const stale = mergedData
-      .filter(({status}) => heartbeatLevel(status.heartbeat) == 0)
+      .filter(({status}) => heartbeatLevel(status.heartbeat) == 2)
       .map((device) => `/${id}/${device.id}`);
 
   /** remove inactive devices */

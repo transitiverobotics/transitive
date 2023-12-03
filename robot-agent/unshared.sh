@@ -33,6 +33,11 @@ if [[ $REALUSER != "root" ]]; then
     mkdir -p $TMP/$folder/{workdir,merged}
     mkdir -p $HOME/.transitive/$folder # in case it doesn't exist
     mount -t overlay overlay -olowerdir=/$folder,upperdir=$HOME/.transitive/$folder,workdir=$TMP/$folder/workdir $TMP/$folder/merged
+
+    # mount back any overlays in the original
+    for path in $(mount | grep "^overlay on /$folder" | cut -d ' ' -f 3); do
+      mount --rbind $path $TMP/$folder/merged/$path
+    done
   done;
 else
   echo "we are root, not using overlays";
@@ -52,7 +57,7 @@ done
 if [[ $REALUSER != "root" ]]; then
   # bind-mount our merged overlay directories onto /usr and /opt
   for folder in usr opt; do
-    mount --bind $TMP/$folder/merged /$folder
+    mount --rbind -o ro $TMP/$folder/merged /$folder
   done;
 fi;
 
@@ -62,6 +67,8 @@ mount --rbind $TRHOME /root
 
 rm -f $TRHOME/$REALUSER/.transitive
 ln -s /home $TRHOME/$REALUSER/.transitive
+# for when running as root:
+ln -s /home /root/.transitive
 
 # fonts
 rm -f /$HOME/.fonts

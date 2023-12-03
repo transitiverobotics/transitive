@@ -6,11 +6,11 @@ set -o allexport
 set +o allexport
 
 # Detect Docker Compose (standalone or plugin)
-if ( docker-compose help > /dev/null 2>&1 ); then
+if ( docker-compose > /dev/null 2>&1 ); then
   function compose() {
     docker-compose $@
   }
-elif ( docker compose help > /dev/null 2>&1 ); then
+elif ( docker compose > /dev/null 2>&1 ); then
   function compose() {
     docker compose $@
   }

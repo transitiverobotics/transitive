@@ -188,7 +188,9 @@ const staticInfo = () => {
 
   try {
     info.rosReleases = fs.readdirSync('/opt/ros').filter(name => name != 'rolling');
-  } catch (e) {}
+  } catch (e) {
+    info.rosReleases = [];
+  }
 
   exec('lsb_release -a', (err, stdout, stderr) => {
     if (!err) {

@@ -34,10 +34,17 @@ if [[ $REALUSER != "root" ]]; then
     mkdir -p $HOME/.transitive/$folder # in case it doesn't exist
     mount -t overlay overlay -olowerdir=/$folder,upperdir=$HOME/.transitive/$folder,workdir=$TMP/$folder/workdir $TMP/$folder/merged
 
-    # mount back any overlays in the original
+    # mount back any overlays and bind-mounts in the original
     for path in $(mount | grep "^overlay on /$folder" | cut -d ' ' -f 3); do
-      mount --rbind $path $TMP/$folder/merged/$path
+      subpath=$(echo $path | cut -d '/' -f 3-)
+      echo $path $subpath
+      mount --rbind $path $TMP/$folder/merged/$subpath
     done
+    for path in $(mount | grep "^/dev/\S* on /$folder" | cut -d ' ' -f 3); do
+      subpath=$(echo $path | cut -d '/' -f 3-)
+      mount --rbind $path $TMP/$folder/merged/$subpath
+    done
+
   done;
 else
   echo "we are root, not using overlays";

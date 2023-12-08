@@ -8,10 +8,6 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.7.4"
-  },
-  "optionalDependencies": {
-    "rclnodejs": "0.22.2",
-    "rosnodejs": "github:chfritz/rosjs"
+    "@transitive-sdk/utils": "^0.8.0"
   }
 }

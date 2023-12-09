@@ -30,6 +30,9 @@ const PORT = 9000;
 const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
   'https://billing.transitiverobotics.com';
 
+/** Threshold in ms for API JWTs to be valid */
+const JWT_THRESHOLD = 5 * 60 * 1000;
+
 const log = getLogger('server');
 // log.setLevel('info');
 log.setLevel('debug');
@@ -53,6 +56,8 @@ const addSessions = (router, collectionName, secret, options = {}) => {
   router.use(session(obj));
 };
 
+/* -- Some express middlewares for authentication */
+
 /** simple middleware to check whether the user is logged in */
 const requireLogin = (req, res, next) => {
   // log.debug(req.session);
@@ -71,6 +76,47 @@ const requireAdmin = (req, res, next) => {
     next();
   }
 };
+
+/** simple middleware to check whether the client provided a JWT */
+const requireJWT = async (req, res, next) => {
+  if (!req.headers.bearer) {
+    res.status(401).json({error: 'No JWT provided in Bearer.'});
+    return;
+  }
+
+  let payload;
+  try {
+    payload = decodeJWT(req.headers.bearer);
+  } catch (e) {
+    res.status(401).json({error: 'Invalid JWT.'});
+  }
+  if (!payload?.api) {
+    res.status(401).json({error: 'Not an API JWT.'});
+    return;
+  }
+  if (!payload?.userId) {
+    res.status(401).json({error: 'No userId provided in JWT.'});
+    return;
+  }
+  if (!payload.iat || (Date.now() - (payload.iat * 1000) > JWT_THRESHOLD)) {
+    res.status(401).json({error: 'JWT is expired.'});
+    return;
+  }
+
+  const accounts = Mongo.db.collection('accounts');
+  const user = await accounts.findOne({_id: payload.userId});
+  jwt.verify(req.headers.bearer, user.jwtSecret, (err, decoded) => {
+    if (err) {
+      res.status(401).json({error: 'Invalid JWT.'});
+      return;
+    }
+    log.debug('requireJWT: jwt verified', decoded);
+    req.jwtSession = {...req.jwtSession, ...decoded};
+    next();
+  });
+};
+
+/* ------- */
 
 /** lookup which version of the named capability is running on the named device
 */
@@ -737,6 +783,26 @@ class _robotAgent extends Capability {
     return runningPackages;
   }
 
+  /** get list of all devices and the caps they are running */
+  getAllRunning(organization) {
+    const org = this.data.get([organization]);
+
+    // for each device, mergeVersions of _robot-agent, then get running
+    const devices = {};
+    _.each(org, (device, deviceId) => {
+      const versions = device['@transitive-robotics']['_robot-agent'];
+      const merged = mergeVersions(versions, 'status');
+      if (!merged.status) {
+        log.warn(`no status for device ${organization}/${deviceId}:`, merged);
+        return;
+      }
+
+      devices[deviceId] = merged.status.runningPackages;
+    });
+
+    return devices;
+  }
+
   /** define routes for this app */
   addRoutes() {
     this.router.use(express.json());
@@ -1065,6 +1131,20 @@ class _robotAgent extends Capability {
         await this.createBillingUser({orgId: req.params.orgId});
         res.json({});
       });
+
+
+    /* JWT-secured API, intended for back-end use by power users */
+
+    /** list capabilities running on the given device */
+    this.router.get('/api/v1/running/:deviceId', requireJWT, (req, res) => {
+      const {deviceId} = req.params;
+      res.json(this.getDevicePackages(req.jwtSession.userId, deviceId));
+    });
+
+    /** list devices and the capabilities they are running */
+    this.router.get('/api/v1/running/', requireJWT, (req, res) => {
+      res.json(this.getAllRunning(req.jwtSession.userId));
+    });
   }
 };
 

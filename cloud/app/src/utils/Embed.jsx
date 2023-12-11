@@ -85,7 +85,7 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
 
     const docs = new URL(window.location);
     docs.hostname = url.hostname.split('.').slice(-2).join('.');
-    docs.pathname = '/docs/Hosted/embedding-in-react';
+    docs.pathname = '/docs/guides/embedding-in-react';
     docs.hash = '';
 
     return <div style={{color: 'inherit'}}>
@@ -117,8 +117,10 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
             ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}",`),
             `  "userId": "user123", // a string that uniquely identifies a user in your context`,
             `  "validity": 86400, // number of seconds this authentication should remain valid`,
+            `  "iat": 1702235368, // current time in seconds since 1970`,
             '}'
           ].join('\n')} />
+      Note that some JWT libraries already include the `iat` field automatically.
 
       When using React, see <a href={`${docs.toString()}`}>Embedding in React</a>.
       <br/><br/>

@@ -76,8 +76,7 @@ const startROS = async () => {
   const topic = '/turtle1/pose';
   const type = 'turtlesim/Pose';
 
-  // const subscriber = ros.rn.subscribe(topic, type, (msg) => {
-  ros.subscribe('/turtle1/pose', 'turtlesim/Pose', (msg) => {
+  ros.subscribe(topic, type, (msg) => {
     _.forEach(msg, (value, key) => {
       mqttSync.data.update(`/device/pose/${key}`, value);
     });

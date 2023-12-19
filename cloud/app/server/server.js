@@ -79,16 +79,18 @@ const requireAdmin = (req, res, next) => {
 
 /** simple middleware to check whether the client provided a JWT */
 const requireJWT = async (req, res, next) => {
-  if (!req.headers.bearer) {
-    res.status(401).json({error: 'No JWT provided in Bearer.'});
+  if (!req.headers.authorization) {
+    res.status(401).json({error: 'No JWT provided in Authorization header.'});
     return;
   }
 
   let payload;
+  const token = req.headers.authorization.replace(/^Bearer /,'');
   try {
-    payload = decodeJWT(req.headers.bearer);
+    payload = decodeJWT(token);
   } catch (e) {
     res.status(401).json({error: 'Invalid JWT.'});
+    return;
   }
   if (!payload?.api) {
     res.status(401).json({error: 'Not an API JWT.'});
@@ -105,7 +107,7 @@ const requireJWT = async (req, res, next) => {
 
   const accounts = Mongo.db.collection('accounts');
   const user = await accounts.findOne({_id: payload.userId});
-  jwt.verify(req.headers.bearer, user.jwtSecret, (err, decoded) => {
+  jwt.verify(token, user.jwtSecret, (err, decoded) => {
     if (err) {
       res.status(401).json({error: 'Invalid JWT.'});
       return;

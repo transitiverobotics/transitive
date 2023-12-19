@@ -31,7 +31,7 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
   const {rosReleases} = constants;
   const activeReleases = {auto: !config.global?.rosReleases, 1: null, 2: null};
   config.global?.rosReleases?.forEach(r =>
-    activeReleases[rosReleases[r].rosVersion || 1] = r);
+    rosReleases[r] && (activeReleases[rosReleases[r].rosVersion || 1] = r));
   const [selected, setSelected] = useState(activeReleases);
 
   const getReleasesForVersion = (version) => Object.keys(rosReleases)

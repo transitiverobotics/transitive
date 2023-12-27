@@ -78,6 +78,9 @@ if [[ ! -e $FLAG_FILE ]]; then
   echo "TR_USERID=[id]" >> .env
   echo "TR_INSTALL_HOST=[install_host_url]" >> .env
   echo "TR_ROBOT_TOKEN=[token]" >> .token
+  if [[ ! -z $TR_INSTALL_HASH ]]; then
+    echo "TR_INSTALL_HASH=$TR_INSTALL_HASH" >> .token
+  fi;
 
   # make sure we have the github.com host key file, so ssh fetches work in npm
   # mkdir -p ~/.ssh

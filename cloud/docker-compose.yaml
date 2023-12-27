@@ -104,6 +104,7 @@ services:
       - ./app/src:/app/src
       - ./app/web_components:/app/web_components
       - ./app/server:/app/server
+      - ./app/assets:/app/assets
       # In dev we allow serving local dev files for capability bundles. This
       # assumes a specific directory layout.
       - /tmp/caps:/app/caps:ro

@@ -353,10 +353,10 @@ const Device = (props) => {
   const info = latestVersionData?.info;
   // active ROS releases are those that are installed and permitted by the
   // current config to be sourced
-  info && (info.activeRosReleases = !info.config.global?.rosReleases
+  info && (info.activeRosReleases = !info.config?.global?.rosReleases
     ? info.rosReleases || [] // use all found releases
     : info.rosReleases?.filter(release =>
-      info.config.global.rosReleases.includes(release)) || []);
+      info.config?.global?.rosReleases?.includes(release)) || []);
 
   const hasDisabled = Object.values(packages).some(p => p.disabled);
 

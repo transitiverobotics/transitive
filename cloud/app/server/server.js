@@ -587,6 +587,24 @@ class _robotAgent extends Capability {
     return (heartbeat > Date.now() - RUNNING_THRESHOLD);
   }
 
+  /** get latest version status for all devices in org */
+  getStatus(orgId) {
+    const org = this.data.get([orgId]);
+    // for each device, mergeVersions of _robot-agent
+    const devices = {};
+    _.each(org, (device, deviceId) => {
+      const versions = device['@transitive-robotics']['_robot-agent'];
+      const merged = mergeVersions(versions, 'status');
+      if (!merged.status) {
+        log.warn(`no status for device ${organization}/${deviceId}:`, merged);
+        return;
+      }
+      devices[deviceId] = merged.status;
+    });
+    return devices;
+  }
+
+
   /** Given an org id, get the billing user and secret */
   async getBillingCreds(orgId) {
 
@@ -783,26 +801,6 @@ class _robotAgent extends Capability {
     //     value && _.set(runningPackages, [scope, capName], version);
     //   });
     return runningPackages;
-  }
-
-  /** get list of all devices and the caps they are running */
-  getAllRunning(organization) {
-    const org = this.data.get([organization]);
-
-    // for each device, mergeVersions of _robot-agent, then get running
-    const devices = {};
-    _.each(org, (device, deviceId) => {
-      const versions = device['@transitive-robotics']['_robot-agent'];
-      const merged = mergeVersions(versions, 'status');
-      if (!merged.status) {
-        log.warn(`no status for device ${organization}/${deviceId}:`, merged);
-        return;
-      }
-
-      devices[deviceId] = merged.status.runningPackages;
-    });
-
-    return devices;
   }
 
   /** define routes for this app */
@@ -1145,7 +1143,14 @@ class _robotAgent extends Capability {
 
     /** list devices and the capabilities they are running */
     this.router.get('/api/v1/running/', requireJWT, (req, res) => {
-      res.json(this.getAllRunning(req.jwtSession.userId));
+      const statuses = this.getStatus(req.jwtSession.userId);
+      res.json(_.mapValues(statuses, s => s.runningPackages));
+    });
+
+    /** get heartbeats of all devices */
+    this.router.get('/api/v1/heartbeats/', requireJWT, (req, res) => {
+      const statuses = this.getStatus(req.jwtSession.userId);
+      res.json(_.mapValues(statuses, s => s.heartbeat));
     });
   }
 };

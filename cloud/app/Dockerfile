@@ -8,8 +8,13 @@ COPY package*.json /app/
 WORKDIR /app
 RUN npm ci
 
-COPY . /app
+COPY src /app/src
+COPY web_components /app/web_components
+COPY common.js /app/
+COPY webpack.config.js /app/
 RUN npm run build
+
+COPY . /app
 RUN ln -s /etc/mosquitto/certs
 
 # FROM node:16.14.2

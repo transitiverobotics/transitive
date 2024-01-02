@@ -597,7 +597,7 @@ class _robotAgent extends Capability {
       const versions = device['@transitive-robotics']['_robot-agent'];
       const merged = mergeVersions(versions, 'status');
       if (!merged.status) {
-        log.warn(`no status for device ${orgId}/${deviceId}:`, merged);
+        log.warn(`No status for device ${orgId}/${deviceId}:`, merged);
         return;
       }
       devices[deviceId] = merged.status;

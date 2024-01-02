@@ -150,13 +150,13 @@ const mapSorted = (obj, fn) =>
 
 /** Component that renders the package log response, such as
 {
-"@transitive-robotics": {
-"webrtc-video": {
-"err": null,
-"stdout": [base64 encoded gzip buffer of text],
-"stderr": [base64 encoded gzip buffer of text],
-}
-}
+  "@transitive-robotics": {
+    "webrtc-video": {
+      "err": null,
+      "stdout": [base64 encoded gzip buffer of text],
+      "stderr": [base64 encoded gzip buffer of text],
+    }
+  }
 }
 */
 const PkgLog = ({response, onHide}) => {

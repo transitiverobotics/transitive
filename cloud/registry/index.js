@@ -152,6 +152,50 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     });
   });
 
+  /** --- Custom ---------------------------------------------------------- */
+
+  /** Custom route for updating meta-data only without republishing. Expects a
+   * JSON body `{pkg, readme}` where pkg is the package.json and readme is the
+   * string content of the README.md file of the package.
+  */
+  app.post('/-/custom/packageMeta', useUser, async (req, res) => {
+    const data = req.body;
+    console.log(`updating metadata for package`, data.pkg.name);
+
+    if (req.user.readonly) {
+      res.status(401).json({
+        error: `Your token does not grant permission to publish`,
+        success: false
+      });
+      return;
+    }
+
+    const package = await packages.findOne({_id: data.pkg.name});
+    if (!package) {
+      res.status(400).json({
+        error: `No such package ${data.pkg.name}`,
+        success: false
+      });
+      return;
+    }
+
+    // verify user is owner
+    if (package.owner != req.user._id) {
+      res.status(401).json({
+        error: `You are not the owner of this package`,
+        success: false
+      });
+      return;
+    }
+
+    const result = await packages.updateOne({_id: data.pkg.name}, {$set: {
+      readme: data.readme,
+      transitiverobotics: data.pkg.transitiverobotics
+    }});
+    res.status(200).json(result);
+  });
+
+
   /** --- Packages ---------------------------------------------------------- */
 
   app.put('/:package/:_rev?/:revision?', useUser, async (req, res) => {
@@ -186,10 +230,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     const versionNumber = _.keys(data.versions)[0];
     delete data._attachments;
 
-    // console.log(req.params, JSON.stringify(data, true, 2), req.headers);
-
     const package = await packages.findOne({_id: req.params.package});
-    console.log({package});
 
     if (!package) {
       data.versions = Object.values(data.versions); // convert to array
@@ -227,7 +268,6 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
           success: false
         });
         return;
-
       }
 
       // all tests passed: add new version

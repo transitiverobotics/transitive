@@ -1,8 +1,10 @@
 FROM node:16.14.2
 
-COPY . /app
 WORKDIR /app
+COPY package.json package-lock.json .
 RUN npm ci --omit dev
+
+COPY . /app
 
 EXPOSE 6000
 

@@ -1,2 +1,3 @@
 db
 .env
+publish_to_dockerhub.sh

@@ -1,20 +1,13 @@
 FROM node:16.14.2 as base
 
-ARG TR_HOST
-ENV TR_HOST=${TR_HOST:-localhost}
-
 RUN mkdir -p /app
 COPY package*.json /app/
 WORKDIR /app
 RUN npm ci
 
-COPY src /app/src
-COPY web_components /app/web_components
-COPY common.js /app/
-COPY webpack.config.js /app/
+COPY . /app
 RUN npm run build
 
-COPY . /app
 RUN ln -s /etc/mosquitto/certs
 
 # FROM node:16.14.2
@@ -26,6 +19,8 @@ RUN ln -s /etc/mosquitto/certs
 # RUN npm ci --omit dev
 
 EXPOSE 9000
+ARG TR_HOST
+ENV TR_HOST=${TR_HOST:-localhost}
 
 FROM base as dev
 RUN apt-get update && apt-get install -y tmux

@@ -158,8 +158,7 @@ services:
     image: transitiverobotics/mdns:latest
     restart: always
     volumes:
-      - /etc/nsswitch.conf:/nsswitch.conf
-      - /etc/mdns.allow:/mdns.allow
+      - /etc:/host_etc
     env_file:
       - .env
     network_mode: host

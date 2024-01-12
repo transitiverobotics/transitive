@@ -14,7 +14,7 @@ const config = {
   bundle: true,
   preserveSymlinks: true, // this allows us to use symlinks
   minify: !isDevelopment,
-  sourcemap: !isDevelopment,
+  sourcemap: isDevelopment,
   target: ['es2022'],
   outdir: 'dist',
   loader: {

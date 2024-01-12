@@ -60,7 +60,8 @@ const getTarget = (req) => {
 const handleRequest = (req, res) => {
   const target = getTarget(req);
   if (!target) {
-    res.status(404).send('Not found');
+    res.statusCode = 404;
+    res.end('Not found');
     return;
   }
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
@@ -72,7 +73,8 @@ const handleUpgrade = function(req, socket, head) {
   console.log('ws:', req.headers.host, req.url);
   const target = getTarget(req);
   if (!target) {
-    res.status(404).send('Not found');
+    res.statusCode = 404;
+    res.end('Not found');
     return;
   }
   proxy.ws(req, socket, head, {ws: true, target: `ws://${target}`});

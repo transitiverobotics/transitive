@@ -127,6 +127,8 @@ const Fleet = (props) => {
 
   const empty = (Object.keys(mergedData).length == 0);
 
+  // TODO: split this into dev/prod and our domain vs. custom
+  // in prod + custom we don't need to add avahi
   const localDev = !location.hostname.endsWith('transitiverobotics.com');
   const dockerCommand = ['docker run -it --rm --privileged',
       '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',

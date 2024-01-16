@@ -523,6 +523,8 @@ class _robotAgent extends Capability {
         '/+/+/@transitive-robotics/_robot-agent/+/desiredPackages');
       this.mqttSync.subscribe(
         '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages');
+      this.mqttSync.subscribe(
+        '/+/+/@transitive-robotics/_robot-agent/+/info');
 
       this.mqttSync.publish('/+/+/+/+/+/billing/token');
       this.mqttSync.publish(
@@ -588,21 +590,26 @@ class _robotAgent extends Capability {
   }
 
   /** get latest version status for all devices in org */
-  getStatus(orgId) {
+  getLatest(orgId, field = 'status') {
     const org = this.data.get([orgId]);
     // for each device, mergeVersions of _robot-agent
     const devices = {};
     _.each(org, (device, deviceId) => {
       if (deviceId.startsWith('_')) return; // not a device
       const versions = device['@transitive-robotics']['_robot-agent'];
-      const merged = mergeVersions(versions, 'status');
-      if (!merged.status) {
-        log.warn(`No status for device ${orgId}/${deviceId}:`, merged);
+      const merged = mergeVersions(versions, field);
+      if (!merged[field]) {
+        log.warn(`No ${field} for device ${orgId}/${deviceId}:`, merged);
         return;
       }
-      devices[deviceId] = merged.status;
+      devices[deviceId] = merged[field];
     });
     return devices;
+  }
+
+  /** get latest version status for all devices in org */
+  getStatus(orgId) {
+    return this.getLatest(orgId, 'status');
   }
 
 
@@ -1152,6 +1159,15 @@ class _robotAgent extends Capability {
     this.router.get('/api/v1/heartbeats/', requireJWT, (req, res) => {
       const statuses = this.getStatus(req.jwtSession.userId);
       res.json(_.mapValues(statuses, s => s.heartbeat));
+    });
+
+    /** get status of all devices */
+    this.router.get('/api/v1/status/', requireJWT, (req, res) => {
+      res.json(this.getStatus(req.jwtSession.userId));
+    });
+
+    this.router.get('/api/v1/info/', requireJWT, (req, res) => {
+      res.json(this.getLatest(req.jwtSession.userId, 'info'));
     });
   }
 };

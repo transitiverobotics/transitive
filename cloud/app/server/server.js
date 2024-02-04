@@ -338,10 +338,26 @@ const addCapsRoutes = () => {
       `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
     log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
-    const payload = await parseJWTCookie(req.cookies[TOKEN_COOKIE]);
-    log.debug({payload});
-    capsProxy.web(req, res, {target: `http://${host}:8085`,
-      headers: {'jwt-payload': JSON.stringify(payload)}});
+
+    const getAuthPayload = async (req) => {
+      if (req.headers.authorization &&
+        req.headers.authorization.startsWith('Bearer ')) {
+        const token = req.headers.authorization.slice('Bearer '.length);
+        const {valid, error, payload} = await verifyJWT(token);
+        if (valid) {
+          return payload;
+        } else {
+          log.debug('getAuthPayload, error:', error);
+        }
+      } else if (req.cookies[TOKEN_COOKIE]) {
+        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
+      }
+    };
+
+    const payload = await getAuthPayload(req);
+    const headers = payload ? {'jwt-payload': JSON.stringify(payload)} : {};
+
+    capsProxy.web(req, res, { target: `http://${host}:8085`, headers });
   });
 };
 

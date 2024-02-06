@@ -24,6 +24,7 @@ const docker = require('./docker');
 const installRouter = require('./install');
 const {createAccount, sendVerificationEmail, verifyCode} =
   require('./accounts');
+const {isAuthorized} = require('./utils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -430,7 +431,6 @@ app.post('/auth/user', async (req, res) => {
   }
 });
 
-
 app.post('/auth/acl', (req, res) => {
   if (req.body.topic == HEARTBEAT_TOPIC) {
     res.send('ok');
@@ -441,49 +441,14 @@ app.post('/auth/acl', (req, res) => {
     acc: 1,
     clientid: 'mqttjs_c799fa50',
     topic: '/qEmYn5tibovKgGvSm/ZXyqpabPL7/health-monitoring/diagnostics/disk partition: root/values/percent',
-    username: '{"id":"qEmYn5tibovKgGvSm","payload":{"device":"GbGa2ygqqz","capability":"health-monitoring","userId":"portalUser-qEmYn5tibovKgGvSm","validity":43200,"iat":1637107056}}'
+    username: '{"id":"qEmYn5tibovKgGvSm","payload":{"id":"qEmYn5tibovKgGvSm","device":"GbGa2ygqqz","capability":"health-monitoring","userId":"portalUser-qEmYn5tibovKgGvSm","validity":43200,"iat":1637107056}}'
   }*/
   try {
     const {id, payload: permitted} = JSON.parse(req.body.username);
     // payload describes the permissions of the user
-    const requested = parseMQTTTopic(req.body.topic);
     // whether or not the request is just for reading
     const readAccess = (req.body.acc == 1 || req.body.acc == 4);
-    const allowed =
-      // check that browser-user isn't trying to write to different org:
-      id == permitted.id &&
-      // check that JWT-permitted org matches topic org
-      id == requested.organization &&
-      permitted.validity &&
-      (permitted.iat + permitted.validity) * 1e3 > Date.now() &&
-      (
-        (permitted.device == requested.device &&
-            (((permitted.capability == requested.capability ||
-                // _robot-agent permissions grant full device access
-                permitted.capability == '@transitive-robotics/_robot-agent')
-              &&
-                (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
-              // if payload.topics exists it is a limitation of topics to allow
-            ) ||
-              // all valid JWTs for a device also grant read access to _robot-agent
-              (readAccess &&
-                requested.capability == '@transitive-robotics/_robot-agent'))
-        ) ||
-          // _fleet permissions give read access also to all devices' robot-agents
-          ( permitted.device == '_fleet' && readAccess &&
-            requested.capability == '@transitive-robotics/_robot-agent' &&
-            !permitted.topics)
-          ||
-          // _fleet permissions give access to all devices' data for the
-          // cap (in the permitted org only of course); _robot-agent permissions
-          // grant access to all devices in the fleet
-          ( permitted.device == '_fleet' &&
-              (requested.capability == permitted.capability ||
-                permitted.capability == '@transitive-robotics/_robot-agent') &&
-              !permitted.topics )
-      );
-
-    if (allowed) {
+    if (isAuthorized(req.body.topic, id, permitted, readAccess)) {
       res.send('ok');
     } else {
       log.debug('permission denied', {permitted, requested, readAccess});

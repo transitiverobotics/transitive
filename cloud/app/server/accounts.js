@@ -32,7 +32,7 @@ const createAccount = async ({name, password, email, admin}, cb) => {
         admin: true,
         verified: true,
         free: true,
-        jwtSecret: randomId(16),
+        jwtSecret: randomId(48),
         robotToken: randomId(12),
       }
     };
@@ -116,7 +116,7 @@ const verifyCode = async (userId, code) => {
     $set: {
       verified: account.email,
       // generate secrets
-      jwtSecret: randomId(16),
+      jwtSecret: randomId(48),
       robotToken: randomId(12),
     },
     $unset: {verificationCode: code}

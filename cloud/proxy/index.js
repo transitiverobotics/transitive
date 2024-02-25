@@ -122,12 +122,46 @@ if (production) {
       staging: false, // `false` means production, i.e., get actual certs from Let's Encrypt
     };
   }).ready((glx) => {
-      // we need the raw https server
-      const server = glx.httpsServer();
-      // we'll proxy websockets too
-      server.on('upgrade', handleUpgrade);
-      // serves a node app that proxies requests
-      glx.serveApp(handleRequest);
+      // // we need the raw https server
+      // const server = glx.httpsServer();
+      // // we'll proxy websockets too
+      // server.on('upgrade', handleUpgrade);
+      // // serves a node app that proxies requests
+      // glx.serveApp(handleRequest);
+
+
+
+        // we need the raw https server
+        const server = glx.httpsServer(null, handleRequest);
+        // we'll proxy websockets too
+        server.on('upgrade', handleUpgrade);
+        // serves a node app that proxies requests
+        //      glx.serveApp(handleRequest);
+
+        // Get the raw http server:
+
+        server.listen(443, "0.0.0.0", function() {
+          console.info("Listening on ", server.address());
+        });
+
+        // Note:
+        // You must ALSO listen on port 80 for ACME HTTP-01 Challenges
+        // (the ACME and http->https middleware are loaded by glx.httpServer)
+        //    var httpServer = glx.httpServer();
+
+        const httpServer = glx.httpServer(function(req, res) {
+          res.statusCode = 301;
+          res.setHeader("Location", "https://" + req.headers.host + req.url);
+          res.end("Insecure connections are not allowed. Redirecting...");
+        });
+        httpServer.listen(80, "0.0.0.0", function() {
+          console.info("Listening on ", httpServer.address());
+        });
+
+
+
+
+
     }
   );
 

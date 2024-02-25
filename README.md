@@ -4,15 +4,15 @@
   </a>
 </p>
 
-# Transitive: an open-source framework for full-stack robotics
+# Transitive: An Open-source Framework for Full-stack Robotics
 
 by [Transitive Robotics](https://transitiverobotics.com)
 
 ### Key Features
 
-1. Data synchronization between robot, cloud, and UI ("MQTTSync")
+1. Live-data synchronization between robot, cloud, and UI ("MQTTSync")
    - Transparent and efficient data-sharing without the need for APIs
-   - Reactively re-render UI elements when data on a robot changes
+   - Reactively re-render UI elements when data on a robot changes ([demo](https://youtu.be/XqzpSbH8zUI)).
 2. Full-stack package management
    - Notion of packages ("capabilities") that provides encapsulation and allows sharing with third-parties
    - Deployment mechanism incl. over-the-air auto-updates
@@ -30,10 +30,14 @@ by [Transitive Robotics](https://transitiverobotics.com)
 
 ## Setup
 
-Unless you want to hack on the Transitive core, you'll most likely have an easier time following our self-hosting instructions: https://transitiverobotics.com/docs/develop/self-hosting.
+### Using Docker
+
+This is the easiest and recommended way. Follow our self-hosting instructions: https://transitiverobotics.com/docs/develop/self-hosting.
 
 
-## Alternatively: run from source
+### Alternatively: Run from Source
+
+If you really want to hack on the Transitive core, clone this repo and follow these steps:
 
 - Go into the `cloud/` directory.
 - Copy `sample.env` to `.env` and edit appropriately (variables are documented in the file itself).

@@ -809,7 +809,7 @@ class _robotAgent extends Capability {
         const publicResponse = await fetch(
           `https://registry.transitiverobotics.com/-/custom/all?q=${selector}`);
         const publicData = await publicResponse.json();
-        Object.assign(data, publicData);
+        data.splice(data.length, 0, ...publicData);
       }
 
       // log.debug('availablePackages', data);

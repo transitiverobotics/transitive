@@ -95,13 +95,18 @@ const updateConfig = () => {
     config = JSON.parse(buffer.toString());
   } catch (e) {}
 
-  config.sites = [{
-    subject: host,
-    altnames: Object.keys(routingTable).map(prefix =>
-      prefix == '' ? host : `${prefix}.${host}`)
-  }];
+  const altnames = Object.keys(routingTable).map(prefix =>
+    prefix == '' ? host : `${prefix}.${host}`)
+
+  config.sites = [{ subject: host, altnames }];
 
   fs.writeFileSync('greenlock.d/config.json', JSON.stringify(config, true, 2));
+
+  // in dev: also add altnames to /etc/hosts, so greenlock works (with fake certs)
+  if (!production) {
+    fs.appendFileSync('/etc/hosts',
+      altnames.map(altname => `172.17.0.1 ${altname}`).join('\n'));
+  }
 };
 
 // -----------------------------------------------------------------------
@@ -119,51 +124,40 @@ if (production) {
       configDir: `./greenlock.d`,
       maintainerEmail: process.env.TR_SSL_EMAIL,
       cluster: false,
-      staging: false, // `false` means production, i.e., get actual certs from Let's Encrypt
+      // staging: false, // `false` means production, i.e., get actual certs from Let's Encrypt
+      staging: !production, // `false` means production, i.e., get actual certs from Let's Encrypt
     };
   }).ready((glx) => {
-      // // we need the raw https server
-      // const server = glx.httpsServer();
-      // // we'll proxy websockets too
-      // server.on('upgrade', handleUpgrade);
-      // // serves a node app that proxies requests
-      // glx.serveApp(handleRequest);
 
+      // we need the raw https server
+      const server = glx.httpsServer(null, handleRequest);
+      // we'll proxy websockets too
+      server.on('upgrade', handleUpgrade);
+      server.listen(443, '0.0.0.0', function() {
+        console.info('Listening on ', server.address());
+      });
 
+      // Note (from greenlock-express):
+      // You must ALSO listen on port 80 for ACME HTTP-01 Challenges
+      // (the ACME and http->https middleware are loaded by glx.httpServer)
 
-        // we need the raw https server
-        const server = glx.httpsServer(null, handleRequest);
-        // we'll proxy websockets too
-        server.on('upgrade', handleUpgrade);
-        // serves a node app that proxies requests
-        //      glx.serveApp(handleRequest);
+      // Get the raw http server:
+      const httpServer = glx.httpServer(function(req, res) {
+        const subdomain = req.headers.host.split('.')[0];
 
-        // Get the raw http server:
-
-        server.listen(443, "0.0.0.0", function() {
-          console.info("Listening on ", server.address());
-        });
-
-        // Note:
-        // You must ALSO listen on port 80 for ACME HTTP-01 Challenges
-        // (the ACME and http->https middleware are loaded by glx.httpServer)
-        //    var httpServer = glx.httpServer();
-
-        const httpServer = glx.httpServer(function(req, res) {
+        // for registry traffic only: forward to https
+        if (subdomain == 'registry') {
           res.statusCode = 301;
-          res.setHeader("Location", "https://" + req.headers.host + req.url);
-          res.end("Insecure connections are not allowed. Redirecting...");
-        });
-        httpServer.listen(80, "0.0.0.0", function() {
-          console.info("Listening on ", httpServer.address());
-        });
-
-
-
-
-
-    }
-  );
+          res.setHeader('Location', 'https://' + req.headers.host + req.url);
+          res.end('Insecure connections are not allowed. Redirecting...');
+        } else {
+          res.end('Insecure connections are not allowed. Please use HTTPs.');
+        }
+      });
+      httpServer.listen(80, '0.0.0.0', function() {
+        console.info('Listening on ', httpServer.address());
+      });
+    });
 
 } else {
 

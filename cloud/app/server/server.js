@@ -451,7 +451,7 @@ app.post('/auth/acl', (req, res) => {
     if (isAuthorized(req.body.topic, id, permitted, readAccess)) {
       res.send('ok');
     } else {
-      log.debug('permission denied', {permitted, requested, readAccess});
+      log.debug('permission denied', req.body.topic, {id, permitted, readAccess});
       res.status(401).end('not authorized for topic or token expired')
     }
   } catch (e) {

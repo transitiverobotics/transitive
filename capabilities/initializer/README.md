@@ -1,3 +1,3 @@
 A initializer package for creating new Transitive capabilities
 
-Please see https://transitiverobotics.com/docs/Self-hosted/getting-started.
+[Documentation](https://transitiverobotics.com/docs/develop/creating_capabilities)

@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/create",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "An initializer package for creating new Transitive capabilities",
   "bin": {
     "create": "create.js"

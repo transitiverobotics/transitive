@@ -341,6 +341,8 @@ const Apps = () => {
         element={<StandAloneComponent />} />
 
       <Route path="/register" element={<Login mode='register' />} />
+      <Route path="/forgot" element={<Login mode='forgot' />} />
+      <Route path="/reset" element={<Login mode='reset' />} />
       <Route path="/*" element={session ? <Portal /> : <Login />} />
     </Routes>
   </Router>;

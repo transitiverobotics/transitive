@@ -43,7 +43,7 @@ const createAccount = async ({name, password, email, admin}, cb) => {
   }
 };
 
-const changePassword = async (name, password) => {
+const changePassword = async (name, password, cb = undefined) => {
   if (name == 'bot') {
     log.error('Sorry, the password of the reserved "bot" account cannot be changed');
     return;
@@ -59,8 +59,10 @@ const changePassword = async (name, password) => {
     // bcrypt the password
     const bcryptPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    await accounts.updateOne({_id: existing._id}, {$set: {bcryptPassword}});
-    log.info('Password updated', name);
+    // set new password and unset reset requests (if any)
+    await accounts.updateOne({_id: existing._id},
+      {$set: {bcryptPassword}, $unset: {reset: 1}});
+    log.info('Password updated for', name);
     cb && cb(null, name);
   }
 };
@@ -98,6 +100,36 @@ const sendVerificationEmail = async (userId) => {
   }
 };
 
+const sendResetPasswordEmail = async (account) => {
+
+  if (!account) {
+    log.error('No such account');
+  } else {
+    if (!account.verified) {
+      log.error('Account has no verified email address');
+      return;
+    }
+    const userId = account._id;
+
+    const code = randomId(24);
+    const protocol = JSON.parse(process.env.PRODUCTION || false) ? 'https' : 'http';
+    const link = `${protocol}://portal.${process.env.TR_HOST
+      }/reset?id=${userId}&code=${encodeURIComponent(code)}`;
+
+    const accounts = Mongo.db.collection('accounts');
+    await accounts.updateOne({_id: userId},
+      {$set: {reset: {code, sent: Date.now()}}});
+
+    sendEmail({
+      to: account.verified,
+      subject: 'Your Transitive login',
+      html: `Your username is <b>${account._id
+      }</b>. If you forgot your password you can <a href='${link
+      }'>reset it</a>.`
+    });
+  }
+};
+
 /** Verify email verification code. Return error if any, else `false` to
 * indicate success. */
 const verifyCode = async (userId, code) => {
@@ -127,4 +159,5 @@ const verifyCode = async (userId, code) => {
   return {account: updatedAccount};
 };
 
-module.exports = {createAccount, changePassword, sendVerificationEmail, verifyCode};
+module.exports = {createAccount, changePassword, sendVerificationEmail,
+  verifyCode, sendResetPasswordEmail};

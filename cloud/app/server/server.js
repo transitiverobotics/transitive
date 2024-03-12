@@ -22,8 +22,10 @@ mergeVersions, forMatchIterator, Capability, tryJSONParse, clone } =
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
-const {createAccount, sendVerificationEmail, verifyCode} =
-  require('./accounts');
+const {
+  createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
+  changePassword
+} = require('./accounts');
 const {isAuthorized} = require('./utils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
@@ -33,6 +35,8 @@ const BILLING_SERVICE = process.env.TR_BILLING_SERVICE ||
 
 /** Threshold in ms for API JWTs to be valid */
 const JWT_THRESHOLD = 5 * 60 * 1000;
+/* Validity period for password reset codes */
+const RESET_VALIDITY = 1 * 60 * 60 * 1000;
 
 const log = getLogger('server');
 // log.setLevel('info');
@@ -902,7 +906,6 @@ class _robotAgent extends Capability {
       if (!req.body.name || !req.body.password || !req.body.email) {
         log.debug('missing credentials', req.body);
         return fail('missing username, password, or email');
-        // on purpose not disclosing that the account doesn't exist
       }
 
       const accounts = Mongo.db.collection('accounts');
@@ -953,6 +956,75 @@ class _robotAgent extends Capability {
         })).redirect(`/#msg=verificationSuccessful`);
     });
 
+    // -- Support for forgotten login/password
+    this.router.post('/forgot', async (req, res) => {
+      log.debug('forgot', req.body);
+
+      const fail = (error) =>
+        res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+
+      if (!req.body.email) {
+        log.debug('missing email', req.body);
+        return fail('missing email');
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({verified: req.body.email});
+      if (!account) {
+        log.warn('no account for', req.body.email);
+        return fail('no such account');
+      }
+
+      sendResetPasswordEmail(account);
+      res.json({status: 'ok'});
+    });
+
+    this.router.post('/reset', async (req, res) => {
+      log.debug('reset', req.body);
+
+      const {name, code, password} = req.body;
+
+      const fail = (error) => {
+        log.debug(error);
+        return res.status(400).json({error, ok: false});
+      }
+
+      if (!password) {
+        return fail('no password given');
+      }
+
+      if (!name || !code) {
+        return fail('missing username or code');
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: name});
+      if (!account) {
+        log.warn('no account for', name);
+        return fail('no such account');
+      }
+
+      if (!account.reset?.code) {
+        log.warn('This account has not requested a reset', name);
+        return fail('Invalid reset request');
+      }
+
+      if (account.reset.code != code) {
+        log.warn('Invalid reset code', name, code);
+        return fail('Invalid reset code');
+      }
+
+      if (Date.now() > account.reset.sent + RESET_VALIDITY) {
+        log.warn('Reset code ios expired', name, code);
+        return fail('Reset code is expired');
+      }
+
+      changePassword(name, password, (err) => {
+        if (err) return fail(err);
+        res.json({status: 'ok'});
+      });
+    });
+    // --
 
     this.router.post('/getJWT', requireLogin, async (req, res) => {
       log.debug('get JWT token', req.body);

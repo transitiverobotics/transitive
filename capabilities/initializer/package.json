@@ -3,7 +3,7 @@
   "version": "0.1.8",
   "description": "An initializer package for creating new Transitive capabilities",
   "bin": {
-    "create": "create.js"
+    "create": "create.sh"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

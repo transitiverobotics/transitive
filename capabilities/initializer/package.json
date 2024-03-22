@@ -1,6 +1,6 @@
 {
   "name": "@transitive-sdk/create",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "An initializer package for creating new Transitive capabilities",
   "bin": {
     "create": "create.sh"

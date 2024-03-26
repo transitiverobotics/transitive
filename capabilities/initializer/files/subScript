@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# This file gets updated by @transitive-sdk/utils-caps. Do not modify!
+
+# Use this script in your wrapper package's script to relay invokation to scripts
+# in the correct subproject.
+
+# Define a mapping from lifecycle events to scripts in sub-project. Note that
+# we *don't* want to map preinstall to preinstall, since in the subproject
+# preinstall will already be executed when running install. Instead we create
+# new script names, preall and postall, that will run before *anything* happens
+# in the subproject, and in particular before npm dependencies are installed.
+declare -A subscripts
+subscripts["preinstall"]="preall"
+subscripts["postinstall"]="postall"
+
+# Known npm command that should be invoked without `run`
+declare -A npmCommands
+npmCommands["install"]=1
+npmCommands["update"]=1
+npmCommands["rebuild"]=1
+
+SUBSCRIPT=${subscripts[$npm_lifecycle_event]:-$npm_lifecycle_event}
+
+if [[ $TRANSITIVE_IS_ROBOT ]]; then
+  SUBPROJECT=robot
+elif [[ $TRANSITIVE_IS_CLOUD ]]; then
+  SUBPROJECT=cloud
+fi;
+
+if [[ $SUBPROJECT ]]; then
+  PREFIX="--prefix $SUBPROJECT"
+else
+  PREFIX=
+fi;
+
+if [[ $SUBSCRIPT == "start" ]]; then
+  # ensure dependencies are installed
+  npm $PREFIX ls || npm $PREFIX update
+fi;
+
+if [[ $SUBPROJECT ]]; then
+  if [[ ${npmCommands[$npm_lifecycle_event]} ]]; then
+    echo "Invoking $npm_lifecycle_event in $SUBPROJECT"
+
+    if [[ $npm_command == "ci" ]] && [[ $npm_lifecycle_event == "install" ]]; then
+      echo "ci: Removing $SUBPROJECT/node_modules"
+      rm -rf $SUBPROJECT/node_modules
+    fi;
+
+    npm $PREFIX $npm_lifecycle_event
+  else
+    echo "Invoking $SUBSCRIPT in $SUBPROJECT"
+    npm $PREFIX run --if-present $SUBSCRIPT
+  fi;
+else
+  echo "Invoking dev:$SUBSCRIPT"
+  npm run --if-present dev:$SUBSCRIPT
+fi;

@@ -174,12 +174,14 @@ mqttClient.on('connect', function(connackPacket) {
 /** publish static info about this machine */
 const staticInfo = () => {
   const info = {os: {
-    hostname: os.hostname(),
-    release: os.release(),
-    version: os.version(),
-    networkInterfaces: os.networkInterfaces(),
-    nodejs: process.versions
-  }};
+      hostname: os.hostname(),
+      release: os.release(),
+      version: os.version(),
+      networkInterfaces: os.networkInterfaces(),
+      userInfo: os.userInfo(),
+    },
+    nodejs: process.versions,
+  };
 
   process.env.TR_LABELS && (info.labels = process.env.TR_LABELS.split(','));
   global.config && (info.config = clone(global.config));
@@ -191,6 +193,14 @@ const staticInfo = () => {
     info.rosReleases = fs.readdirSync('/opt/ros').filter(name => name != 'rolling');
   } catch (e) {
     info.rosReleases = [];
+  }
+
+  // Check whether we are inside a docker container
+  try {
+    fs.accessSync('/.dockerenv');
+    info.isDocker = true;
+  } catch (e) {
+    info.isDocker = false;
   }
 
   exec('lsb_release -a', (err, stdout, stderr) => {

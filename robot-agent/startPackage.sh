@@ -75,9 +75,21 @@ do
   # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
   rm -rf node_modules/.*-* node_modules/@*/.*-*
 
-  if ! npm outdated; then
-    echo '{"status": "installing"}' > $STATUS_FILE
+  # Check which node modules version we compiled this package with last and
+  #  compare to current (none == 93, i.e.. node 16). If different, run `npm ci`
+  # to recompile all native code and record current version.
+  CURRENT_MODULES_VERSION=$(node -e "console.log(process.versions.modules)")
+  COMPILED_MODULES_VERSION=$(cat .compiled_modules_version 2> /dev/null || echo "93")
+
+  if [ -e package-lock.json ] && [ $CURRENT_MODULES_VERSION != $COMPILED_MODULES_VERSION ]; then
+    echo "New node.js modules version detected ($CURRENT_MODULES_VERSION vs $COMPILED_MODULES_VERSION)"
+    echo "Running npm ci to rebuild all native code in dependencies"
+    echo '{"status": "reinstalling"}' > $STATUS_FILE
+    npm ci && echo $CURRENT_MODULES_VERSION > .compiled_modules_version
+
+  elif ! npm outdated; then
     # yes, `npm outdated` has a non-zero exit code iff there are outdated packages
+    echo '{"status": "installing"}' > $STATUS_FILE
     npm update --no-save
     # Note: npm update also installs missing packages, see,
     # https://stackoverflow.com/a/19824154/1087119

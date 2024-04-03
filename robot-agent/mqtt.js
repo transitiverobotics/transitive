@@ -178,6 +178,7 @@ const staticInfo = () => {
     release: os.release(),
     version: os.version(),
     networkInterfaces: os.networkInterfaces(),
+    nodejs: process.versions
   }};
 
   process.env.TR_LABELS && (info.labels = process.env.TR_LABELS.split(','));

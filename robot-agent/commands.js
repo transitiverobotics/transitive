@@ -87,12 +87,12 @@ const commands = {
         cb(`Failed to upgrade nodejs: ${err}`);
       } else {
         log.debug(stdout);
+        const msgs = [`Upgrade of nodejs complete: ${stdout}`];
         if (stderr) {
           log.warn(stderr);
-          cb(null, `Warnings while upgrading nodejs: ${stderr}`);
-        } else {
-          cb(null, 'Upgrade of nodejs complete');
+          msgs.push(`stderr: ${stderr}`);
         }
+        cb(msgs.join('\n'));
       }
     });
   }

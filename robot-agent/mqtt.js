@@ -158,10 +158,10 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, log.debug);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
-      mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
+      // mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, log.debug);
+      // mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
+      // mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
+      // mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
       // mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
       // new commands should go under `commands/`
       log.info('subscribing to robot-agent commands');

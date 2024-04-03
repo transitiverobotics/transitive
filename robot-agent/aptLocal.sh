@@ -82,7 +82,10 @@ apt-get update | indent
 
 printStep "Fetching packages"
 for PACKAGE in $*; do
-  if [[ $PACKAGE == *.deb ]]; then
+  if [[ $PACKAGE == -* ]]; then
+    # not a package but an option to give to apt-get
+    OPTIONS="$OPTIONS $PACKAGE"
+  elif [[ $PACKAGE == *.deb ]]; then
     NAME=$(basename $PACKAGE .deb)
     FILENAME=$DIR/var/cache/apt/archives/${NAME}.deb
     if [[ $PACKAGE == http* ]]; then
@@ -95,10 +98,10 @@ for PACKAGE in $*; do
     fi;
     # get its dependencies and fetch them
     DEPS=$(dpkg-deb -f "$FILENAME" depends | sed 's/, /\n/g' | cut -d ' ' -f 1 | xargs)
-    apt-get -y -d install $DEPS | indent
+    apt-get -y -d install $OPTIONS $DEPS | indent
   else
     echo "downloading $PACKAGE" | indent
-    apt-get -y -d install $PACKAGE | indent
+    apt-get -y -d install $OPTIONS $PACKAGE | indent
   fi
 done
 

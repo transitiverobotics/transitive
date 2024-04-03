@@ -60,7 +60,7 @@ const getMergedPackageInfo = (robotAgentData) => {
     return {};
   }
 
-  log.debug(robotAgentData, toFlatObject(robotAgentData.status.runningPackages));
+  // log.debug(robotAgentData, toFlatObject(robotAgentData.status.runningPackages));
 
   const rtv = {};
   robotAgentData?.status?.runningPackages &&
@@ -111,7 +111,7 @@ const failsRequirements = (info, pkg) => {
   const issues = requires.map( req =>
       !jsonLogic.apply(req.rule, info) && req.message
     ).filter(Boolean);
-  log.debug('failsRequirements', info, requires, issues);
+  // log.debug('failsRequirements', info, requires, issues);
   return issues;
 };
 
@@ -186,7 +186,6 @@ const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
 /** a package as shown in the install dropdown */
 const Package = ({pkg, install, issues}) => {
   const {title, price} = pkg.versions?.[0].transitiverobotics;
-  log.debug({issues});
   const host = location.host.replace('portal.', '');
 
   return <Row>
@@ -219,7 +218,7 @@ const Package = ({pkg, install, issues}) => {
 const Device = (props) => {
 
   if (!ensureProps(props, ['jwt', 'id', 'host'])) {
-    log.debug({props})
+    // log.debug({props})
     return <div>missing props</div>;
   }
   const {jwt, id, host} = props;
@@ -241,17 +240,17 @@ const Device = (props) => {
         .then(result => result.json())
         .then(json => setAvailablePackages(_.keyBy(json, 'name')));
     }, [ssl, host]);
-  log.debug({availablePackages});
+  // log.debug({availablePackages});
 
   useEffect(() => {
       if (mqttSync) {
         mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
-        log.debug('adding publish', `${prefix}/+/desiredPackages`);
+        // log.debug('adding publish', `${prefix}/+/desiredPackages`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
       }}, [mqttSync]);
 
-  log.debug('data', data);
+  // log.debug('data', data);
   const deviceData = data && data[id] && data[id][device] &&
     data[id][device]['@transitive-robotics']['_robot-agent'];
 
@@ -271,7 +270,7 @@ const Device = (props) => {
   const packages = getMergedPackageInfo(latestVersionData);
   const canBeInstalledPkgs = _.keyBy(
     _.filter(availablePackages, pkg => !packages[pkg.name]), 'name');
-  log.debug({availablePackages, packages, canBeInstalledPkgs});
+  // log.debug({availablePackages, packages, canBeInstalledPkgs});
 
   const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
 
@@ -368,6 +367,12 @@ const Device = (props) => {
   // user has a way to pay for premium caps
   const canPay = session.has_payment_method || session.free
     || (session.balance < 0 && new Date(session.balanceExpires) > new Date());
+
+
+  latestVersionData?.$response?.commands &&
+    _.map(latestVersionData.$response.commands, (response, command) =>
+      // using console.log to get colors from escape sequences in output:
+      console.log(response));
 
   return <div>
     <div style={styles.row}>

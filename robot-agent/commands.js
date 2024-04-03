@@ -4,7 +4,8 @@ const zlib = require('zlib');
 const _ = require('lodash');
 
 const constants = require('./constants');
-const { restartPackage, killPackage, killAllPackages } = require('./utils');
+const { restartPackage, startPackage, killPackage, killAllPackages } =
+  require('./utils');
 
 const { getLogger, clone } = require('@transitive-sdk/utils');
 
@@ -41,6 +42,11 @@ const commands = {
     log.debug(`Restarting ${pkg}.`);
     restartPackage(pkg);
   },
+  startPackage: (sub) => {
+    const pkg = sub.join('/')
+    log.debug(`Starting ${pkg}.`);
+    startPackage(pkg);
+  },
   stopPackage: (sub) => {
     const pkg = sub.join('/')
     log.debug(`Stopping ${pkg}.`);
@@ -70,6 +76,26 @@ const commands = {
       clone(global.config)
     );
   },
+  /** Upgrade node.js to latest version. WHich one that is is set by the apt
+  * sources added in aptLocal, which is part of the robot-agent release itself.
+  */
+  upgradeNodejs: (sub, value, cb) => {
+    log.debug('Upgrading nodejs to latest from active repos');
+    const cmd = `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh nodejs`;
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        cb(`Failed to upgrade nodejs: ${err}`);
+      } else {
+        log.debug(stdout);
+        if (stderr) {
+          log.warn(stderr);
+          cb(null, `Warnings while upgrading nodejs: ${stderr}`);
+        } else {
+          cb(null, 'Upgrade of nodejs complete');
+        }
+      }
+    });
+  }
 };
 
 module.exports = {

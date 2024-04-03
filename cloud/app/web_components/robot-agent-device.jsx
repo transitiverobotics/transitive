@@ -303,6 +303,11 @@ const Device = (props) => {
     mqttSync.mqtt.publish(`${versionPrefix}/commands/restartPackage/${name}`, '1');
   };
 
+  const startPackage = (name) => {
+    log.debug('sending command to start package', name);
+    mqttSync.mqtt.publish(`${versionPrefix}/commands/startPackage/${name}`, '1');
+  };
+
   const stopAll = () => {
     log.debug('sending command to stop all packages');
     mqttSync.mqtt.publish(`${versionPrefix}/commands/stopAll`, '1');
@@ -436,6 +441,11 @@ const Device = (props) => {
                             running && <Button variant='link'
                               onClick={() => stopPackage(name)}>
                               stop
+                            </Button>
+                          } {
+                            !running && <Button variant='link'
+                              onClick={() => startPackage(name)}>
+                              start
                             </Button>
                           } {
                             !disabled && <span

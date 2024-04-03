@@ -37,7 +37,7 @@ DIR=~/.transitive
 printStep "Preparing local folders"
 mkdir -p $DIR/var/lib/apt/lists/partial
 mkdir -p $DIR/var/cache/apt/archives/partial
-mkdir -p $DIR/etc/apt/{apt.conf.d,sources.list.d,preferences.d,trusted.gpg.d}
+mkdir -p $DIR/etc/apt/{apt.conf.d,sources.list.d,preferences.d,trusted.gpg.d,keyrings}
 mkdir -p $DIR/var/log/apt
 echo "dir \"$DIR\";" > $DIR/etc/apt/apt.conf
 #echo "Dir::State::status \"$DIR/var/lib/dpkg/status\";"
@@ -58,9 +58,9 @@ cat $(ls $DIR/var/lib/dpkg/status.d/.merged/* | xargs) > $DIR/var/lib/dpkg/statu
 
 
 printStep "Set apt sources"
+# ROS
 cp {,$DIR}/etc/apt/sources.list
 echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc/apt/sources.list.d/ros-latest.list
-
 
 if [[ -e /etc/apt/trusted.gpg ]]; then cp {,$DIR}/etc/apt/trusted.gpg; fi
 cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d || true
@@ -68,6 +68,13 @@ cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d || true
 # https://discourse.ros.org/t/ros-gpg-key-expiration-incident/20669
 printStep "Import ROS repo keys"
 curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | unshare -rm apt-key --keyring $DIR/etc/apt/trusted.gpg.d/ros.gpg add -
+
+# node.js:
+echo "deb [arch=amd64,arm64 signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_16.x nodistro main" > $DIR/etc/apt/sources.list.d/nodesource.list
+echo "deb [arch=amd64,arm64 signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" >> $DIR/etc/apt/sources.list.d/nodesource.list
+rm -f $DIR/etc/apt/keyrings/nodesource.gpg
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o $DIR/etc/apt/keyrings/nodesource.gpg
+
 
 printStep "Running apt-get update"
 apt-get update | indent

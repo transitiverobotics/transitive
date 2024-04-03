@@ -2,7 +2,6 @@
 
 # WARNING: DO NOT RUN THIS SCRIPT DIRECTLY! Run it in an `unshare -m`.
 
-
 RODIR=/tmp/_tr_ro
 TRHOME=/tmp/_tr_home
 REALUSER=$USER
@@ -13,7 +12,13 @@ else
     REALUSER=$(id -un);
   fi;
 fi
+
 echo "preparing sandbox for $TRPACKAGE ($REALUSER)"
+npm --versions
+
+if [[ -e /.dockerenv ]]; then
+  echo "We are running in docker"
+fi;
 
 mkdir -p $RODIR/run
 # hide the /var folder by bind-mounting an empty read-only folder on top of it
@@ -75,7 +80,7 @@ mount --rbind $TRHOME /root
 rm -f $TRHOME/$REALUSER/.transitive
 ln -s /home $TRHOME/$REALUSER/.transitive
 # for when running as root:
-ln -s /home /root/.transitive
+ln -sf /home /root/.transitive
 
 # fonts
 rm -f /$HOME/.fonts
@@ -88,12 +93,13 @@ if [[ $SUDO_COMMAND ]]; then
   echo "sheding sudo and becoming $REALUSER again"
   chown -R $SUDO_UID:$SUDO_GID $TRHOME/$REALUSER
   su $REALUSER bash -c "cd && $*"
-elif [[ $(id -u) == 0 ]]; then
-  echo "we are root (possibly fake), staying root"
-  bash -c "cd && $*"
-else
-  # when being root or in an `unshare -r` we become nobody. If we need to be the
+#elif [[ $(id -u) == 0 ]]; then
+elif [[ $REALUSER != "root" ]]; then
+  # when not being real root we become nobody. If we need to be the
   # original user instead we can try revertuid (see tmp/experiments/revertuid).
   echo "becoming nobody"
   unshare -U bash -c "cd && $*"
+else
+  echo "we are real root, staying root"
+  bash -c "cd && $*"
 fi;

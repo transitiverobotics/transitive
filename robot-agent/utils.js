@@ -95,6 +95,7 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
   // will cause the pkill to find the shell in which it is running itself.
   pkill.stdout.on('data', buffer => log.debug(buffer.toString()));
   pkill.stderr.on('data', buffer => log.warn(buffer.toString()));
+  pkill.on('error', log.error);
   cb && pkill.on('exit', cb);
 };
 

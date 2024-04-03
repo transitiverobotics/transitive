@@ -14,14 +14,13 @@
     "postinstall": "subScript",
     "prepare": "transitiveDev web",
     "prepack": "transitiveDev prepack",
-    "publish": "transitiveDev publish",
     "cloud": "npm --prefix cloud start",
     "dev:start": "transitiveDev tmux",
     "dev:install": "npm --prefix robot install && npm --prefix cloud install"
   },
   "dependencies": {},
   "devDependencies": {
-    "@transitive-sdk/utils-caps": "^0.1.0",
+    "@transitive-sdk/utils-caps": "^0.1.2",
     "@transitive-sdk/utils-web": "^0.9.5",
     "lodash": "^4.17.21",
     "react": "^17.0.2",

@@ -24,10 +24,11 @@ const readRequest = (req) => new Promise((resolve, reject) => {
 const handlers = {
 
   /** Install the given list of apt packages. Example invocation:
-  curl --unix-socket localApi.socket -i -d '{"command": "install", "packages": ["ros-noetic-wireless-msgs"]}' http://ignore
+  curl --unix-socket ~/.transitive/run/localApi.socket -i -d '{"command": "install", "packages": ["vim"]}' http://ignore
   */
   install: ({packages}, res) => {
-    console.log('install packages', packages);
+    const filteredPackages = packages.filter(p => !p.startsWith('-'));
+    console.log('install packages', filteredPackages);
     const aptCmd = (process.getuid() == 0 ?
       // we are root, let's use it
       'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y' :
@@ -38,7 +39,7 @@ const handlers = {
         `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh`
       )
     );
-    exec(`${aptCmd} ${packages.join(' ')}`,
+    exec(`${aptCmd} ${filteredPackages.join(' ')}`,
       (err, stdout, stderr) => {
         if (err) {
           res.statusCode = 500;

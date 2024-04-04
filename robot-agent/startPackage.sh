@@ -96,6 +96,9 @@ do
     # But we still need to run `npm install` to make sure all dependencies
     # are installed as well (e.g., if compilation of native code failed last time)
     npm install --no-save
+
+    # record the used node modules version, since this may be the first install
+    echo $CURRENT_MODULES_VERSION > .compiled_modules_version
   fi;
 
   cd "$BASE/node_modules/$1"

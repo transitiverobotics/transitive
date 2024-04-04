@@ -2,12 +2,15 @@ import React, { useState, useEffect, useContext } from 'react';
 
 import { Col, Row, Form, Badge, Toast } from 'react-bootstrap';
 import DataTable from 'react-data-table-component';
-
-import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
-import { ActionLink } from './utils/index';
-import { UserContext } from './Login.jsx';
 import { FaRegCreditCard } from 'react-icons/fa';
 import { PiUserSwitch } from 'react-icons/pi';
+import _ from 'lodash';
+
+import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
+
+import { ActionLink } from './utils/index';
+import { UserContext } from './Login.jsx';
+import { heartbeatLevel, Heartbeat } from '../web_components/shared';
 
 const log = getLogger('Admin.jsx');
 log.setLevel('debug');
@@ -36,6 +39,21 @@ const MyToast = ({text, close}) =>
     <Toast.Body>{text}</Toast.Body>
   </Toast>;
 
+
+
+/** aggregate heartbeats by status (0, 1 or 2). */
+const aggregateHeartbeatsByStatus = (heartbeats) =>
+  _.mapValues( heartbeats, (devices) =>
+    _.reduce( devices, (agg, heartbeat, deviceId) => {
+        // get status for this heartbeat
+        const level = heartbeatLevel(heartbeat);
+        // increase count of that category in agg
+        agg[level] ||= {count: 0, latest: 0};
+        agg[level].count++;
+        agg[level].latest = Math.max(agg[level].latest, new Date(heartbeat));
+        return agg;
+      }, []));
+
 export const Admin = () => {
   const [users, setUsers] = useState([]);
   const {impersonate} = useContext(UserContext);
@@ -43,12 +61,16 @@ export const Admin = () => {
 
   useEffect(() => {
       fetchJson('/@transitive-robotics/_robot-agent/admin/getUsers', (err, res) => {
-          if (err) {
-            log.error(err, res);
-          } else {
-            setUsers(res.users);
-          }
-        });
+        if (err) {
+          log.error(err, res);
+        } else {
+          const heartbeats = aggregateHeartbeatsByStatus(res.heartbeats);
+          res.users.forEach(user => {
+            user.heartbeats = heartbeats[user._id] || [];
+          });
+          setUsers(res.users);
+        }
+      });
 
   }, []);
 
@@ -65,6 +87,16 @@ export const Admin = () => {
         }}>
           <PiUserSwitch title='impersonate'/>
         </ActionLink></div>,
+      sortable: true,
+    },
+    { name: 'Devices',
+      grow: 2,
+      cell: row => <div>
+        {row.heartbeats.map(({count, latest}, level) =>
+          <span key={level}>
+            {count} <Heartbeat heartbeat={latest} refresh={false} />
+          </span>)}
+      </div>,
       sortable: true,
     },
     { name: 'Email',

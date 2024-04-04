@@ -19,12 +19,12 @@ export const heartbeatLevel = (heartbeat) => {
   : 0;
 }
 
-export const Heartbeat = ({heartbeat}) => {
+export const Heartbeat = ({heartbeat, refresh = true}) => {
   const [ignored, forceUpdate] = useReducer(x => x + 1, 0);
   const [timer, setTimer] = useState();
 
   const date = new Date(heartbeat);
-  useEffect(() => {
+  refresh && useEffect(() => {
       // force an update a while after last heartbeat to show offline if necessary
       timer && clearTimeout(timer);
       const timeout = date - Date.now() + WARNING_THRESHOLD + 1;

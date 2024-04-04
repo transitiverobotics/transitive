@@ -1177,7 +1177,17 @@ class _robotAgent extends Capability {
     this.router.get('/admin/getUsers', requireAdmin, async (req, res) => {
       const accounts = Mongo.db.collection('accounts');
       const users = await accounts.find({_id: {$ne: 'bot'}}).toArray();
-      res.json({users});
+
+      const heartbeats = {};
+      // get latest heartbeats for all devices
+      this.data.forPathMatch(['+orgId', '+deviceId', '@transitive-robotics',
+          '_robot-agent', '+version', 'status', 'heartbeat'],
+        (value, topic, {orgId, deviceId, version}) => {
+          heartbeats[orgId] ||= {};
+          heartbeats[orgId][deviceId] = value;
+        });
+
+      res.json({users, heartbeats});
     });
 
     this.router.get('/admin/startCloudCap/:name/:version', requireAdmin,

@@ -81,9 +81,30 @@ const commands = {
   */
   upgradeNodejs: (sub, value, cb) => {
     log.debug('Upgrading nodejs to latest from active repos');
-    const cmd = `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh nodejs`;
+    // Need to (re)move old npm install, as would be done by nodejs preinst,
+    // which we don't execute in aptLocal; see
+    // https://github.com/chfritz/transitive/issues/377#issuecomment-2040236076
+
+    const npmFolder = `${constants.TRANSITIVE_DIR}/usr/lib/node_modules/npm`;
+    const npmBackup = `${npmFolder}.bak`;
+    try {
+      fs.rmSync(npmBackup, {recursive: true, force: true});
+      fs.renameSync(npmFolder, npmBackup);
+    } catch (e) {
+      log.warn(`Unable to move ${npmFolder}`, e);
+    }
+
+    const cmd = `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh --reinstall nodejs`;
+    // note: --reinstall ensures the npmFolder is reinstalled if successful
     exec(cmd, (err, stdout, stderr) => {
       if (err) {
+        cb(`Failed to upgrade nodejs: ${err}`);
+        // we failed, restore old npm
+        try {
+          fs.renameSync(npmBackup, npmFolder);
+        } catch (e) {
+          log.warn(`Unable to restore ${npmFolder}`, e);
+        }
         cb(`Failed to upgrade nodejs: ${err}`);
       } else {
         log.debug(stdout);

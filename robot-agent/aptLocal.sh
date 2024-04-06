@@ -16,10 +16,6 @@ printStep() {
   printf "\n$GREEN$@$NORMAL\n"
 }
 
-indent() {
-  sed -u "s/^/  /"
-}
-
 getROSRelease() {
   case $(lsb_release -sc) in
     xenial) echo kinetic;;
@@ -77,7 +73,7 @@ curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dea
 
 
 printStep "Running apt-get update"
-apt-get update | indent
+apt-get update
 
 
 printStep "Fetching packages"
@@ -90,18 +86,18 @@ for PACKAGE in $*; do
     FILENAME=$DIR/var/cache/apt/archives/${NAME}.deb
     if [[ $PACKAGE == http* ]]; then
       # it's a remote .deb file, fetch it
-      echo "fetching from remote: $PACKAGE" | indent
-      curl -L -s -o "$FILENAME" "$PACKAGE" | indent
+      echo "fetching from remote: $PACKAGE"
+      curl -L -s -o "$FILENAME" "$PACKAGE"
     else
       # it's a .deb file, copy it
       cp $PACKAGE "$FILENAME"
     fi;
     # get its dependencies and fetch them
     DEPS=$(dpkg-deb -f "$FILENAME" depends | sed 's/, /\n/g' | cut -d ' ' -f 1 | xargs)
-    apt-get -y -d install $OPTIONS $DEPS | indent
+    apt-get -y -d install $OPTIONS $DEPS
   else
-    echo "downloading $PACKAGE" | indent
-    apt-get -y -d install $OPTIONS $PACKAGE | indent
+    echo "downloading $PACKAGE"
+    apt-get -y -d install $OPTIONS $PACKAGE
   fi
 done
 
@@ -110,7 +106,7 @@ printStep "Unpacking packages"
 for DEB in $(find $DIR/var/cache/apt/archives/ -name "*deb"); do
   dpkg -x $DEB $DIR
   NAME=$(dpkg-deb -f $DEB package)
-  echo $NAME | indent
+  echo $NAME
   dpkg-deb -e $DEB $DIR/var/lib/dpkg/status.d/$NAME
   # add status installed
   echo "Status: install ok installed" >> $DIR/var/lib/dpkg/status.d/$NAME/control

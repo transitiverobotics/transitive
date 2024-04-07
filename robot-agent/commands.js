@@ -94,11 +94,13 @@ const commands = {
       log.warn(`Unable to move ${npmFolder}`, e);
     }
 
-    const cmd = `${constants.TRANSITIVE_DIR}/bin/aptLocal.sh --reinstall nodejs`;
-    // note: --reinstall ensures the npmFolder is reinstalled if successful
+    const cmd = `${__dirname}/aptFetch.sh nodejs`;
+    // using aptFetch instead of aptLocal ensures that it will work even when
+    // there are conflicting packages installed, such as node 10, see
+    // #377#issuecomment-2041523598
     exec(cmd, (err, stdout, stderr) => {
       if (err) {
-        cb(`Failed to upgrade nodejs: ${err}`);
+        log.warn(`Failed to upgrade nodejs: ${err}`);
         // we failed, restore old npm
         try {
           fs.renameSync(npmBackup, npmFolder);

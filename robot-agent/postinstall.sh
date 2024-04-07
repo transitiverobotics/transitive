@@ -19,7 +19,7 @@ mkdir -p ~/.transitive/usr/bin
 mkdir -p ~/.transitive/bin
 
 [ ! -e ~/.transitive/etc/env_local ] && touch ~/.transitive/etc/env_local
-cp uninstall.sh aptLocal.sh dpkgStatus.sh startPackage.sh ~/.transitive/bin
+cp uninstall.sh startPackage.sh ~/.transitive/bin
 cp unshare*.sh start_agent.sh generate_certs.sh ~/.transitive/
 
 if [ -d /run/systemd/system ]; then

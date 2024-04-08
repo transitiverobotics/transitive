@@ -5,20 +5,14 @@
 
 set -e
 
-. $(dirname $0)/aptCommon.sh
-
-# -------------------------------------------------------------------------
-
 if [[ $# < 1 ]]; then
   echo "no package specified";
   exit 1;
 fi;
 
-setupSources
+. $(dirname $0)/aptCommon.sh
 
-printStep "Running apt-get update"
-apt-get update || echo "Ignoring apt-get update errors"
-
+# -------------------------------------------------------------------------
 
 TMP=$(mktemp -d)
 cd $TMP

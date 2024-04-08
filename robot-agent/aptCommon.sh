@@ -85,3 +85,22 @@ mkdir -p $DIR/var/log/apt
 echo "dir \"$DIR\";" > $DIR/etc/apt/apt.conf
 export APT_CONFIG=$DIR/etc/apt/apt.conf
 
+# Assemble dpkg status file, including our local additions
+printStep "Merging local and system dpkg status"
+mkdir -p $DIR/var/lib/dpkg/status.d/.merged # our very own invention, see below
+rm -f $DIR/var/lib/dpkg/status.d/.merged/*
+# get system dkpg status, separated into individual files
+$BASEDIR/dpkgStatus.sh $DIR/var/lib/dpkg/status.d/.merged
+# put it back together with our own
+for p in $(ls $DIR/var/lib/dpkg/status.d/); do
+  cp $DIR/var/lib/dpkg/status.d/${p}/control $DIR/var/lib/dpkg/status.d/.merged/${p}
+done
+cat $(ls $DIR/var/lib/dpkg/status.d/.merged/* | xargs) > $DIR/var/lib/dpkg/status
+
+
+setupSources
+
+
+printStep "Running apt-get update"
+apt-get update || echo "Ignoring apt-get update errors"
+

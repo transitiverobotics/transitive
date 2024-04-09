@@ -54,6 +54,14 @@ const aggregateHeartbeatsByStatus = (heartbeats) =>
         return agg;
       }, []));
 
+
+/** Given an array of heartbeat levels, see aggregateHeartbeatsByStatus, return
+* a scalar value for sorting */
+const getHeartbeatSortValue = (heartbeats) => !heartbeats ? 0 :
+  10000 * (heartbeats[0]?.count || 0)
+    + 100 * (heartbeats[1]?.count || 0)
+    + (heartbeats[2]?.count || 0);
+
 export const Admin = () => {
   const [users, setUsers] = useState([]);
   const {impersonate} = useContext(UserContext);
@@ -77,6 +85,13 @@ export const Admin = () => {
   log.debug({users});
 
   const columns = [
+    {
+      width: '2.5em',
+      style: {padding: '0.5em'},
+      right: true,
+      grow: 0,
+      selector: (row, i) => i + 1,
+    },
     { name: 'Name',
       grow: 3,
       selector: row => row._id,
@@ -98,11 +113,12 @@ export const Admin = () => {
           </span>)}
       </div>,
       sortable: true,
+      sortFunction: (a, b) => getHeartbeatSortValue(a.heartbeats) -
+        getHeartbeatSortValue(b.heartbeats)
     },
     { name: 'Email',
       grow: 6,
-      selector: row => row.verified,
-      sortable: true,
+      selector: row => row.verified
     },
     { name: 'Joined',
       grow: 7,

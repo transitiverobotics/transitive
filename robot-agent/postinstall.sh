@@ -22,8 +22,11 @@ mkdir -p ~/.transitive/bin
 cp uninstall.sh startPackage.sh ~/.transitive/bin
 cp unshare*.sh start_agent.sh generate_certs.sh ~/.transitive/
 
-gcc -o revertuid revertuid.c || echo "Compiling revertuid.c failed!"
-[ -e revertuid ] && cp revertuid ~/.transitive/bin
+if ( gcc -o revertuid revertuid.c ); then
+  cp revertuid ~/.transitive/bin
+else
+  echo "Compiling revertuid.c failed!"
+fi;
 
 if [ -d /run/systemd/system ]; then
   # install systemd user service

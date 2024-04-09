@@ -14,7 +14,6 @@ else
 fi
 
 echo "preparing sandbox for $TRPACKAGE ($REALUSER)"
-npm --versions
 
 if [[ -e /.dockerenv ]]; then
   echo "We are running in docker"

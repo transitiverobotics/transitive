@@ -20,5 +20,6 @@ else
   # `mount -t overlay` in unshared will fail on some OSs (seen, e.g., in docker
   # on buildroot 2020.05)
   echo "using unshare -r"
-  unshare -rm $PWD/unshared.sh $@
+  # save the real user's id in the environment
+  env REALUID=$(id -u) unshare -rm $PWD/unshared.sh $@
 fi

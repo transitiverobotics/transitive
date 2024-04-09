@@ -94,11 +94,14 @@ if [[ $SUDO_COMMAND ]]; then
   chown -R $SUDO_UID:$SUDO_GID $TRHOME/$REALUSER
   su $REALUSER bash -c "cd && $*"
 #elif [[ $(id -u) == 0 ]]; then
-elif [[ $REALUSER != "root" ]]; then
-  # when not being real root we become nobody. If we need to be the
-  # original user instead we can try revertuid (see tmp/experiments/revertuid).
-  echo "becoming nobody"
-  unshare -U bash -c "cd && $*"
+# elif [[ $REALUSER != "root" ]]; then
+#   # when not being real root we become nobody. If we need to be the
+#   # original user instead we can try revertuid (see tmp/experiments/revertuid).
+#   echo "becoming nobody"
+#   unshare -U bash -c "cd && $*"
+elif [[ $REALUID ]]; then
+  echo "reverting to UID $REALUID again"
+  /home/bin/revertuid $REALUID bash -c "cd && $*"
 else
   echo "we are real root, staying root"
   bash -c "cd && $*"

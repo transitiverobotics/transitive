@@ -62,6 +62,12 @@ const getHeartbeatSortValue = (heartbeats) => !heartbeats ? 0 :
     + 100 * (heartbeats[1]?.count || 0)
     + (heartbeats[2]?.count || 0);
 
+const DeviceColumHeader = ({users}) => {
+  const sum = (index) => users.reduce((sum, u) =>
+    sum + (u.heartbeats[index]?.count || 0), 0);
+  return <div>Devices<br/>{sum(0)}/{sum(1)}/{sum(2)}</div>;
+}
+
 export const Admin = () => {
   const [users, setUsers] = useState([]);
   const {impersonate} = useContext(UserContext);
@@ -104,7 +110,8 @@ export const Admin = () => {
         </ActionLink></div>,
       sortable: true,
     },
-    { name: 'Devices',
+    {
+      name: <DeviceColumHeader users={users} />,
       grow: 2,
       cell: row => <div>
         {row.heartbeats.map(({count, latest}, level) =>

@@ -129,7 +129,7 @@ const build = async ({name, version, pkgInfo}) => {
   const externalIp = await dns.promises.lookup(process.env.TR_HOST, {family: 4});
   log.debug({externalIp});
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
-      'FROM node:16',
+      'FROM node:20.12.2',
       'RUN apt-get update',
       'COPY . /app/',
       'WORKDIR /app',
@@ -139,6 +139,7 @@ const build = async ({name, version, pkgInfo}) => {
       'ENV TRANSITIVE_IS_CLOUD=1',
       // Required in order to install indirect dependencies from the
       // @transitive-robotics scope
+      // #TODO: No longer used, remove
       'ENV npm_config_userconfig=/app/.npmrc',
       'RUN npm install',
       // TODO: remove the next line once all caps use utils@0.7.1, i.e., they

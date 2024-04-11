@@ -4,8 +4,8 @@ const zlib = require('zlib');
 const _ = require('lodash');
 
 const constants = require('./constants');
-const { restartPackage, startPackage, killPackage, killAllPackages } =
-  require('./utils');
+const { restartPackage, startPackage, killPackage, killAllPackages,
+  upgradeNodejs } = require('./utils');
 
 const { getLogger, clone } = require('@transitive-sdk/utils');
 
@@ -76,46 +76,13 @@ const commands = {
       clone(global.config)
     );
   },
-  /** Upgrade node.js to latest version. WHich one that is is set by the apt
-  * sources added in aptLocal, which is part of the robot-agent release itself.
-  */
+
   upgradeNodejs: (sub, value, cb) => {
-    log.debug('Upgrading nodejs to latest from active repos');
-    // Need to (re)move old npm install, as would be done by nodejs preinst,
-    // which we don't execute in aptLocal; see
-    // https://github.com/chfritz/transitive/issues/377#issuecomment-2040236076
-
-    const npmFolder = `${constants.TRANSITIVE_DIR}/usr/lib/node_modules/npm`;
-    const npmBackup = `${npmFolder}.bak`;
-    try {
-      fs.rmSync(npmBackup, {recursive: true, force: true});
-      fs.renameSync(npmFolder, npmBackup);
-    } catch (e) {
-      log.warn(`Unable to move ${npmFolder}`, e);
-    }
-
-    const cmd = `${__dirname}/aptFetch.sh nodejs`;
-    // using aptFetch instead of aptLocal ensures that it will work even when
-    // there are conflicting packages installed, such as node 10, see
-    // #377#issuecomment-2041523598
-    exec(cmd, (err, stdout, stderr) => {
+    upgradeNodejs((err, output) => {
       if (err) {
-        log.warn(`Failed to upgrade nodejs: ${err}`);
-        // we failed, restore old npm
-        try {
-          fs.renameSync(npmBackup, npmFolder);
-        } catch (e) {
-          log.warn(`Unable to restore ${npmFolder}`, e);
-        }
         cb(`Failed to upgrade nodejs: ${err}`);
       } else {
-        log.debug(stdout);
-        const msgs = [`Upgrade of nodejs complete: ${stdout}`];
-        if (stderr) {
-          log.warn(stderr);
-          msgs.push(`stderr: ${stderr}`);
-        }
-        cb(msgs.join('\n'));
+        cb(output);
       }
     });
   }

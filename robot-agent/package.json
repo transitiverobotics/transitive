@@ -1,6 +1,6 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
@@ -23,5 +23,8 @@
   },
   "devDependencies": {
     "mocha": "^9.1.4"
+  },
+  "config": {
+    "desiredNodeVersion": 20
   }
 }

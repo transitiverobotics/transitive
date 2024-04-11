@@ -44,8 +44,8 @@ if (!process.env.TR_USERID) {
 
 const {exec, execSync} = require('child_process');
 const { CronJob } = require('cron');
-const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs} =
-  require('./utils');
+const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs,
+  upgradeNodejs, killAllPackages } = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
 
@@ -58,10 +58,31 @@ log.debug('@transitive-robotics/robot-agent started', new Date());
 // installed by this package during postinstall or inside a while loop
 const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
+/** Ensure we are running the desired version of node.js */
+const ensureNodeVersion = (callback) => {
+  const desiredMajor = process.env.npm_package_config_desiredNodeVersion;
+  const runningMajor = parseInt(process.versions.node);
+
+  if (runningMajor != desiredMajor) {
+    log.debug(`Node.js running (${runningMajor}) != desired (${desiredMajor})`);
+    upgradeNodejs((err, output) => {
+      if (err) {
+        log.warn('New node.js version failed to install, continuing without:', err);
+        callback();
+      } else {
+        killAllPackages();
+        process.exit(0);
+      }
+    });
+  } else {
+    callback();
+  }
+};
+
 
 /** self-update this package */
 const selfUpdate = (callback) => {
-  console.log('checking for updates');
+  log.info('checking for updates');
 
   exec(`${constants.NPM} outdated --json`, {cwd: constants.TRANSITIVE_DIR},
     (err, stdout, stderr) => {
@@ -73,23 +94,23 @@ const selfUpdate = (callback) => {
         // TODO: maybe add a counter (in a file) that we can use to abort
         // updates if they have failed too many times in a row? (e.g., when offline)
       } else {
-        console.log(
+        log.info(
           `no update necessary (running ${process.env.npm_package_version})`);
-        callback();
+
+        ensureNodeVersion(callback);
       }
     });
 };
 
 
-
 /** update package "name" */
 const updatePackage = (name) => {
-  console.log(`checking for updates for package ${name}`);
+  log.info(`checking for updates for package ${name}`);
   exec(`${constants.NPM} outdated --json`,
     { cwd: `${constants.TRANSITIVE_DIR}/packages/${name}` },
     (err, stdout, stderr) => {
       const outdated = JSON.parse(stdout);
-      console.log('outdated:', outdated);
+      log.info('outdated:', outdated);
 
       if (Object.keys(outdated).length > 0) {
         // package wants to be updated

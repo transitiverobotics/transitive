@@ -106,7 +106,7 @@ const startPackage = (name) => {
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
-  pgrep.stdout.on('data', (data) => console.log(`pgrep: ${data}`));
+  pgrep.stdout.on('data', (data) => log.debug(`pgrep: ${data}`));
 
   pgrep.on('exit', (code) => {
     if (code) {
@@ -288,6 +288,50 @@ const ensureDesiredPackages = (desired = {}) => {
   Object.keys(wanted).forEach(addPackage);
 };
 
+/** Upgrade node.js to latest version. Which one that is is set by the apt
+* sources added in aptCommon, which is part of the robot-agent release itself.
+*/
+const upgradeNodejs = (cb) => {
+  log.debug('Upgrading nodejs to latest from active repos');
+  // Need to (re)move old npm install, as would be done by nodejs preinst,
+  // which we don't execute in aptLocal; see
+  // https://github.com/chfritz/transitive/issues/377#issuecomment-2040236076
+
+  const npmFolder = `${constants.TRANSITIVE_DIR}/usr/lib/node_modules/npm`;
+  const npmBackup = `${npmFolder}.bak`;
+  try {
+    fs.rmSync(npmBackup, {recursive: true, force: true});
+    fs.renameSync(npmFolder, npmBackup);
+  } catch (e) {
+    log.warn(`Unable to move ${npmFolder}`, e);
+  }
+
+  const cmd = `${__dirname}/aptFetch.sh nodejs`;
+  // using aptFetch instead of aptLocal ensures that it will work even when
+  // there are conflicting packages installed, such as node 10, see
+  // #377#issuecomment-2041523598
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      log.warn(`Failed to upgrade nodejs: ${err}`);
+      // we failed, restore old npm
+      try {
+        fs.renameSync(npmBackup, npmFolder);
+      } catch (e) {
+        log.warn(`Unable to restore ${npmFolder}`, e);
+      }
+      cb(`Failed to upgrade nodejs: ${err}`);
+    } else {
+      log.debug(stdout);
+      const msgs = [`Upgrade of nodejs complete: ${stdout}`];
+      if (stderr) {
+        log.warn(stderr);
+        msgs.push(`stderr: ${stderr}`);
+      }
+      cb(null, msgs.join('\n'));
+    }
+  });
+}
+
 
 module.exports = {
   getInstalledPackages,
@@ -297,5 +341,6 @@ module.exports = {
   weHaveSudo,
   rotateAllLogs,
   killAllPackages,
-  ensureDesiredPackages
+  ensureDesiredPackages,
+  upgradeNodejs
 };

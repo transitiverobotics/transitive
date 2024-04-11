@@ -234,23 +234,18 @@ const rotateAllLogs = () => {
 /** A more reliable way to kill all running packages/capabilities, even when
   * they are not cooperating */
 const killAllPackages = () => {
-  // const pids = execSync('ps -C unshare.sh -o pid=', {encoding: 'utf-8'})
-  // .split('\n').filter(x => x);
-  // pids.forEach(pid => {
-  //   try {
-  //     execSync(`kill -- -${pid}`);
-  //   } catch (e) {
-  //     log.warn(`error killing process group ${pid}`, e);
-  //   }
-  // });
-  const cmd = "pkill -f '/home/bin/startPackage.sh @'";
   try {
-    execSync(cmd);
+    execSync("pkill -f '/home/bin/startPackage.sh @'");
   } catch (e) {
-    log.warn(`Error killing packages:`, e);
+    // this *always* happens, because the pkill also kills itself; we only care
+    // if there is output
+    const stdout = e.stdout.toString('utf8');
+    const stderr = e.stderr.toString('utf8');
+    if (stdout || stderr) {
+      log.warn(`Error killing packages\n stdout: ${stdout}\n stderr: ${stderr}`);
+    }
   }
 };
-
 
 /** ensure packages are installed IFF they are in desiredPackages in dataCache */
 const ensureDesiredPackages = (desired = {}) => {

@@ -21,5 +21,5 @@ else
   # on buildroot 2020.05)
   echo "using unshare -r"
   # save the real user's id in the environment
-  env REALUID=$(id -u) unshare -rm $PWD/unshared.sh $@
+  env REALUID=$(id -u) REALGID=$(id -g) unshare -rm $PWD/unshared.sh $@
 fi

@@ -99,8 +99,8 @@ if [[ $SUDO_COMMAND ]]; then
 #   echo "becoming nobody"
 #   unshare -U bash -c "cd && $*"
 elif [[ $REALUID ]]; then
-  echo "reverting to UID $REALUID again"
-  /home/bin/revertuid $REALUID bash -c "cd && $*"
+  echo "reverting to UID $REALUID + GID $REALGID again"
+  /home/bin/revertuid $REALUID $REALGID bash -c "id && cd && $*"
 else
   echo "we are real root, staying root"
   bash -c "cd && $*"

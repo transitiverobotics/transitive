@@ -83,9 +83,10 @@ do
 
   if [ -e package-lock.json ] && [ $CURRENT_MODULES_VERSION != $COMPILED_MODULES_VERSION ]; then
     echo "New node.js modules version detected ($CURRENT_MODULES_VERSION vs $COMPILED_MODULES_VERSION)"
-    echo "Running npm ci to rebuild all native code in dependencies"
+    echo "Reinstalling to rebuild all native code in dependencies"
     echo '{"status": "reinstalling"}' > $STATUS_FILE
-    npm ci && echo $CURRENT_MODULES_VERSION > .compiled_modules_version
+    rm -rf node_modules package-lock.json
+    npm i --no-save && echo $CURRENT_MODULES_VERSION > .compiled_modules_version
 
   elif ! npm outdated; then
     # yes, `npm outdated` has a non-zero exit code iff there are outdated packages

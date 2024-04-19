@@ -22,6 +22,7 @@ try {
 
 const installPackage = (pkg) => new Promise((resolve, reject) => {
   console.log(`Installing ${pkg}`);
+
   const pkgDir = `${DIR}/packages/${pkg}`;
   fs.mkdirSync(pkgDir, {recursive: true});
   fs.copyFileSync(`${DIR}/.npmrc`, `${pkgDir}/.npmrc`);
@@ -29,17 +30,15 @@ const installPackage = (pkg) => new Promise((resolve, reject) => {
 
   // Cannot use spawnSync here, since that would block requests to the localApi
   // as well, which we may need to process as part of these npm install processes
-  const npmInstall = spawn('npm', ['install', '--no-save'], {
+  const subprocess = spawn(`${__dirname}/preinstallPackage.sh`, [pkg], {
     cwd: pkgDir,
     env: {
       ...process.env,
-      PATH: `${process.env.PATH}:${DIR}/usr/bin`,
-      TRANSITIVE_IS_ROBOT: 1,
+      TR_ROS_RELEASES: config?.global?.rosReleases?.join(' ')
     },
     stdio: 'inherit'
   });
-
-  npmInstall.on('close', (code) => {
+  subprocess.on('close', (code) => {
     code && console.warn(`Installing ${pkg} exited with code:`, code);
     resolve();
   });

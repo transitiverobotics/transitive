@@ -8,19 +8,19 @@
   "main": "main.js",
   "scripts": {
     "test": "jest --watch *.test.js",
-    "start": "subScript",
-    "preinstall": "subScript",
-    "install": "subScript",
-    "postinstall": "subScript",
+    "start": "./subScript",
+    "preinstall": "./subScript",
+    "install": "./subScript",
+    "postinstall": "./subScript",
     "prepare": "transitiveDev web",
     "prepack": "transitiveDev prepack",
     "cloud": "npm --prefix cloud start",
     "dev:start": "transitiveDev tmux",
-    "dev:install": "npm --prefix robot install && npm --prefix cloud install"
+    "dev:install": "npm --prefix robot install"
   },
   "dependencies": {},
   "devDependencies": {
-    "@transitive-sdk/utils-caps": "^0.1.2",
+    "@transitive-sdk/utils-caps": "^0.1.3",
     "@transitive-sdk/utils-web": "^0.9.5",
     "lodash": "^4.17.21",
     "react": "^17.0.2",

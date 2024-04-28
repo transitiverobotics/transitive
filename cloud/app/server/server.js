@@ -339,8 +339,8 @@ const addCapsRoutes = () => {
     // construct docker container name from named cap and version
     // e.g., transitive-robotics.configuration-management.0.1.5-0.cloud_caps
     // (cloud_caps is the name of the docker network)
-    const host =
-      `${req.params.scope}.${req.params.capName}.${req.params.version}.cloud_caps`;
+    const {scope, capName, version} = req.params;
+    const host = `${scope}.${capName}.${version}.cloud_caps`;
     log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
 
@@ -362,7 +362,14 @@ const addCapsRoutes = () => {
     const payload = await getAuthPayload(req);
     const headers = payload ? {'jwt-payload': JSON.stringify(payload)} : {};
 
-    capsProxy.web(req, res, { target: `http://${host}:8085`, headers });
+    capsProxy.web(req, res, { target: `http://${host}:8085`, headers },
+      (err) => {
+        const msg = `${scope}/${capName}/${version} does not run a web server, ${
+          JSON.stringify(err)}`;
+        log.debug(msg);
+        res.status(404).end(msg);
+      }
+    );
   });
 };
 

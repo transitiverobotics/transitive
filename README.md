@@ -4,9 +4,11 @@
   </a>
 </p>
 
-# Transitive: An Open-source Framework for Full-stack Robotics
+# Transitive: A Full-stack Framework for Robotics
 
 by [Transitive Robotics](https://transitiverobotics.com)
+
+Designed with ROS in mind, but also works without.
 
 ### Key Features
 

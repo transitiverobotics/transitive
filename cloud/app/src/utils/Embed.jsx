@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import { Form, InputGroup, FormControl, Button, Modal } from 'react-bootstrap';
+import { Form, InputGroup, FormControl, Button, Modal, Tabs, Tab } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaCode } from 'react-icons/fa';
 import _ from 'lodash';
@@ -70,7 +70,8 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
         {body: {jwt, tokenName, password, config}});
     };
 
-    const tryCode = `<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString}/>`;
+    const tryCode = `<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString} />`;
+    const tryReact = `import { TransitiveCapability } from '@transitive-sdk/utils-web';\n...\n<TransitiveCapability jwt="${jwt}"${paramString} />`;
 
     const parameters = getParameters({ files: {
       'package.json': { content: { dependencies: {} }},
@@ -83,17 +84,13 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
       }}
     }});
 
-    const docs = new URL(window.location);
-    docs.hostname = url.hostname.split('.').slice(-2).join('.');
-    docs.pathname = '/docs/guides/embedding-in-react';
-    docs.hash = '';
-
     return <div style={{color: 'inherit'}}>
       <p>
-        You can embed this widget in other web pages or share it via a link.
+        You can embed this UI component in other web pages or share it via a link.
       </p>
+      <hr/>
 
-      <h6>Testing</h6>
+      <h5>Testing</h5>
       <form action="https://codesandbox.io/api/v1/sandboxes/define" method="POST"
         target="_blank">
         <input type="hidden" name="parameters" value={parameters} />
@@ -104,31 +101,47 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
         }}>
           Try it in a CodeSandbox
         </Button><br/>
-        This uses the following ready-to-go HTML snippet. The included <a
-          href="https://jwt.io/">JWT token</a> is valid for the next 12 hours from when this page was loaded.
-        <Code code={tryCode} />
+
+        To test in your own web app, use one of these snippets. The included <a
+          href="https://jwt.io/">JWT token</a> is valid for the next 12 hours
+        from when this page was loaded.
+
+        <Tabs
+          id="uncontrolled-tab-example"
+          className="mb-3"
+        >
+          <Tab eventKey="react" title="React">
+            <Code code='npm i @transitive-sdk/utils-web' language='bash' />
+            Then use:
+            <Code code={tryReact} />
+          </Tab>
+          <Tab eventKey="html" title="HTML">
+            <Code code={tryCode} />
+          </Tab>
+        </Tabs>
+
       </form>
 
-      <h6>Production</h6>
-      In production, use the above HTML snippet, replacing the JWT with a new
-      one signed with your JWT secret (see <Link to='/security'>Security</Link>),
-      carrying the following payload:
+      <hr/>
+
+      <h5>Production</h5>
+      In production replace the JWT with a new one signed with your JWT secret
+      (see <Link to='/security'>Security</Link>), carrying the following payload:
       <Code code={['{',
             ..._.map(jwtPayloadExample, (value, key) => `  "${key}": "${value}",`),
             `  "userId": "user123", // a string that uniquely identifies a user in your context`,
             `  "validity": 86400, // number of seconds this authentication should remain valid`,
-            `  "iat": 1702235368, // current time in seconds since 1970`,
+            `  "iat": 1234567890, // current time in seconds since 1970`,
             '}'
           ].join('\n')} />
       Note that some JWT libraries already include the `iat` field automatically.
 
-      When using React, see <a href={`${docs.toString()}`}>Embedding in React</a>.
-      <br/><br/>
+      <hr/>
 
-      <h6>Share</h6>
+      <h5>Share</h5>
 
       <div>
-        Alternatively, you can share this widget on a stand-alone,
+        Alternatively, you can share this on a stand-alone,
         password-protected page. Set a name and password, then click "Get link".
         <Form action="#" onSubmit={(e) => {
           e.stopPropagation();
@@ -162,10 +175,6 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
     </div>;
   };
 
-// export const Embed = ({style, ...props}) =>
-//   <Fold title='Embedding instructions' style={style}>
-//     <EmbedBody {...props} />
-//   </Fold>;
 
 export const Embed = ({style, compRef, capability, name, ...props}) => {
   const [show, setShow] = useState(false);
@@ -191,9 +200,6 @@ export const Embed = ({style, compRef, capability, name, ...props}) => {
       </Modal.Header>
       <Modal.Body style={styles.modalBody}>
         <EmbedBody name={name} {...props} config={config} />
-        <Form.Text>
-          capability: {capability}, widget: {name}
-        </Form.Text>
       </Modal.Body>
     </Modal>
   </div>;

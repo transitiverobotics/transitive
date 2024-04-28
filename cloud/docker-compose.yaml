@@ -73,6 +73,11 @@ services:
       - caps
     logging:
       driver: local
+    deploy:
+      resources:
+        limits:
+          cpus: '0.9'
+          memory: 250M
 
   cloud_prod:
     <<: *shared_cloud
@@ -105,6 +110,7 @@ services:
       - ./app/web_components:/app/web_components
       - ./app/server:/app/server
       - ./app/assets:/app/assets
+      - ./app/public:/app/public
       # In dev we allow serving local dev files for capability bundles. This
       # assumes a specific directory layout.
       - /tmp/caps:/app/caps:ro

@@ -23,8 +23,8 @@ const styles = {
 };
 
 /** format the given parameters for the html snippet to show */
-const formatParams = (params) => _
-    .map(params, (value, key) => `${key}=${JSON.stringify(value)}`)
+const formatParams = (params) =>
+  _.map(params, (value, key) => `${key}="${value}"`)
     .sort()
     .map(s => `\n  ${s}`)
     .join('');

@@ -62,7 +62,9 @@ void add_client(const char *ip) {
 /** add or remove the given client to/from the ipset */
 void update_ipset(const char *ip, bool add) {
   // printf("%s-ing ip to ipset\n", add ? "add" : "del");
-  printf("%s-ing ip to ipset 'limit' %s\n", add ? "add" : "del", ip);
+  printf("%s ipset 'limit' %s\n",
+    add ? "adding ip to " : "deleting ip from ",
+    ip);
   const char cmd[80];
   sprintf(cmd, "ipset %s limit %s", add ? "add" : "del", ip);
   printf("running %s\n", cmd);
@@ -74,7 +76,7 @@ void update_ipset(const char *ip, bool add) {
 // last time we ran counter-reduction
 time_t last_time = 0;
 /** reduce all counters every time two or more seconds have passed */
-void reduce_counters() {
+void reduce_write_counters() {
   time_t current_time = time(NULL);
   time_t time_diff = current_time - last_time;
   if (time_diff >= 2) {
@@ -94,45 +96,57 @@ void reduce_counters() {
   fflush(stdout);
 }
 
-/** The mosquitto ACL callback */
-static int acl_callback(int event, void *event_data, void *userdata)
-{
-	struct mosquitto_evt_acl_check *ed = event_data;
-  const struct mosquitto *client = ed->client;
-	const char *username = mosquitto_client_username(client);
-	const char *id = mosquitto_client_id(client);
-	const char *ip = mosquitto_client_address(client);
-
-  reduce_counters();
-
-  struct client_struct *s = NULL;
-  HASH_FIND_STR(clients, ip, s);
-  if (s) {
-    s->count++;
-    if (s->count == BURST_THRESHOLD) {
+/** Find the write-counter for this client/IP and update it */
+void update_write_counter(const char *ip) {
+  struct client_struct *client = NULL;
+  HASH_FIND_STR(clients, ip, client);
+  if (client) {
+    client->count++;
+    if (client->count == BURST_THRESHOLD) {
       // client is misbehaving: add to rate limiting ipset
-      printf("client %s has reached rate threshold: %d\n", s->ip, s->count);
-      update_ipset(s->ip, true);
+      printf("client %s has reached write rate limit: %d\n",
+        client->ip, client->count);
+      update_ipset(client->ip, true);
     }
   } else {
     add_client(ip);
   }
+}
 
-	printf("acl %s %s %s %s", ed->topic, username, id);
+/** The mosquitto ACL callback */
+static int acl_callback(int event, void *event_data, void *userdata)
+{
+	struct mosquitto_evt_acl_check *ed = event_data;
+	const char *username = mosquitto_client_username(ed->client);
+	const char *id = mosquitto_client_id(ed->client);
+	const char *ip = mosquitto_client_address(ed->client);
+
+  bool output = false;
+  if (ed->access == MOSQ_ACL_WRITE) {
+    reduce_write_counters();
+    update_write_counter(ip);
+
+    output = true;
+   	printf("write request: %s %s %s", ed->topic, username, id);
+  } else if (ed->access == MOSQ_ACL_SUBSCRIBE) {
+    output = true;
+   	printf("subscribe request: %s %s %s", ed->topic, username, id);
+  }
+  // not printing READ requests, because they are too verbose
 
  	UNUSED(event);
 	UNUSED(userdata);
 
   // is it a superuser?
   if (prefix("transitiverobotics:", username)) {
-	  printf(": superuser\n");
+	  output && printf(": superuser\n");
     return MOSQ_ERR_SUCCESS;
   }
 
 
   if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
     // everyone is allowed to subscribe to the broker's heartbeat
-	  printf(": public\n");
+	  output && printf(": public\n");
     return MOSQ_ERR_SUCCESS;
   }
 
@@ -150,25 +164,25 @@ static int acl_callback(int event, void *event_data, void *userdata)
     // it's a cloud capability: give access to cap's namespace
     char user_scope[80], user_name[80];
     if (sscanf(username + 4, "%79[^/]/%s", user_scope, user_name) != 2) {
-  	  printf(": DENIED\n");
+  	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }
     if (strcmp(user_scope, scope) != 0 || strcmp(user_name, name) != 0) {
-  	  printf(": DENIED\n");
+  	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }
-	  printf(": capability namespace matches\n");
+	  output && printf(": capability namespace matches\n");
   } else {
     char user_orgId[80], user_deviceId[80];
     if (sscanf(username, "%79[^:]:%s", user_orgId, user_deviceId) != 2) {
-  	  printf(": DENIED\n");
+  	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }
     if (strcmp(user_orgId, orgId) != 0 || strcmp(user_deviceId, deviceId) != 0) {
-  	  printf(": DENIED\n");
+  	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }
-	  printf(": device namespace matches\n");
+	  output && printf(": device namespace matches\n");
   }
 
   // if we made it here, we are good
@@ -193,6 +207,7 @@ static int acl_callback(int event, void *event_data, void *userdata)
 	// return MOSQ_ERR_PLUGIN_DEFER;
 }
 
+
 int mosquitto_plugin_version(int supported_version_count,
   const int *supported_versions)
 {
@@ -214,14 +229,13 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
 	UNUSED(opt_count);
 
   printf("init\n");
+  // flush all `ipset`s
+  system("ipset flush");
 
 	mosq_pid = identifier;
   return mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,
     NULL, NULL);
 }
-
-// TODO: would it be better to use a separate callback for rate-limiting,
-// perhaps using `MOSQ_EVT_MESSAGE` events instead?
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts,
   int opt_count)

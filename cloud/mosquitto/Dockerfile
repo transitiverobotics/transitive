@@ -42,7 +42,7 @@ RUN wget https://mosquitto.org/files/source/mosquitto-${VERSION}.tar.gz -O /tmp/
 # Build the plugin
 WORKDIR /build/mosq/plugins/auth-transitive
 COPY auth-transitive .
-RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c -o mosquitto_auth_transitive.so
+RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c -o mosquitto_auth_transitive.so -fmax-errors=1
 
 # for mosquitto_user_data_set:
 # WORKDIR /build/mosq
@@ -56,7 +56,7 @@ RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c -o mos
 FROM iegomez/mosquitto-go-auth:latest-mosquitto_2.0.15
 
 
-RUN apt-get install -y musl-dev
+RUN apt-get update --allow-releaseinfo-change && apt install -y musl-dev iptables ipset libipset-dev libcap2-bin
 RUN ln -s /usr/lib/x86_64-linux-musl/libc.so /lib/libc.musl-x86_64.so.1
 
 # copy our custom auth plugin from builder
@@ -72,3 +72,10 @@ RUN ln -s /mosquitto /etc/mosquitto
 # make sure to mount certs on /mosquitto/config/certs
 EXPOSE 8883/tcp
 EXPOSE 9001/tcp
+
+# grant mosquitto the ability to use ipset (doesn't work; running as root instead)
+# RUN setcap 'cap_net_raw=+ep cap_net_admin=+ep' /usr/sbin/mosquitto
+
+COPY entrypoint.sh /
+WORKDIR /
+ENTRYPOINT ["./entrypoint.sh"]

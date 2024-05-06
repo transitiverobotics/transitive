@@ -2,11 +2,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h> // system calls
+#include <time.h> // for timing the reduction of counters
 
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
+#include "uthash.h" // https://troydhanson.github.io/uthash/
 
 static mosquitto_plugin_id_t *mosq_pid = NULL;
 
@@ -14,6 +17,17 @@ static mosquitto_plugin_id_t *mosq_pid = NULL;
 bool prefix(const char *pre, const char *str) {
   return strncmp(pre, str, strlen(pre)) == 0;
 }
+
+// max function, from https://stackoverflow.com/a/58532788/1087119
+#define max(a,b)             \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a > _b ? _a : _b;       \
+})
+
+#define THRESHOLD 200 // permitted requests per second before rate limiting
+#define BURST_THRESHOLD 2 * THRESHOLD // permitted bursts
 
 // static int basic_auth_callback(int event, void *event_data, void *userdata)
 // {
@@ -27,14 +41,86 @@ bool prefix(const char *pre, const char *str) {
 //   return MOSQ_ERR_AUTH;
 // }
 
+int counter = 0;
+
+struct client_struct {
+  char ip[16];   /* we'll use this field as the key */
+  int count;
+  UT_hash_handle hh; /* makes this structure hashable */
+};
+
+struct client_struct *clients = NULL;
+
+void add_client(const char *ip) {
+  printf("adding client ip %s\n", ip);
+  struct client_struct *client = (struct client_struct *)malloc(sizeof *clients);
+  strcpy(client->ip, ip);
+  client->count = 0;
+  HASH_ADD_STR(clients, ip, client);
+}
+
+/** add or remove the given client to/from the ipset */
+void update_ipset(const char *ip, bool add) {
+  // printf("%s-ing ip to ipset\n", add ? "add" : "del");
+  printf("%s-ing ip to ipset 'limit' %s\n", add ? "add" : "del", ip);
+  const char cmd[80];
+  sprintf(cmd, "ipset %s limit %s", add ? "add" : "del", ip);
+  printf("running %s\n", cmd);
+  int status = system(cmd);
+  printf("result %d\n", status);
+  fflush(stdout);
+}
+
+// last time we ran counter-reduction
+time_t last_time = 0;
+/** reduce all counters every time two or more seconds have passed */
+void reduce_counters() {
+  time_t current_time = time(NULL);
+  time_t time_diff = current_time - last_time;
+  if (time_diff >= 2) {
+    struct client_struct *client, *tmp;
+    HASH_ITER(hh, clients, client, tmp) {
+      printf("reducing client counter %s: %d\n", client->ip, client->count);
+      // reduce all counters by THRESHOLD per second
+      int new_count = max(client->count - THRESHOLD * time_diff, 0);
+      if (client->count > THRESHOLD && new_count < THRESHOLD) {
+        // client is behaving again, remove from rate limiting ipset.
+        update_ipset(client->ip, false);
+      }
+      client->count = new_count;
+    }
+    last_time = current_time;
+  }
+  fflush(stdout);
+}
+
+/** The mosquitto ACL callback */
 static int acl_callback(int event, void *event_data, void *userdata)
 {
 	struct mosquitto_evt_acl_check *ed = event_data;
-	const char *username = mosquitto_client_username(ed->client);
-	const char *id = mosquitto_client_id(ed->client);
-	printf("acl %s %s %s", ed->topic, username, id);
+  const struct mosquitto *client = ed->client;
+	const char *username = mosquitto_client_username(client);
+	const char *id = mosquitto_client_id(client);
+	const char *ip = mosquitto_client_address(client);
 
-	UNUSED(event);
+  reduce_counters();
+
+  struct client_struct *s = NULL;
+  HASH_FIND_STR(clients, ip, s);
+  if (s) {
+    s->count++;
+    if (s->count == BURST_THRESHOLD) {
+      // client is misbehaving: add to rate limiting ipset
+      printf("client %s has reached rate threshold: %d\n", s->ip, s->count);
+      update_ipset(s->ip, true);
+    }
+  } else {
+    add_client(ip);
+  }
+
+	printf("acl %s %s %s %s", ed->topic, username, id);
+
+ 	UNUSED(event);
 	UNUSED(userdata);
 
   // is it a superuser?
@@ -107,7 +193,8 @@ static int acl_callback(int event, void *event_data, void *userdata)
 	// return MOSQ_ERR_PLUGIN_DEFER;
 }
 
-int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
+int mosquitto_plugin_version(int supported_version_count,
+  const int *supported_versions)
 {
 	int i;
   printf("version?\n");
@@ -119,7 +206,8 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 	return -1;
 }
 
-int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
+int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
+  struct mosquitto_opt *opts, int opt_count)
 {
 	UNUSED(user_data);
 	UNUSED(opts);
@@ -128,16 +216,20 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
   printf("init\n");
 
 	mosq_pid = identifier;
-  return mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback, NULL, NULL);
-	// return mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH, basic_auth_callback, NULL, NULL);
+  return mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,
+    NULL, NULL);
 }
 
-int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
+// TODO: would it be better to use a separate callback for rate-limiting,
+// perhaps using `MOSQ_EVT_MESSAGE` events instead?
+
+int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts,
+  int opt_count)
 {
 	UNUSED(user_data);
 	UNUSED(opts);
 	UNUSED(opt_count);
 
-	// return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, basic_auth_callback, NULL);
-	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback, NULL);
+	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_ACL_CHECK,
+    acl_callback, NULL);
 }

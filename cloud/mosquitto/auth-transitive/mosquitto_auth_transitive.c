@@ -44,26 +44,30 @@ bool prefix(const char *pre, const char *str) {
 int counter = 0;
 
 struct client_struct {
-  char ip[16];   /* we'll use this field as the key */
+  char id[80];   /* client username */
+  char ip[16];   /* the client IP */
   int count;
+  bool isLimited;    // whether we've added this client to the `limit` ipset
   UT_hash_handle hh; /* makes this structure hashable */
 };
 
 struct client_struct *clients = NULL;
 
-void add_client(const char *ip) {
+void add_client(const char *client_id, const char *ip) {
   printf("adding client ip %s\n", ip);
   struct client_struct *client = (struct client_struct *)malloc(sizeof *clients);
+  strcpy(client->id, client_id);
   strcpy(client->ip, ip);
   client->count = 0;
-  HASH_ADD_STR(clients, ip, client);
+  client->isLimited = false;
+  HASH_ADD_STR(clients, id, client);
 }
 
 /** add or remove the given client to/from the ipset */
 void update_ipset(const char *ip, bool add) {
   // printf("%s-ing ip to ipset\n", add ? "add" : "del");
   printf("%s ipset 'limit' %s\n",
-    add ? "adding ip to " : "deleting ip from ",
+    add ? "adding ip to" : "deleting ip from",
     ip);
   const char cmd[80];
   sprintf(cmd, "ipset %s limit %s", add ? "add" : "del", ip);
@@ -82,14 +86,15 @@ void reduce_write_counters() {
   if (time_diff >= 2) {
     struct client_struct *client, *tmp;
     HASH_ITER(hh, clients, client, tmp) {
-      printf("reducing client counter %s: %d\n", client->ip, client->count);
+      printf("reducing client counter %s (%s): %d\n",
+        client->id, client->ip, client->count);
       // reduce all counters by THRESHOLD per second
-      int new_count = max(client->count - THRESHOLD * time_diff, 0);
-      if (client->count > THRESHOLD && new_count < THRESHOLD) {
+      client->count = max(client->count - THRESHOLD * time_diff, 0);
+      if (client->isLimited && client->count < THRESHOLD) {
         // client is behaving again, remove from rate limiting ipset.
         update_ipset(client->ip, false);
+        client->isLimited = false;
       }
-      client->count = new_count;
     }
     last_time = current_time;
   }
@@ -97,19 +102,20 @@ void reduce_write_counters() {
 }
 
 /** Find the write-counter for this client/IP and update it */
-void update_write_counter(const char *ip) {
+void update_write_counter(const char *client_id, const char *ip) {
   struct client_struct *client = NULL;
-  HASH_FIND_STR(clients, ip, client);
+  HASH_FIND_STR(clients, client_id, client);
   if (client) {
     client->count++;
-    if (client->count == BURST_THRESHOLD) {
+    if (!client->isLimited && client->count > BURST_THRESHOLD) {
       // client is misbehaving: add to rate limiting ipset
-      printf("client %s has reached write rate limit: %d\n",
-        client->ip, client->count);
+      printf("client %s (%s) has reached write rate limit: %d\n",
+        client->id, client->ip, client->count);
       update_ipset(client->ip, true);
+      client->isLimited = true;
     }
   } else {
-    add_client(ip);
+    add_client(client_id, ip);
   }
 }
 
@@ -124,7 +130,7 @@ static int acl_callback(int event, void *event_data, void *userdata)
   bool output = false;
   if (ed->access == MOSQ_ACL_WRITE) {
     reduce_write_counters();
-    update_write_counter(ip);
+    update_write_counter(username, ip);
 
     output = true;
    	printf("write request: %s %s %s", ed->topic, username, id);

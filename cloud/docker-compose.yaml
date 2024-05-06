@@ -21,7 +21,11 @@ x-cloud: &shared_cloud
     - shared
   logging:
     driver: local
-
+  deploy:
+    resources:
+      limits:
+        cpus: '0.9'
+        memory: 800M
 
 networks:
   caps:
@@ -71,6 +75,9 @@ services:
     networks:
       - default
       - caps
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     logging:
       driver: local
     deploy:
@@ -148,6 +155,11 @@ services:
       - caps
     logging:
       driver: local
+    deploy:
+      resources:
+        limits:
+          cpus: '0.7'
+          memory: 500M
 
   # Once the registry is up, republish the robot-agent to it, in case it changed
   publish:

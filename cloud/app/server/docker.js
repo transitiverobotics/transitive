@@ -208,7 +208,8 @@ const start = async ({name, version, pkgInfo}) => {
     // ExtraHosts: [],
     NetworkMode: 'cloud_caps',
     Init: true, // start an init process that reaps zombies, e.g., sshd's
-    LogConfig: { Type: 'local' }
+    LogConfig: { Type: 'local' },
+    Memory: 500 * Math.pow(2,20), // 500MB memory limit
   };
 
   let ExposedPorts;

@@ -16,8 +16,7 @@ try {
   config = JSON.parse(fs.readFileSync(`${DIR}/config.json`, {encoding: 'utf8'}));
   console.log(`Using config:\n${JSON.stringify(config, true, 2)}`);
 } catch (e) {
-  console.log('No config.json file found or not valid JSON, proceeding without.',
-    e);
+  console.log('No config.json file found or not valid JSON, proceeding without.');
 }
 
 const installPackage = (pkg) => new Promise((resolve, reject) => {

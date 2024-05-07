@@ -53,6 +53,7 @@ struct client_struct {
 
 struct client_struct *clients = NULL;
 
+/** Add client to the hashtable where we count write requests */
 void add_client(const char *client_id, const char *ip) {
   printf("adding client ip %s\n", ip);
   struct client_struct *client = (struct client_struct *)malloc(sizeof *clients);
@@ -86,14 +87,16 @@ void reduce_write_counters() {
   if (time_diff >= 2) {
     struct client_struct *client, *tmp;
     HASH_ITER(hh, clients, client, tmp) {
-      printf("reducing client counter %s (%s): %d\n",
-        client->id, client->ip, client->count);
-      // reduce all counters by THRESHOLD per second
-      client->count = max(client->count - THRESHOLD * time_diff, 0);
-      if (client->isLimited && client->count < THRESHOLD) {
-        // client is behaving again, remove from rate limiting ipset.
-        update_ipset(client->ip, false);
-        client->isLimited = false;
+      if (client->count > 0) {
+        printf("reducing client counter %s (%s): %d\n",
+          client->id, client->ip, client->count);
+        // reduce all counters by THRESHOLD per second
+        client->count = max(client->count - THRESHOLD * time_diff, 0);
+        if (client->isLimited && client->count < THRESHOLD) {
+          // client is behaving again, remove from rate limiting ipset.
+          update_ipset(client->ip, false);
+          client->isLimited = false;
+        }
       }
     }
     last_time = current_time;
@@ -241,6 +244,9 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
 	mosq_pid = identifier;
   return mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,
     NULL, NULL);
+
+  // #TODO: register a MOSQ_EVT_DISCONNECT callback to remove clients from
+  // hashtable?
 }
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts,

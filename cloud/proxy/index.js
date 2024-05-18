@@ -1,6 +1,5 @@
 'use strict';
 
-const os = require('os');
 const fs = require('fs');
 
 /** try parsing JSON, return null if unsuccessful */
@@ -24,7 +23,7 @@ console.log({host, production});
 
 // ------------------------------------------------------------------
 
-const proxy = require('http-proxy').createProxyServer({ xfwd: true });
+const proxy = require('http-proxy-node16').createProxyServer({ xfwd: true });
 // catches error events during proxying
 proxy.on('error', function(err, req, res) {
   console.error(err);

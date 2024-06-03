@@ -41,4 +41,4 @@ const Device = ({jwt, id, host, ssl}) => {
   </div>;
 };
 
-createWebComponent(Device, `${capabilityName}-device`, ['jwt']);
+createWebComponent(Device, `${capabilityName}-device`, TR_PKG_VERSION);

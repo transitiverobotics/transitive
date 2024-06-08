@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Modal, Accordion, Spinner, Alert } from 'react-bootstrap';
+    Modal, Accordion, Alert, Toast } from 'react-bootstrap';
+import Spinner from 'react-bootstrap/Spinner';
 
 const _ = {
   map: require('lodash/map'),
@@ -54,6 +55,15 @@ const styles = {
   },
   log: {
     whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all',
+  },
+  toast: {
+    // position: 'absolute',
+    // top: '1em',
+    // right: '1em',
+    margin: '1em',
+    width: 'fit-content',
+    backgroundColor: '#def'
   }
 };
 
@@ -321,6 +331,15 @@ const Capability = (props) => {
 };
 
 
+const MyToast = ({toast, onClose}) =>
+  <Toast delay={5000} autohide={!toast?.spinner} style={styles.toast}
+    onClose={onClose} show={Boolean(toast)} >
+    <Toast.Header>
+      <strong className="me-auto">{toast?.title}</strong>
+      {toast?.spinner && <Spinner animation="border" size="sm" />}
+    </Toast.Header>
+    <Toast.Body>{toast?.body}</Toast.Body>
+  </Toast>;
 
 const explanation = `This will delete all meta data for this device. If the
   agent is still running, the device will come back but will require a
@@ -343,6 +362,7 @@ const Device = (props) => {
 
   const [showAdd, setShowAdd] = useState(false);
   const [pkgLog, setPkgLog] = useState();
+  const [toast, setToast] = useState(null);
 
   const [availablePackages, setAvailablePackages] = useState([]);
   useEffect(() => {
@@ -408,6 +428,7 @@ const Device = (props) => {
   const clear = () => {
     // TODO: indicate progress/loading while waiting for callback, which depends
     // on getting a heartbeat from broker, which can take a while (~10 seconds)
+    setToast({title: 'Please wait', body: `Removing ${device}`, spinner: true});
     mqttSync.clear([`/${id}/${device}`], () => {
       log.info('device removed');
       // redirect to fleet page if given, or to homepage otherwise
@@ -435,7 +456,7 @@ const Device = (props) => {
   //     // using console.log to get colors from escape sequences in output:
   //     console.log(response));
 
-  log.debug({latestVersionData, packages});
+  log.debug({latestVersionData, packages, toast});
 
   return <div>
     <div style={styles.row}>
@@ -445,7 +466,10 @@ const Device = (props) => {
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
       </span>&nbsp;&nbsp; <ActionLink disabled={inactive}
-        onClick={() => runCommand('ping', {timestamp: Date.now()}, log.debug)}
+        onClick={() => runCommand('ping', {timestamp: Date.now()},
+          (time) => setToast({ title: 'Pong!',
+            body: `Server time: ${new Date(time)}`})
+        )}
       >
         Ping
       </ActionLink>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
@@ -457,16 +481,21 @@ const Device = (props) => {
         explanation={explanation} question='Remove device?'>
         Remove device
       </ConfirmedButton>
+
+      <Fold title="Configuration">
+        <div style={styles.row}>
+          {latestVersionData?.info?.config &&
+            <ConfigEditor info={latestVersionData.info}
+              updateConfig={
+                (modifier) => runCommand('updateConfig', {modifier}, log.debug)
+              }/>}
+        </div>
+      </Fold>
     </div>
 
-    <div style={styles.row}>
-      <h5>Configuration</h5>
-      {latestVersionData?.info?.config &&
-        <ConfigEditor info={latestVersionData.info}
-          updateConfig={
-            (modifier) => runCommand('updateConfig', {modifier}, log.debug)
-          }/>}
-    </div>
+
+    <MyToast toast={toast} onClose={() => setToast(null)}/>
+
 
     <div style={styles.row}>
       <h5>Capabilities</h5>

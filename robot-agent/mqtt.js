@@ -23,15 +23,18 @@ const os = require('os');
 const assert = require('assert');
 const mqtt = require('mqtt');
 const exec = require('child_process').exec;
+const _ = require('lodash');
 
 const { parseMQTTTopic, mqttClearRetained, mqttParsePayload, MqttSync, getLogger,
-loglevel, clone } = require('@transitive-sdk/utils');
-const { handleAgentCommand } = require('./commands');
-const { ensureDesiredPackages } = require('./utils');
+  loglevel, clone } = require('@transitive-sdk/utils');
 
+  const { handleAgentCommand, commands } = require('./commands');
+const { ensureDesiredPackages } = require('./utils');
 const {startLocalMQTTBroker} = require('./localMQTT');
+
 const log = getLogger('mqtt.js');
 log.setLevel('info');
+// loglevel.setAll('debug');
 
 // TODO: get this from utils
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
@@ -122,28 +125,7 @@ mqttClient.on('connect', function(connackPacket) {
 
           const parsedTopic = parseMQTTTopic(topic);
           // TODO: ensure no one tries to publish a capability with this name -> registry
-          if (parsedTopic.capability == '@transitive-robotics/_robot-agent') {
-            // it's for us, the robot-agent
-            const json = mqttParsePayload(payload);
-
-            const {command, rest} = (// old format (start with _):
-              parsedTopic.sub[0]?.[0] == '_' &&
-                { command: parsedTopic.sub[0].slice(1),
-                  rest: parsedTopic.sub.slice(1)
-                }) ||
-              // new commands (under commands/):
-              (parsedTopic.sub[0] == 'commands' &&
-                { command: parsedTopic.sub[1],
-                  rest: parsedTopic.sub.slice(2)
-                });
-            if (command) {
-              handleAgentCommand(command, rest, json, (response) => response &&
-                mqttClient.publish(
-                  `${AGENT_PREFIX}/$response/${parsedTopic.sub.join('/')}`,
-                  JSON.stringify(response)));
-            }
-
-          } else {
+          if (parsedTopic.capability != '@transitive-robotics/_robot-agent') {
             // Not for us, relay it locally.
             /* We do NOT want to retain package-specific messages because we do not
             subscribe to them all the time and could be missing "clear" messages,
@@ -158,14 +140,12 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
 
-      // mqttClient.subscribe(`${AGENT_PREFIX}/_restart`, subOptions, log.debug);
-      // mqttClient.subscribe(`${AGENT_PREFIX}/_restartPackage/#`, subOptions, log.debug);
-      // mqttClient.subscribe(`${AGENT_PREFIX}/_getStatus/#`, subOptions, log.debug);
-      // mqttClient.subscribe(`${AGENT_PREFIX}/_getLog`, subOptions, log.debug);
-      // mqttClient.subscribe(HEARTBEAT_TOPIC, {rap: true}, log.debug);
-      // new commands should go under `commands/`
-      log.info('subscribing to robot-agent commands');
-      mqttClient.subscribe(`${AGENT_PREFIX}/commands/#`, subOptions, log.debug);
+      // register all commands as RPCs
+      _.forEach(commands, (cmdHandler, cmdName) => {
+        const command = `${AGENT_PREFIX}/rpc/${cmdName}`;
+        log.info(`registering ${command}`);
+        mqttSync.register(command, cmdHandler);
+      });
 
       initialized = true;
     });
@@ -174,7 +154,7 @@ mqttClient.on('connect', function(connackPacket) {
 /** publish static info about this machine */
 const staticInfo = () => {
   const info = {os: {
-      hostname: os.hostname(),
+      hostname: process.env.TR_DISPLAYNAME || os.hostname(),
       release: os.release(),
       version: os.version(),
       networkInterfaces: os.networkInterfaces(),

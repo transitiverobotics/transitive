@@ -25,12 +25,12 @@ const mqtt = require('mqtt');
 const exec = require('child_process').exec;
 const _ = require('lodash');
 
-const { parseMQTTTopic, mqttClearRetained, mqttParsePayload, MqttSync, getLogger,
+const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
   loglevel, clone } = require('@transitive-sdk/utils');
 
-  const { handleAgentCommand, commands } = require('./commands');
+const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
-const {startLocalMQTTBroker} = require('./localMQTT');
+const { startLocalMQTTBroker } = require('./localMQTT');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');

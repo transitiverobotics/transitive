@@ -39,17 +39,23 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
 
   return <div>
     <Row style={styles.rows}>
-      <Col sm={3}>ROS releases to use</Col>
+      <Col sm={3}><strong>ROS releases to use</strong></Col>
       <Col sm={9}>
-        <Form.Check type='checkbox' label={'Auto'} checked={selected.auto}
-          onChange={(e) => setSelected(s => ({...s, auto: e.target.checked}))}
-          title='Automatically use all ROS installations found in /opt/ros'
-        />
-        <Form.Text>
-          {`Use applicable ROS installations in /opt/ros, found: ${
-            installedReleases.length == 0 ? 'none' : installedReleases.join(' + ')}`}
-        </Form.Text>
-        {[1, 2].map(version => {
+        <Row style={styles.rows}>
+        <Col sm={2}>
+          <Form.Check type='checkbox' label={'Auto'} checked={selected.auto}
+            onChange={(e) => setSelected(s => ({...s, auto: e.target.checked}))}
+            title='Automatically use all ROS installations found in /opt/ros'
+            />
+        </Col>
+            <Col sm={10}>
+          <Form.Text>
+            {`Use all ROS installations found in /opt/ros. Currently: ${
+              installedReleases.length == 0 ? 'none' : installedReleases.join(' + ')}`}
+          </Form.Text>
+          </Col>
+        </Row>
+        {!selected.auto && [1, 2].map(version => {
           const releases = getReleasesForVersion(version).sort();
 
           return <Row key={version} style={styles.rows}>
@@ -58,6 +64,7 @@ export const ConfigEditor = ({info = {}, updateConfig}) => {
               <DropdownButton title={selected[version] || 'none'}
                 variant='outline-secondary'
                 disabled={selected.auto}
+                size="sm"
               >
                 <Dropdown.Item
                   active={!activeReleases[version]}

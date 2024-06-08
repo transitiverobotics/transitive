@@ -14,9 +14,8 @@ const HttpProxy = require('http-proxy');
 const { CronJob } = require('cron');
 const _ = require('lodash');
 
-const Mongo = require('@transitive-sdk/utils/mongo');
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability, tryJSONParse, clone } =
+mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo } =
   require('@transitive-sdk/utils');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');

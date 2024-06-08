@@ -14,7 +14,7 @@
   "author": "Christian Fritz",
   "license": "Apache-2.0",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.6.8",
+    "@transitive-sdk/utils": "^0.12.4",
     "aedes-preunsub": "^0.45.0",
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",

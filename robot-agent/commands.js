@@ -3,7 +3,6 @@ const { exec } = require('child_process');
 const zlib = require('zlib');
 const _ = require('lodash');
 
-const constants = require('./constants');
 const { restartPackage, startPackage, killPackage, killAllPackages,
   upgradeNodejs } = require('./utils');
 
@@ -12,56 +11,51 @@ const { getLogger, clone } = require('@transitive-sdk/utils');
 const log = getLogger('commands');
 log.setLevel('debug');
 
-
-// /** execute a sequence of commands and report corresponding results in cb */
-// const execAll = ([head, ...tail], cb) => {
-//   if (head) {
-//     log.debug('execAll:', head);
-//     exec(head, (err, stdout, stderr) => {
-//       const result = {[head]: {err, stdout, stderr}};
-//       execAll(tail, (subResult) => cb(Object.assign({}, subResult, result)));
-//     });
-//   } else {
-//     cb({});
-//   }
-// };
-
-/** commands that the agent accepts over mqtt; all need to be prefixed with an
-  underscore */
+/* Commands that are exposed as RPCs. */
 const commands = {
+
+  ping: ({timestamp}) => {
+    log.info('got ping', timestamp);
+    return Date.now();
+  },
+
   restart: () => {
     log.info("Received restart command.");
     process.exit(0);
   },
+
   stopAll: () => {
     log.info("Stop all packages");
     killAllPackages();
   },
-  restartPackage: (sub) => {
-    const pkg = sub.join('/')
+
+  restartPackage: ({pkg}) => {
     log.debug(`Restarting ${pkg}.`);
     restartPackage(pkg);
   },
-  startPackage: (sub) => {
-    const pkg = sub.join('/')
+
+  startPackage: ({pkg}) => {
     log.debug(`Starting ${pkg}.`);
     startPackage(pkg);
   },
-  stopPackage: (sub) => {
-    const pkg = sub.join('/')
+
+  stopPackage: ({pkg}) => {
     log.debug(`Stopping ${pkg}.`);
     killPackage(pkg);
   },
-  getPkgLog: (sub, value, cb) => {
-    const pkg = sub.slice(0,2).join('/');
-    exec(`cat ~/.transitive/packages/${pkg}/log | tail -n 100000`,
-      (err, stdout, stderr) => cb({
-        err,
-        stdout: zlib.gzipSync(stdout).toString('base64'),
-        stderr: zlib.gzipSync(stderr).toString('base64')
-      }));
+
+  getPkgLog: ({pkg}) => {
+    return new Promise((resolve, reject) => {
+      exec(`cat ~/.transitive/packages/${pkg}/log | tail -n 100000`,
+        (err, stdout, stderr) => resolve({
+          err,
+          stdout: zlib.gzipSync(stdout).toString('base64'),
+          stderr: zlib.gzipSync(stderr).toString('base64')
+        }));
+    });
   },
-  updateConfig: (sub, modifier, cb) => {
+
+  updateConfig: ({modifier}) => {
     log.debug('updateConfig', modifier);
     // now set it in `global.config` and write it back to disk
     _.forEach(modifier, (value, path) => _.set(global.config, path, value));
@@ -77,26 +71,13 @@ const commands = {
     );
   },
 
-  upgradeNodejs: (sub, value, cb) => {
-    upgradeNodejs((err, output) => {
-      if (err) {
-        cb(`Failed to upgrade nodejs: ${err}`);
-      } else {
-        cb(output);
-      }
+  upgradeNodejs: () => {
+    return new Promise((resolve, reject) => {
+      upgradeNodejs((err, output) => {
+        resolve(err ? `Failed to upgrade nodejs: ${err}` : output);
+      });
     });
-  }
-};
-
-module.exports = {
-  /** handle, i.e., parse and execute a command sent to the agent via mqtt */
-  handleAgentCommand: (command, rest, value, cb) => {
-    const cmd = commands[command];
-    if (cmd) {
-      log.debug('Executing command', command, rest);
-      cmd(rest, value, cb);
-    } else {
-      console.error('Received unknown command', command);
-    }
   },
-};
+}
+
+module.exports = { commands };

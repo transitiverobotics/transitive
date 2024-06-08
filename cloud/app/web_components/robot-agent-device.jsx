@@ -51,6 +51,9 @@ const styles = {
   },
   addList: {
     transition: 'height 1s ease'
+  },
+  log: {
+    whiteSpace: 'pre-wrap',
   }
 };
 
@@ -64,15 +67,16 @@ const getMergedPackageInfo = (robotAgentData) => {
 
   const rtv = {};
   robotAgentData?.status?.runningPackages &&
-    _.forEach(toFlatObject(robotAgentData.status.runningPackages), (running, name) => {
-      if (running) {
-        const [scope, pkgName, version] = name.slice(1).split('/');
-        name = `${scope}/${pkgName}`;
-        rtv[name] ||= {};
-        rtv[name].running = rtv[name].running || {};
-        rtv[name].running[version] = 1;
-      }
-    });
+    _.forEach(toFlatObject(robotAgentData.status.runningPackages),
+      (fullVersion, name) => {
+        if (fullVersion) {
+          const [scope, pkgName, version] = name.slice(1).split('/');
+          name = `${scope}/${pkgName}`;
+          rtv[name] ||= {};
+          rtv[name].running = rtv[name].running || {};
+          rtv[name].running[version] = fullVersion;
+        }
+      });
 
   robotAgentData.desiredPackages &&
     _.forEach(toFlatObject(robotAgentData.desiredPackages), (version, name) => {
@@ -159,7 +163,7 @@ const mapSorted = (obj, fn) =>
   }
 }
 */
-const PkgLog = ({response, onHide}) => {
+const PkgLog = ({response, hide}) => {
   const scope = Object.keys(response)[0];
   const cap = Object.values(response)[0];
   const capName = Object.keys(cap)[0];
@@ -167,13 +171,15 @@ const PkgLog = ({response, onHide}) => {
   const stdout = decompress(result.stdout);
   const stderr = decompress(result.stderr);
 
-  return <Modal show={true} fullscreen={true} onHide={onHide} >
+  // fullscreen={true}
+  return <Modal show={true} size='xl' onHide={hide} >
     <Modal.Header closeButton>
       <Modal.Title>Package Log for {scope}/{capName}</Modal.Title>
     </Modal.Header>
     <Modal.Body>
-      {stdout ? <pre>{stdout}</pre> : <div>stdout is empty</div>}
-      {stderr ? <pre style={{color: 'red'}}>{stderr}</pre> : <div>stderr is empty</div>}
+      {stdout ? <pre style={styles.log}>{stdout}</pre> : <div>stdout is empty</div>}
+      {stderr ? <pre style={{... styles.log, color: 'red'}}>{stderr}</pre>
+        : <div>stderr is empty</div>}
     </Modal.Body>
   </Modal>;
 }
@@ -214,71 +220,10 @@ const Package = ({pkg, install, issues}) => {
 };
 
 
-/** Component showing the device from the robot-agent perspective */
-const Device = (props) => {
+const Capability = (props) => {
 
-  if (!ensureProps(props, ['jwt', 'id', 'host'])) {
-    // log.debug({props})
-    return <div>missing props</div>;
-  }
-  const {jwt, id, host} = props;
-  const ssl = props.ssl && JSON.parse(props.ssl);
-  const session = props.session && JSON.parse(props.session);
-
-  const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
-    mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
-  const {device} = decodeJWT(jwt);
-  const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
-
-  const [showAdd, setShowAdd] = useState(false);
-
-  const [availablePackages, setAvailablePackages] = useState([]);
-  useEffect(() => {
-      if (host === undefined) return;
-      const cloudHost = `${ssl ? 'https' : 'http'}://data.${host}`;
-      fetch(`${cloudHost}/@transitive-robotics/_robot-agent/availablePackages`)
-        .then(result => result.json())
-        .then(json => setAvailablePackages(_.keyBy(json, 'name')));
-    }, [ssl, host]);
-  // log.debug({availablePackages});
-
-  useEffect(() => {
-      if (mqttSync) {
-        mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
-        // log.debug('adding publish', `${prefix}/+/desiredPackages`);
-        mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
-        mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
-      }}, [mqttSync]);
-
-  // log.debug('data', data);
-  const deviceData = data && data[id] && data[id][device] &&
-    data[id][device]['@transitive-robotics']['_robot-agent'];
-
-  if (!ready || !deviceData) return <StatusComponent />;
-
-  const latestVersion = Object.keys(deviceData).sort(versionCompare).at(-1);
-  const latestVersionData = deviceData[latestVersion];
-  log.debug(latestVersionData);
-
-  const inactive = Boolean(heartbeatLevel(latestVersionData.status?.heartbeat));
-
-  // Pubishing under which-ever _robot-agent version we get talked to. A quirk
-  // of how robot-agent works, since its robot-package and cloud code don't (yet)
-  // colocate in code...
-  const versionPrefix = `${prefix}/${latestVersion}`;
-
-  const packages = getMergedPackageInfo(latestVersionData);
-  const canBeInstalledPkgs = _.keyBy(
-    _.filter(availablePackages, pkg => !packages[pkg.name]), 'name');
-  // log.debug({availablePackages, packages, canBeInstalledPkgs});
-
-  const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
-
-  /** add the named package to this robot's desired packages */
-  const install = (pkg) => {
-    log.debug(`installing ${pkg._id}`);
-    mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
-  };
+  const { mqttSync, running, desired, status, disabled, name, title,
+    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -291,53 +236,174 @@ const Device = (props) => {
     mqttSync.data.update(`${versionPrefix}/disabledPackages/${pkgName}`, null);
   };
 
+  const runPkgCommand = (command, cb = log.debug) => {
+    log.debug('running package command', command);
+    mqttSync.call(`${versionPrefix}/rpc/${command}`, {pkg: name}, cb);
+    };
+
+    return <Accordion.Item eventKey="0" key={name}>
+    <Accordion.Body>
+      <Row>
+        <Col sm='4' style={styles.rowItem}>
+          <div>{title}</div>
+          <div style={styles.subText}>{name}</div>
+        </Col>
+        <Col sm='3' style={styles.rowItem}>
+          { running && !inactive && <div><Badge bg="success"
+                title={Object.values(running).join(', ')}>
+                running: v{Object.keys(running).join(', ')}
+              </Badge>
+              <Button variant='link' href={`/device/${device}/${name}`}>
+                view
+              </Button>
+            </div>
+          }
+          { running && inactive && <div><Badge bg="secondary">
+                installed: v{Object.keys(running).join(', ')}
+              </Badge></div>
+          }
+          { !running && status && <div><Badge bg="info">
+                {status}</Badge></div>
+          }
+          { disabled && <div><Badge bg="danger">
+                disabled</Badge></div>
+          }
+        </Col>
+        <Col sm='5' style={styles.rowItem}>
+          {!inactive && <div style={{textAlign: 'right'}}>
+            {
+              running && <Button variant='link'
+                onClick={() => runPkgCommand('restartPackage')}>
+                restart
+              </Button>
+            } {
+              running && <Button variant='link'
+                onClick={() => runPkgCommand('stopPackage')}>
+                stop
+              </Button>
+            } {
+              !running && <Button variant='link'
+                onClick={() => runPkgCommand('startPackage')}>
+                start
+              </Button>
+            } {
+              !disabled && <span
+                title={!desired ? 'pre-installed' : null}>
+                <Button variant='link'
+                  disabled={!desired}
+                  onClick={() => uninstall(name)}>
+                  uninstall
+                </Button>
+              </span>
+            } {
+              disabled && <span title={!session.has_payment_method
+                ? 'You need to add a payment method.' : null}>
+                <Button variant='link'
+                  disabled={!canPay}
+                  onClick={() => reinstall(name)}>
+                  reinstall
+                </Button>
+              </span>
+              } {
+                <Button variant='link'
+                  onClick={() => runPkgCommand('getPkgLog', (response) => {
+                    const [scope, capName] = name.split('/');
+                    setPkgLog({[scope]: {[capName]: response}});
+                  })}>
+                  get log
+              </Button>
+            }
+          </div>}
+        </Col>
+      </Row>
+    </Accordion.Body>
+  </Accordion.Item>;
+};
+
+
+
+const explanation = `This will delete all meta data for this device. If the
+  agent is still running, the device will come back but will require a
+  restart of the agent in order to get back all meta data, such as the hostname.`;
+
+/** Component showing the device from the robot-agent perspective */
+const Device = (props) => {
+
+  if (!ensureProps(props, ['jwt', 'id', 'host'])) {
+    return <div>missing props</div>;
+  }
+  const {jwt, id, host} = props;
+  const ssl = props.ssl && JSON.parse(props.ssl);
+  const session = props.session && JSON.parse(props.session);
+
+  const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
+    mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
+  const {device} = decodeJWT(jwt);
+  const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [pkgLog, setPkgLog] = useState();
+
+  const [availablePackages, setAvailablePackages] = useState([]);
+  useEffect(() => {
+      if (host === undefined) return;
+      const cloudHost = `${ssl ? 'https' : 'http'}://data.${host}`;
+      fetch(`${cloudHost}/@transitive-robotics/_robot-agent/availablePackages`)
+        .then(result => result.json())
+        .then(json => setAvailablePackages(_.keyBy(json, 'name')));
+    }, [ssl, host]);
+
+  useEffect(() => {
+      if (mqttSync) {
+        mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
+        mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
+      }}, [mqttSync]);
+
+  const deviceData = data && data[id] && data[id][device] &&
+    data[id][device]['@transitive-robotics']['_robot-agent'];
+
+  if (!ready || !deviceData) return <StatusComponent />;
+
+  const latestVersion = Object.keys(deviceData).sort(versionCompare).at(-1);
+  const latestVersionData = deviceData[latestVersion];
+
+  const inactive = Boolean(heartbeatLevel(latestVersionData.status?.heartbeat));
+
+  // Pubishing under which-ever _robot-agent version we get talked to. A quirk
+  // of how robot-agent works, since its robot-package and cloud code don't (yet)
+  // colocate in code...
+  const versionPrefix = `${prefix}/${latestVersion}`;
+
+  const packages = getMergedPackageInfo(latestVersionData);
+  const canBeInstalledPkgs = _.keyBy(
+    _.filter(availablePackages, pkg => !packages[pkg.name]), 'name');
+
+  const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
+
+  /** add the named package to this robot's desired packages */
+  const install = (pkg) => {
+    log.debug(`installing ${pkg._id}`);
+    mqttSync.data.update(`${desiredPackagesTopic}/${pkg._id}`, '*');
+  };
+
+  /* Run a command on the device, via RPC */
+  const runCommand = (command, args, cb) => {
+    log.debug('running command', command, args);
+    mqttSync.call(`${versionPrefix}/rpc/${command}`, args, cb);
+  };
+
   const restartAgent = () => {
+    // for now, send it both old and new way until all agents upgraded:
+    // old:
     const topic = `${versionPrefix}/commands/restart`;
     log.debug('sending restart command', topic);
     mqttSync.mqtt.publish(topic, '1');
+    // new:
+    runCommand('restart', {}, log.debug);
   };
 
-  const restartPackage = (name) => {
-    log.debug('sending command to restart package', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/restartPackage/${name}`, '1');
-  };
-
-  const startPackage = (name) => {
-    log.debug('sending command to start package', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/startPackage/${name}`, '1');
-  };
-
-  const stopAll = () => {
-    log.debug('sending command to stop all packages');
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/stopAll`, '1');
-  };
-
-  const stopPackage = (name) => {
-    log.debug('sending command to stop package', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/stopPackage/${name}`, '1');
-  };
-
-  const getPackageLog = (name) => {
-    log.debug('getting package log for', name);
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/getPkgLog/${name}`, '1');
-  };
-
-  /** remove the package log (reponse) from the data */
-  const clearPackageLog = () => {
-    mqttSync.data.forMatch(`${prefix}/+/$response/commands/getPkgLog/#`,
-      (obj, path) => {
-        log.debug('clearing', path);
-        mqttSync.data.update(path, null);
-      });
-  };
-
-  const updateConfig = (modifier) => {
-    log.debug('updating config:', modifier);
-    mqttSync.mqtt.publish(`${versionPrefix}/commands/updateConfig`,
-      JSON.stringify(modifier));
-  };
-
-  /** remove the device from the dashboard (until it republishes status, if at
+    /** remove the device from the dashboard (until it republishes status, if at
   all) */
   const clear = () => {
     // TODO: indicate progress/loading while waiting for callback, which depends
@@ -348,10 +414,6 @@ const Device = (props) => {
       location.href = props.fleetURL || '/';
     });
   };
-
-  const explanation = `This will delete all meta data for this device. If the
-    agent is still running, the device will come back but will require a
-    restart of the agent in order to get back all meta data, such as the hostname.`;
 
   // Augment the `info` object with derived variables for testing requirements
   const info = latestVersionData?.info;
@@ -368,11 +430,12 @@ const Device = (props) => {
   const canPay = session.has_payment_method || session.free
     || (session.balance < 0 && new Date(session.balanceExpires) > new Date());
 
+  // latestVersionData?.$response?.commands &&
+  //   _.map(latestVersionData.$response.commands, (response, command) =>
+  //     // using console.log to get colors from escape sequences in output:
+  //     console.log(response));
 
-  latestVersionData?.$response?.commands &&
-    _.map(latestVersionData.$response.commands, (response, command) =>
-      // using console.log to get colors from escape sequences in output:
-      console.log(response));
+  log.debug({latestVersionData, packages});
 
   return <div>
     <div style={styles.row}>
@@ -381,9 +444,14 @@ const Device = (props) => {
           <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
       } <span style={styles.agentVersion} title='Transitive agent version'>
         v{latestVersion}
-      </span>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
+      </span>&nbsp;&nbsp; <ActionLink disabled={inactive}
+        onClick={() => runCommand('ping', {timestamp: Date.now()}, log.debug)}
+      >
+        Ping
+      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
         Restart agent
-      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={stopAll} disabled={inactive}>
+      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={
+          () => runCommand('stopAll', {}, log.debug)} disabled={inactive}>
         Stop all capabilities
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
@@ -393,8 +461,11 @@ const Device = (props) => {
 
     <div style={styles.row}>
       <h5>Configuration</h5>
-      {latestVersionData?.info?.config && <ConfigEditor
-        info={latestVersionData.info} updateConfig={updateConfig}/>}
+      {latestVersionData?.info?.config &&
+        <ConfigEditor info={latestVersionData.info}
+          updateConfig={
+            (modifier) => runCommand('updateConfig', {modifier}, log.debug)
+          }/>}
     </div>
 
     <div style={styles.row}>
@@ -407,87 +478,17 @@ const Device = (props) => {
       <Accordion defaultActiveKey={['0']} alwaysOpen>
         { Object.keys(packages).length > 0 ?
           mapSorted(packages, ({running, desired, status, disabled}, name) =>
-            <Accordion.Item eventKey="0" key={name}>
-              <Accordion.Body>
-                <Row>
-                  <Col sm='4' style={styles.rowItem}>
-                    <div>{getPkgTitle(name, availablePackages)}</div>
-                    <div style={styles.subText}>{name}</div>
-                  </Col>
-                  <Col sm='3' style={styles.rowItem}>
-                    { running && !inactive && <div><Badge bg="success">
-                          running: v{Object.keys(running).join(', ')}
-                        </Badge>
-                        <Button variant='link' href={`/device/${device}/${name}`}>
-                          view
-                        </Button>
-                      </div>
-                    }
-                    { running && inactive && <div><Badge bg="secondary">
-                          installed: v{Object.keys(running).join(', ')}
-                        </Badge></div>
-                    }
-                    { !running && status && <div><Badge bg="info">
-                          {status}</Badge></div>
-                    }
-                    { disabled && <div><Badge bg="danger">
-                          disabled</Badge></div>
-                    }
-                  </Col>
-                  <Col sm='5' style={styles.rowItem}>
-                    {!inactive &&
-                        <div style={{textAlign: 'right'}}>
-                          {
-                            running && <Button variant='link'
-                              onClick={() => restartPackage(name)}>
-                              restart
-                            </Button>
-                          } {
-                            running && <Button variant='link'
-                              onClick={() => stopPackage(name)}>
-                              stop
-                            </Button>
-                          } {
-                            !running && <Button variant='link'
-                              onClick={() => startPackage(name)}>
-                              start
-                            </Button>
-                          } {
-                            !disabled && <span
-                              title={!desired ? 'pre-installed' : null}>
-                              <Button variant='link'
-                                disabled={!desired}
-                                onClick={() => uninstall(name)}>
-                                uninstall
-                              </Button>
-                            </span>
-                          } {
-                            disabled && <span title={!session.has_payment_method
-                              ? 'You need to add a payment method.' : null}>
-                              <Button variant='link'
-                                disabled={!canPay}
-                                onClick={() => reinstall(name)}>
-                                reinstall
-                              </Button>
-                            </span>
-                          } {
-                            <Button variant='link' onClick={() => getPackageLog(name)}>
-                              get log
-                            </Button>
-                          }
-                        </div>
-                    }
-                  </Col>
-                </Row>
-              </Accordion.Body>
-            </Accordion.Item>
+            <Capability key={name} {...{
+                mqttSync, desiredPackagesTopic, versionPrefix, device,
+                running, desired, status, disabled, inactive,
+                name, title: getPkgTitle(name, availablePackages),
+                setPkgLog
+              }} />
           ) :
-
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>
         }
 
-        {/* Fold-out for adding more */}
-
+        {/* Fold-out for adding capabilities */}
         { latestVersionData.status?.ready ? <F>
             <Accordion.Item eventKey="1">
               <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
@@ -516,10 +517,7 @@ const Device = (props) => {
       </Accordion>
     </div>
 
-    {latestVersionData.$response?.commands?.getPkgLog &&
-        <PkgLog response={latestVersionData.$response?.commands?.getPkgLog}
-          onHide={clearPackageLog}/>
-    }
+    {pkgLog && <PkgLog response={pkgLog} hide={() => setPkgLog()}/>}
   </div>
 };
 

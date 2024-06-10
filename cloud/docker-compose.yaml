@@ -138,6 +138,11 @@ services:
       - shared
     logging:
       driver: local
+    deploy:
+      resources:
+        limits:
+          cpus: '0.9'
+          memory: 300M
 
   registry:
     build: ./registry

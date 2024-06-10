@@ -77,6 +77,7 @@ const styles = {
 const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}) => {
   const {session, logout} = useContext(UserContext);
   const [jwtToken, setJwtToken] = useState();
+  const [jwtTimer, setJwtTimer] = useState();
   const {deviceId = '_fleet'} = useParams();
   const ref = useRef(null);
   const [error, setError] = useState();
@@ -89,7 +90,9 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
     session && session.user, deviceId);
 
   useEffect(() => {
-      if (session) {
+      const validity = 3600 * 24;
+
+      const refetch = () => {
         fetchJson('/@transitive-robotics/_robot-agent/getJWT',
           (err, res) => {
             if (err) {
@@ -104,12 +107,22 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
             id: session.user,
             device: deviceId,
             capability,
-            validity: 3600 * 24,
+            validity,
             ...jwtExtras
           }});
+        // auto-renew jwt 5s before it expires
+        const timer = setTimeout(refetch, (validity - 5) * 1000);
+        setJwtTimer(timer);
+      };
+
+      if (session) {
+        refetch();
         // We need to delete jwt at the end, otherwise using this Component with
         // another capability will reuse the existing jwt at first
-        return () => setJwtToken(null);
+        return () => {
+          setJwtToken(null);
+          jwtTimer && clearTimeout(jwtTimer);
+        }
       }
     }, [webComponent, capability, session, deviceId]);
 

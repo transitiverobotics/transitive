@@ -11,6 +11,33 @@
 #include "mqtt_protocol.h"
 #include "uthash.h" // https://troydhanson.github.io/uthash/
 
+#include <string>
+#include <map>
+#include <utility>
+
+#include <iostream>
+#include <sstream>
+#include <vector>
+
+// for MongoDB
+#include <cstdint>
+#include <iostream>
+#include <vector>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/json.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/instance.hpp>
+#include <mongocxx/stdx.hpp>
+#include <mongocxx/uri.hpp>
+using bsoncxx::builder::basic::kvp;
+using bsoncxx::builder::basic::make_array;
+using bsoncxx::builder::basic::make_document;
+// using bsoncxx::builder::stream::document;
+
+// JWT
+#include <jwt-cpp/jwt.h>
+
+
 static mosquitto_plugin_id_t *mosq_pid = NULL;
 
 /** return true if is `pre` a prefix of `str` */
@@ -26,22 +53,119 @@ bool prefix(const char *pre, const char *str) {
     _a > _b ? _a : _b;       \
 })
 
+/** Split the given string using the delimiter, return a vector */
+std::vector<std::string> split(const std::string &s, char delim) {
+  std::vector<std::string> result;
+  std::stringstream ss(s);
+  std::string item;
+
+  while (getline(ss, item, delim)) {
+    result.push_back(item);
+  }
+
+  return result;
+}
+
+
+/* ----------------------------------------------------------------------------
+* Metering
+*/
+
+typedef struct metering_struct {
+  long int hour;
+  long int month;
+} metering;
+
+typedef struct user_struct {
+  std::string jwt_secret; // JWT secret
+  std::map<std::string, metering> cap_usage; // per capability usgae
+} user;
+
+// std::map<std::string, std::map<std::string, user>> users;
+std::map<std::string, user> users;
+
+const long int maxBytes = 100 * 1024 * 1024;
+
+
+/* ----------------------------------------------------------------------------
+* Mongo
+*/
+
+mongocxx::collection accounts;
+/** Connect to MongoDB */
+void init_mongo() {
+  mongocxx::instance instance{}; // This should be done only once.
+  mongocxx::uri uri("mongodb://mongodb:27017");
+  mongocxx::client client(uri);
+  auto db = client["transitive"];
+  accounts = db["accounts"];
+
+  mongocxx::options::find opts{};
+  // specify fields we want
+  opts.projection(make_document(kvp("jwtSecret", 1)));
+
+  auto cursor_all = accounts.find({}, opts);
+
+  for (auto doc : cursor_all) {
+    std::string user = (std::string)doc["_id"].get_string().value;
+    auto jwtSecretField = doc["jwtSecret"];
+    if (jwtSecretField) {
+      std::string jwtSecret = (std::string)jwtSecretField.get_string().value;
+      users[user].jwt_secret = jwtSecret;
+      std::cout << user << " " << jwtSecret << std::endl;
+    }
+  }
+  std::cout << std::endl;
+};
+
+
+mosq_plugin_EXPORT int mosquitto_auth_unpwd_check(void *user_data, struct mosquitto *client, const char *username, const char *password) {
+  std::cout << "unpwd" << " " << password << std::endl;
+}
+
+
+static int basic_auth_callback(int event, void *event_data, void *userdata)
+{
+	struct mosquitto_evt_basic_auth *ed = (mosquitto_evt_basic_auth *)event_data;
+	const char *username = mosquitto_client_username(ed->client);
+  const char *jwt_token = ed->password;
+
+	UNUSED(event);
+	UNUSED(userdata);
+
+  // used for websockets only
+  std::cout << "basic auth " << username << std::endl;
+  auto doc = bsoncxx::from_json(username);
+
+  std::string name = (std::string)doc["id"].get_string().value;
+  user u = users[name];
+
+  auto verifier = jwt::verify()
+      .allow_algorithm(jwt::algorithm::hs256{u.jwt_secret});
+
+  try {
+   	auto decoded = jwt::decode(jwt_token);
+    verifier.verify(decoded);
+    std::cout << "verified id " << name << " " << jwt_token << std::endl;
+  } catch (const jwt::error::invalid_json_exception& e) {
+    std::cout << "WARN: invalid json in JWT!" << std::endl;
+    return MOSQ_ERR_AUTH;
+  } catch (const jwt::error::signature_verification_exception& e) {
+    std::cout << "WARN: signature invalid!" << std::endl;
+    return MOSQ_ERR_AUTH;
+  }
+
+  // return MOSQ_ERR_AUTH;
+  return MOSQ_ERR_SUCCESS;
+}
+
+
+/* ---------------------------------------------------------------------------
+Rate limiting
+*/
+
 #define THRESHOLD 200 // permitted requests per second before rate limiting
 #define BURST_THRESHOLD 2 * THRESHOLD // permitted bursts
-
-// static int basic_auth_callback(int event, void *event_data, void *userdata)
-// {
-// 	struct mosquitto_evt_basic_auth *ed = event_data;
-// 	UNUSED(event);
-// 	UNUSED(userdata);
-
-// 	printf("unused basic auth %s\n", ed->username);
-//   // currently assume we use `use_identity_as_username true` so this function is
-//   // not called
-//   return MOSQ_ERR_AUTH;
-// }
-
-int counter = 0;
 
 struct client_struct {
   char id[80];   /* client username */
@@ -70,7 +194,8 @@ void update_ipset(const char *ip, bool add) {
   printf("%s ipset 'limit' %s\n",
     add ? "adding ip to" : "deleting ip from",
     ip);
-  const char cmd[80];
+
+  char cmd[80];
   sprintf(cmd, "ipset %s limit %s", add ? "add" : "del", ip);
   printf("running %s\n", cmd);
   int status = system(cmd);
@@ -122,10 +247,12 @@ void update_write_counter(const char *client_id, const char *ip) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+
 /** The mosquitto ACL callback */
 static int acl_callback(int event, void *event_data, void *userdata)
 {
-	struct mosquitto_evt_acl_check *ed = event_data;
+	struct mosquitto_evt_acl_check *ed = (mosquitto_evt_acl_check *)event_data;
 	const char *username = mosquitto_client_username(ed->client);
 	const char *id = mosquitto_client_id(ed->client);
 	const char *ip = mosquitto_client_address(ed->client);
@@ -152,12 +279,41 @@ static int acl_callback(int event, void *event_data, void *userdata)
     return MOSQ_ERR_SUCCESS;
   }
 
-
   if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
     // everyone is allowed to subscribe to the broker's heartbeat
 	  output && printf(": public\n");
     return MOSQ_ERR_SUCCESS;
   }
+
+
+  // meter reads and deny if over limit
+  if (ed->access == MOSQ_ACL_READ) {
+    // printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
+
+    std::string topic(ed->topic);
+    if (topic[0] != '$') {
+      std::vector<std::string> parts = split(topic, '/');
+      std::string user = parts[1];
+      std::string capability = parts[4];
+      users[user].cap_usage[capability].hour += ed->payloadlen;
+      users[user].cap_usage[capability].month += ed->payloadlen;
+      std::cout << user << ", " << capability << ": "
+      << users[user].cap_usage[capability].month << std::endl;
+
+      if (users[user].cap_usage[capability].month > maxBytes) {
+        // TODO: check whether user has a payment method, if so, allow
+
+        std::cout << "DENIED " << user << " " << capability << ": "
+        << users[user].cap_usage[capability].month << " " << maxBytes << std::endl;
+        return MOSQ_ERR_ACL_DENIED;
+      }
+    }
+  }
+
+
+  // if (ed->access == MOSQ_ACL_READ) {
+  //   printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
+  // }
 
   char orgId[80], deviceId[80], scope[80], name[80];
   int result = sscanf(ed->topic, "/%79[^/]/%79[^/]/%79[^/]/%79[^/]/",
@@ -230,24 +386,38 @@ int mosquitto_plugin_version(int supported_version_count,
 	return -1;
 }
 
+
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
   struct mosquitto_opt *opts, int opt_count)
 {
 	UNUSED(user_data);
-	UNUSED(opts);
-	UNUSED(opt_count);
+	// UNUSED(opts);
+	// UNUSED(opt_count);
 
   printf("init\n");
   // flush all `ipset`s
   system("ipset flush");
 
+  // example code for getting opts and env vars
+  printf("init message plugin, %d %s\n", opt_count, getenv("TR_BILLING_SERVICE"));
+  for (int i = 0; i < opt_count; i++) {
+    printf("option: %s = %s\n", opts[i].key, opts[i].value);
+  }
+
+  init_mongo();
+
 	mosq_pid = identifier;
-  return mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,
+  int acl_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,
     NULL, NULL);
 
+  int auth_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH,
+    basic_auth_callback, NULL, NULL);
+
+  return acl_result | auth_result;
   // #TODO: register a MOSQ_EVT_DISCONNECT callback to remove clients from
   // hashtable?
 }
+
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts,
   int opt_count)

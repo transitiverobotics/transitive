@@ -1,12 +1,8 @@
 # Slimmed down from offical mosquitto Dockerfile: just for building plugin
-FROM alpine:3.16 as mosq-builder
+# FROM alpine:3.16 as mosq-builder
+FROM eclipse-mosquitto:2.0.18
 
-LABEL maintainer="Roger Light <roger@atchoo.org>" \
-    description="Eclipse Mosquitto MQTT Broker"
-
-ENV VERSION=2.0.15 \
-    DOWNLOAD_SHA256=4735b1d32e3f91c7a8896741d88a3022e89730a1ee897946decfa0df27039ac6 \
-    GPG_KEYS=A0D6EEA1DCAE49A635A3B2F0779B22DFB3E717B7
+ENV VERSION=2.0.18
 
 RUN set -x && \
     apk --no-cache add --virtual build-deps \
@@ -16,33 +12,52 @@ RUN set -x && \
         gnupg \
         libressl-dev \
         linux-headers \
-        util-linux-dev
+        util-linux-dev \
+        curl git g++ python3 \
+        musl-dev iptables ipset ipset-dev libcap2
 
 RUN wget https://mosquitto.org/files/source/mosquitto-${VERSION}.tar.gz -O /tmp/mosq.tar.gz && \
-    echo "$DOWNLOAD_SHA256  /tmp/mosq.tar.gz" | sha256sum -c - && \
-    wget https://mosquitto.org/files/source/mosquitto-${VERSION}.tar.gz.asc -O /tmp/mosq.tar.gz.asc && \
-    export GNUPGHOME="$(mktemp -d)" && \
-    found=''; \
-    for server in \
-        hkps://keys.openpgp.org \
-        hkp://keyserver.ubuntu.com:80 \
-        pgp.mit.edu \
-    ; do \
-        echo "Fetching GPG key $GPG_KEYS from $server"; \
-        gpg --keyserver "$server" --keyserver-options timeout=10 --recv-keys "$GPG_KEYS" && found=yes && break; \
-    done; \
-    test -z "$found" && echo >&2 "error: failed to fetch GPG key $GPG_KEYS" && exit 1; \
-    gpg --batch --verify /tmp/mosq.tar.gz.asc /tmp/mosq.tar.gz && \
-    gpgconf --kill all && \
-    rm -rf "$GNUPGHOME" /tmp/mosq.tar.gz.asc && \
     mkdir -p /build/mosq && \
     tar --strip=1 -xf /tmp/mosq.tar.gz -C /build/mosq && \
     rm /tmp/mosq.tar.gz
 
+# Build Mongo driver
+WORKDIR /tmp
+RUN curl -OL https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.1/mongo-cxx-driver-r3.10.1.tar.gz && \
+    tar -xzf mongo-cxx-driver-r3.10.1.tar.gz
+RUN cd mongo-cxx-driver-r3.10.1/build && \
+    cmake ..                            \
+    -DCMAKE_BUILD_TYPE=Release          \
+    -DMONGOCXX_OVERRIDE_DEFAULT_INSTALL_PREFIX=OFF && \
+    cmake --build . && \
+    cmake --build . --target install
+
+# TODO: move to top when done
+RUN apk --no-cache add --virtual bash
+
+# Get JWT library, headers only
+ADD https://github.com/Thalhammer/jwt-cpp/archive/refs/tags/v0.7.0.tar.gz jwt-cpp.tgz
+RUN tar xzf jwt-cpp.tgz jwt-cpp-0.7.0/include/
+
+# -----------------------------------------------------------------------------
 # Build the plugin
 WORKDIR /build/mosq/plugins/auth-transitive
 COPY auth-transitive .
-RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c -o mosquitto_auth_transitive.so -fmax-errors=1
+# RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c \
+#   -o /mosquitto/mosquitto_auth_transitive.so -fmax-errors=1
+RUN g++ -std=c++2a -Wfatal-errors \
+  -I../../include -I../.. -I/tmp/jwt-cpp-0.7.0/include/ \
+  -fPIC -shared \
+  mosquitto_auth_transitive.cpp -o /mosquitto/mosquitto_auth_transitive.so \
+  -fmax-errors=1 $(pkg-config --cflags --libs libmongocxx)
+
+# We need two copies for the two listeners
+# RUN cp /mosquitto/mosquitto_auth_transitive.so /mosquitto/mosquitto_auth_transitive2.so
+
+# RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_meter.c -o mosquitto_meter.so -fmax-errors=1
+# RUN g++ -std=c++2a -Wfatal-errors -I../../include -I../.. -fPIC -shared \
+#   mosquitto_meter.c -o /mosquitto/mosquitto_meter.so -fmax-errors=1 \
+#   $(pkg-config --cflags --libs libmongocxx)
 
 # for mosquitto_user_data_set:
 # WORKDIR /build/mosq
@@ -53,18 +68,16 @@ RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c -o mos
 
 # ----------------------------------------------------------------------------
 
-FROM iegomez/mosquitto-go-auth:latest-mosquitto_2.0.15
 
-
-RUN apt-get update --allow-releaseinfo-change && apt install -y musl-dev iptables ipset libipset-dev libcap2-bin
-RUN ln -s /usr/lib/x86_64-linux-musl/libc.so /lib/libc.musl-x86_64.so.1
+# FROM iegomez/mosquitto-go-auth:latest-mosquitto_2.0.15
+# RUN apt-get update --allow-releaseinfo-change && apt install -y musl-dev iptables ipset libipset-dev libcap2-bin
+# RUN ln -s /usr/lib/x86_64-linux-musl/libc.so /lib/libc.musl-x86_64.so.1
 
 # copy our custom auth plugin from builder
-COPY --from=mosq-builder /build/mosq/plugins/auth-transitive/mosquitto_auth_transitive.so /mosquitto/mosquitto_auth_transitive.so
+# COPY --from=mosq-builder /build/mosq/plugins/auth-transitive/mosquitto_auth_transitive.so /mosquitto/mosquitto_auth_transitive.so
+# COPY --from=mosq-builder /build/mosq/plugins/auth-transitive/mosquitto_meter.so /mosquitto/mosquitto_meter.so
 
 COPY mosquitto.conf /mosquitto/mosquitto.conf
-# COPY auth /mosquitto/auth/
-# RUN cp /mosquitto/go-auth.so /mosquitto/go-auth2.so
 
 # for compatibility with dev setup
 RUN ln -s /mosquitto /etc/mosquitto
@@ -75,7 +88,6 @@ EXPOSE 9001/tcp
 
 # grant mosquitto the ability to use ipset (doesn't work; running as root instead)
 # RUN setcap 'cap_net_raw=+ep cap_net_admin=+ep' /usr/sbin/mosquitto
-
 COPY entrypoint.sh /
 WORKDIR /
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT sh /entrypoint.sh

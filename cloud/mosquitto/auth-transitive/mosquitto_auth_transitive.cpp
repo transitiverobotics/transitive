@@ -33,6 +33,7 @@ using bsoncxx::builder::basic::kvp;
 using bsoncxx::builder::basic::make_array;
 using bsoncxx::builder::basic::make_document;
 // using bsoncxx::builder::stream::document;
+using bsoncxx::v_noabi::document::element;
 
 // JWT
 #include <jwt-cpp/jwt.h>
@@ -54,12 +55,13 @@ bool prefix(const char *pre, const char *str) {
 })
 
 /** Split the given string using the delimiter, return a vector */
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> split(const std::string &s, char delim, int max = 100) {
   std::vector<std::string> result;
   std::stringstream ss(s);
   std::string item;
+  int i = 0;
 
-  while (getline(ss, item, delim)) {
+  while (i++ < max && getline(ss, item, delim)) {
     result.push_back(item);
   }
 
@@ -117,11 +119,6 @@ void init_mongo() {
   }
   std::cout << std::endl;
 };
-
-
-mosq_plugin_EXPORT int mosquitto_auth_unpwd_check(void *user_data, struct mosquitto *client, const char *username, const char *password) {
-  std::cout << "unpwd" << " " << password << std::endl;
-}
 
 
 static int basic_auth_callback(int event, void *event_data, void *userdata)
@@ -249,15 +246,119 @@ void update_write_counter(const char *client_id, const char *ip) {
 
 /* -------------------------------------------------------------------------- */
 
+
+inline bool operator==(const element& a, const char* b) {
+  return a.get_string().value.data() == b;
+}
+
+inline bool operator==(const element& a, std::string& b) {
+  return a.get_string().value.data() == b;
+}
+
+inline bool operator==(const element& a, const element& b) {
+  return a.get_string().value == b.get_string().value;
+}
+
+#define AGENT_CAP "@transitive-robotics/_robot-agent"
+
+/** Given a user's json, payload from JWT verified during basic_auth, and a
+topic, decide whether the user should be granted access to the given topic.
+*/
+static int isAuthorized(std::vector<std::string> topicParts, std::string username,
+  bool readAccess = false) {
+
+  // printf("isAuthorized?: %s %s %d\n", topic, permitted, readAccess);
+  // std::cout << "isAuthorized?" << topicParts << " " << username << " " << readAccess
+  // << std::endl;
+
+  auto doc = bsoncxx::from_json(username);
+  auto permitted = doc["payload"];
+
+  for (auto p : topicParts) std::cout << p << '/';
+  std::cout << "  authorized?" << " " << username << " " << readAccess;
+
+  // requested
+  auto org = topicParts[1];
+  auto device = topicParts[2];
+  auto capability = topicParts[3] + '/' + topicParts[4];
+  // std::cout << "requested: " << org << " " << device << " " << capability << std::endl;
+  // std::cout << "permitted: " << permitted["id"].get_string().value
+  // << " " << permitted["device"].get_string().value
+  // << " " << permitted["capability"].get_string().value << std::endl;
+
+  bool deviceMatch = (permitted["device"] == device);
+  bool capMatch = (permitted["capability"] == capability);
+  bool agentPermission = (permitted["capability"] == AGENT_CAP);
+  bool agentRequested = (capability == AGENT_CAP);
+  bool fleetPermission = (permitted["device"] == "_fleet");
+
+  std::time_t currentTime = std::time(nullptr);
+
+  if (
+    // isEqual(doc["id"], permitted["id"])
+    doc["id"] == permitted["id"] && doc["id"] == org &&
+    // JWT still valid
+    permitted["validity"] && permitted["iat"] &&
+    (permitted["iat"].get_int32().value +
+      permitted["validity"].get_int32().value) > currentTime
+    &&
+    (
+      ( deviceMatch && (
+          (
+            ( capMatch || agentPermission )
+            // _robot-agent permissions grant full device access
+            // #TODO:
+            // &&
+            // (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
+            // if payload.topics exists it is a limitation of topics to allow
+          ) ||
+          // all valid JWTs for a device also grant read access to _robot-agent
+          ( readAccess && agentRequested )
+        )
+      )
+
+      || // _fleet permissions give read access also to all devices' robot-agents
+      ( fleetPermission && readAccess && agentRequested && !permitted["topics"])
+
+      || // _fleet permissions give access to all devices' data for the
+      // cap (in the permitted org only of course); _robot-agent permissions
+      // grant access to all devices in the fleet
+      ( fleetPermission && (capMatch || agentPermission) && !permitted["topics"] )
+    )) {
+    std::cout << ": yes!" << std::endl;
+    return MOSQ_ERR_SUCCESS;
+  } else {
+    std::cout << ": no!" << std::endl;
+    return MOSQ_ERR_ACL_DENIED;
+  }
+}
+
+
 /** The mosquitto ACL callback */
-static int acl_callback(int event, void *event_data, void *userdata)
-{
+static int acl_callback(int event, void *event_data, void *userdata) {
+
 	struct mosquitto_evt_acl_check *ed = (mosquitto_evt_acl_check *)event_data;
 	const char *username = mosquitto_client_username(ed->client);
 	const char *id = mosquitto_client_id(ed->client);
 	const char *ip = mosquitto_client_address(ed->client);
 
+ 	UNUSED(event);
+	UNUSED(userdata);
   bool output = false;
+
+  std::vector<std::string> topicParts = split(ed->topic, '/');
+
+  if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
+    // everyone is allowed to subscribe to the broker's heartbeat
+	  output && printf(": public\n");
+    return MOSQ_ERR_SUCCESS;
+  }
+
+  if (prefix("{", username)) {
+    // The username is a JSON string, from a websocket client
+    return isAuthorized(topicParts, username, ed->access == MOSQ_ACL_READ);
+  }
+
   if (ed->access == MOSQ_ACL_WRITE) {
     reduce_write_counters();
     update_write_counter(username, ip);
@@ -270,18 +371,10 @@ static int acl_callback(int event, void *event_data, void *userdata)
   }
   // not printing READ requests, because they are too verbose
 
- 	UNUSED(event);
-	UNUSED(userdata);
 
   // is it a superuser?
   if (prefix("transitiverobotics:", username)) {
 	  output && printf(": superuser\n");
-    return MOSQ_ERR_SUCCESS;
-  }
-
-  if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
-    // everyone is allowed to subscribe to the broker's heartbeat
-	  output && printf(": public\n");
     return MOSQ_ERR_SUCCESS;
   }
 
@@ -290,11 +383,9 @@ static int acl_callback(int event, void *event_data, void *userdata)
   if (ed->access == MOSQ_ACL_READ) {
     // printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
 
-    std::string topic(ed->topic);
-    if (topic[0] != '$') {
-      std::vector<std::string> parts = split(topic, '/');
-      std::string user = parts[1];
-      std::string capability = parts[4];
+    if (topicParts[0][0] != '$') {
+      std::string user = topicParts[1];
+      std::string capability = topicParts[4];
       users[user].cap_usage[capability].hour += ed->payloadlen;
       users[user].cap_usage[capability].month += ed->payloadlen;
       std::cout << user << ", " << capability << ": "
@@ -374,9 +465,9 @@ static int acl_callback(int event, void *event_data, void *userdata)
 
 
 int mosquitto_plugin_version(int supported_version_count,
-  const int *supported_versions)
-{
-	int i;
+  const int *supported_versions) {
+
+ 	int i;
   printf("version?\n");
 	for (i = 0; i<supported_version_count; i++) {
 		if (supported_versions[i] == 5) {
@@ -388,8 +479,8 @@ int mosquitto_plugin_version(int supported_version_count,
 
 
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
-  struct mosquitto_opt *opts, int opt_count)
-{
+  struct mosquitto_opt *opts, int opt_count) {
+
 	UNUSED(user_data);
 	// UNUSED(opts);
 	// UNUSED(opt_count);
@@ -420,8 +511,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
 
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts,
-  int opt_count)
-{
+  int opt_count) {
+
 	UNUSED(user_data);
 	UNUSED(opts);
 	UNUSED(opt_count);

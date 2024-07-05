@@ -10,6 +10,7 @@
 
 // #include <sstream>
 #include <vector>
+#include <numeric> // std::accumulate
 
 // for MongoDB
 #include <cstdint>
@@ -54,6 +55,18 @@ int operator+(const element& a, const element& b) {
 
 /* -------------------------------------------------------------------------- */
 
+/** Whether or not the given string is contained in the array. */
+bool arrayIncludes(const element& array, const std::string& s) {
+  bsoncxx::array::view view{array.get_array().value};
+
+  for (bsoncxx::array::element item : view){
+    std::cout << item.get_string().value << std::endl;
+    if (item.get_string().value.data() == s) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** Given a user's json, payload from JWT verified during basic_auth, and a
 topic, decide whether the user should be granted access to the given topic.
@@ -69,6 +82,23 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   auto org = topicParts[1];
   auto device = topicParts[2];
   auto capability = topicParts[3] + '/' + topicParts[4];
+
+  /// join the topicParts of the sub-topic
+  std::string sub = std::accumulate(
+    std::next(topicParts.begin() + 6),
+    topicParts.end(),
+    topicParts[6],
+    [](std::string a, std::string b) {
+      return a + "/" + b;
+    }
+  );
+  // std::cout << "sub: " << sub << std::endl;
+
+  // std::stringstream sub;
+  // s << R"({ "id": "user1", "payload": {
+  // "id": "user1", "device": "dev1", "capability": "@scope/capName",
+  // "validity": 10, "iat":)" << currentTime - 20 << "}}";
+
 
   bool deviceMatch = (permitted["device"] == device);
   bool capMatch = (permitted["capability"] == capability);
@@ -96,10 +126,10 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
           (
             ( capMatch || agentPermission )
             // _robot-agent permissions grant full device access
-            // #TODO:
-            // &&
+            &&
             // if payload.topics exists it is a limitation of topics to allow:
-            // (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
+            (noTopicConstraints || arrayIncludes(permitted["topics"], sub))
+            // TODO: allow wildcards in permitted.topics ?
           ) ||
           // all valid JWTs for a device also grant read access to _robot-agent
           ( readAccess && agentRequested )

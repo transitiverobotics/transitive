@@ -32,6 +32,9 @@ TEST_CASE("isAuthorized") {
   std::vector<std::string> topicAgent =
     split("/user1/dev1/@transitive-robotics/_robot-agent/0.1.2/myfield", '/');
 
+  std::vector<std::string> topicSubs =
+    split("/user1/dev1/@scope/capName/0.1.2/myfield/sub1/sub2", '/');
+
   std::stringstream simpleDevPermission;
   simpleDevPermission << R"({ "id": "user1", "payload": {
   "id": "user1", "device": "dev1", "capability": "@scope/capName",
@@ -107,7 +110,62 @@ TEST_CASE("isAuthorized") {
     CHECK( !isAuthorized(topic1, s.str(), 0) );
   }
 
-  // TODO: permitted topics
+
+  SUBCASE("permitted-topics") {
+    SUBCASE("permitted, simple") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield", "myfield2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( isAuthorized(topic1, s.str(), 0) );
+    }
+    SUBCASE("not permitted, simple") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield3"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( !isAuthorized(topic1, s.str(), 0) );
+    }
+
+    SUBCASE("permitted, complex") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield/sub1/sub2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( isAuthorized(topicSubs, s.str(), 0) );
+    }
+
+    SUBCASE("complex, wrong topic, level1") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield3/sub1/sub2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( !isAuthorized(topicSubs, s.str(), 0) );
+    }
+
+    SUBCASE("complex, wrong topic, level2") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield/wrongsub1/sub2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( !isAuthorized(topicSubs, s.str(), 0) );
+    }
+
+    SUBCASE("complex, wrong topic, level3") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield/sub1/wrongsub2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( !isAuthorized(topicSubs, s.str(), 0) );
+    }
+  }
+
   SUBCASE("robot-agent") {
     SUBCASE("any device token gives read-access only") {
       SUBCASE("") {

@@ -27,6 +27,37 @@ x-cloud: &shared_cloud
         cpus: '0.9'
         memory: 800M
 
+x-mosquitto: &shared_mosquitto
+  container_name: cloud-mosquitto
+  build: ./mosquitto
+  image: transitiverobotics/mosquitto:latest
+  restart: always
+  depends_on:
+    ensure_certs:
+      condition: service_completed_successfully
+  env_file:
+    - .env
+  volumes:
+    - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
+    - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
+  ports:
+    - 8883:8883
+    - 9001:9001
+  networks:
+    - default
+    - caps
+  cap_add:
+    - NET_ADMIN
+    - NET_RAW
+  logging:
+    driver: local
+  deploy:
+    resources:
+      limits:
+        cpus: '0.9'
+        memory: 250M
+
+
 networks:
   caps:
     attachable: true
@@ -59,34 +90,20 @@ services:
     logging:
       driver: local
 
-  mosquitto:
-    build: ./mosquitto
-    image: transitiverobotics/mosquitto:latest
-    restart: always
-    depends_on:
-      ensure_certs:
-        condition: service_completed_successfully
-    env_file:
-      - .env
+  mosquitto_prod:
+    <<: *shared_mosquitto
+    profiles:
+      - prod
+
+
+  mosquitto_dev:
+    <<: *shared_mosquitto
+    profiles:
+      - dev
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
       - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
-    ports:
-      - 8883:8883
-      - 9001:9001
-    networks:
-      - default
-      - caps
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    logging:
-      driver: local
-    deploy:
-      resources:
-        limits:
-          cpus: '0.9'
-          memory: 250M
+      - ./mosquitto/auth-transitive:/build/mosq/plugins/auth-transitive
 
   cloud_prod:
     <<: *shared_cloud

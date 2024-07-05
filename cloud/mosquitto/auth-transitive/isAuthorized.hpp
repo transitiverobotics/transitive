@@ -85,7 +85,6 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   std::time_t currentTime = std::time(nullptr);
 
   if (
-    // isEqual(doc["id"], permitted["id"])
     doc["id"] == permitted["id"] && doc["id"] == org &&
     // JWT still valid
     permitted["validity"] && permitted["iat"] &&
@@ -99,8 +98,8 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
             // _robot-agent permissions grant full device access
             // #TODO:
             // &&
+            // if payload.topics exists it is a limitation of topics to allow:
             // (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
-            // if payload.topics exists it is a limitation of topics to allow
           ) ||
           // all valid JWTs for a device also grant read access to _robot-agent
           ( readAccess && agentRequested )

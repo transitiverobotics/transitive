@@ -85,7 +85,6 @@ typedef struct user_struct {
   std::map<std::string, metering> cap_usage; // per capability usgae
 } user;
 
-// std::map<std::string, std::map<std::string, user>> users;
 std::map<std::string, user> users;
 
 const long int maxBytes = 100 * 1024 * 1024;
@@ -95,19 +94,18 @@ const long int maxBytes = 100 * 1024 * 1024;
 * Mongo
 */
 
-mongocxx::collection accounts;
-/** Connect to MongoDB */
-void init_mongo() {
-  mongocxx::instance instance{}; // This should be done only once.
-  mongocxx::uri uri("mongodb://mongodb:27017");
-  mongocxx::client client(uri);
-  auto db = client["transitive"];
-  accounts = db["accounts"];
+void refetchUsers() {
+  std::cout << "refetchUsers" << std::endl << std::flush;
+
+  static mongocxx::instance instance{}; // This should be done only once.
+  static mongocxx::uri uri("mongodb://mongodb:27017");
+  static mongocxx::client client(uri);
+  static auto db = client["transitive"];
+  static auto accounts = db["accounts"];
 
   mongocxx::options::find opts{};
   // specify fields we want
   opts.projection(make_document(kvp("jwtSecret", 1)));
-
   auto cursor_all = accounts.find({}, opts);
 
   for (auto doc : cursor_all) {
@@ -120,11 +118,11 @@ void init_mongo() {
     }
   }
   std::cout << std::endl;
-};
+}
 
 
-static int basic_auth_callback(int event, void *event_data, void *userdata)
-{
+static int basic_auth_callback(int event, void *event_data, void *userdata) {
+
 	struct mosquitto_evt_basic_auth *ed = (mosquitto_evt_basic_auth *)event_data;
 	const char *username = mosquitto_client_username(ed->client);
   const char *jwt_token = ed->password;
@@ -138,6 +136,10 @@ static int basic_auth_callback(int event, void *event_data, void *userdata)
 
   std::string name = (std::string)doc["id"].get_string().value;
   user u = users[name];
+  if (u.jwt_secret.empty()) {
+    refetchUsers();
+    u = users[name];
+  }
 
   auto verifier = jwt::verify()
       .allow_algorithm(jwt::algorithm::hs256{u.jwt_secret});
@@ -247,95 +249,6 @@ void update_write_counter(const char *client_id, const char *ip) {
 }
 
 /* -------------------------------------------------------------------------- */
-
-
-// inline bool operator==(const element& a, const char* b) {
-//   return a.get_string().value.data() == b;
-// }
-
-// inline bool operator==(const element& a, std::string& b) {
-//   return a.get_string().value.data() == b;
-// }
-
-// inline bool operator==(const element& a, const element& b) {
-//   return a.get_string().value == b.get_string().value;
-// }
-
-// // double operator+(const element& a, const element& b) {
-// //   return a.get_double().value + b.get_double().value;
-// // }
-// int operator+(const element& a, const element& b) {
-//   return a.get_int32().value + b.get_int32().value;
-// }
-
-// #define AGENT_CAP "@transitive-robotics/_robot-agent"
-
-// /** Given a user's json, payload from JWT verified during basic_auth, and a
-// topic, decide whether the user should be granted access to the given topic.
-// */
-// static int isAuthorized(std::vector<std::string> topicParts, std::string username,
-//   bool readAccess = false) {
-
-//   auto doc = bsoncxx::from_json(username);
-//   auto permitted = doc["payload"];
-
-//   for (auto p : topicParts) std::cout << p << '/';
-//   std::cout << "  authorized?" << " " << username << " " << readAccess;
-
-//   // requested
-//   auto org = topicParts[1];
-//   auto device = topicParts[2];
-//   auto capability = topicParts[3] + '/' + topicParts[4];
-
-//   bool deviceMatch = (permitted["device"] == device);
-//   bool capMatch = (permitted["capability"] == capability);
-//   bool agentPermission = (permitted["capability"] == AGENT_CAP);
-//   bool agentRequested = (capability == AGENT_CAP);
-//   bool fleetPermission = (permitted["device"] == "_fleet");
-
-//   std::time_t currentTime = std::time(nullptr);
-
-//   if (
-//     // isEqual(doc["id"], permitted["id"])
-//     doc["id"] == permitted["id"] && doc["id"] == org &&
-//     // JWT still valid
-//     permitted["validity"] && permitted["iat"] &&
-//     // (permitted["iat"].get_int32().value +
-//     //   permitted["validity"].get_int32().value) > currentTime
-//     (permitted["iat"] + permitted["validity"]) > currentTime &&
-//     (
-//       ( deviceMatch && (
-//           (
-//             ( capMatch || agentPermission )
-//             // _robot-agent permissions grant full device access
-//             // #TODO:
-//             // &&
-//             // (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
-//             // if payload.topics exists it is a limitation of topics to allow
-//           ) ||
-//           // all valid JWTs for a device also grant read access to _robot-agent
-//           ( readAccess && agentRequested )
-//         )
-//       )
-
-//       || // _fleet permissions give read access also to all devices' robot-agents
-//       ( fleetPermission && readAccess && agentRequested && !permitted["topics"])
-
-//       || // _fleet permissions give access to all devices' data for the
-//       // cap (in the permitted org only of course); _robot-agent permissions
-//       // grant access to all devices in the fleet
-//       ( fleetPermission && (capMatch || agentPermission) && !permitted["topics"] )
-//     )) {
-
-//     std::cout << ": yes!" << std::endl;
-//     return MOSQ_ERR_SUCCESS;
-
-//   } else {
-//     std::cout << ": no!" << std::endl;
-//     return MOSQ_ERR_ACL_DENIED;
-//   }
-// }
-
 
 /** The mosquitto ACL callback */
 static int acl_callback(int event, void *event_data, void *userdata) {
@@ -499,7 +412,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
     printf("option: %s = %s\n", opts[i].key, opts[i].value);
   }
 
-  init_mongo();
+  refetchUsers();
 
 	mosq_pid = identifier;
   int acl_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, acl_callback,

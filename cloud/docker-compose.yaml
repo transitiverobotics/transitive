@@ -28,7 +28,7 @@ x-cloud: &shared_cloud
         memory: 800M
 
 x-mosquitto: &shared_mosquitto
-  container_name: cloud-mosquitto
+  container_name: mosquitto
   build: ./mosquitto
   image: transitiverobotics/mosquitto:latest
   restart: always

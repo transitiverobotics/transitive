@@ -118,45 +118,6 @@ void refetchUsers() {
 }
 
 
-/** Compare a picojson::value to a bsonxx::element.
-  WIP! So far only comparing strings and int32, which is all we need for now.
-*/
-inline bool operator==(const picojson::object& a, const element& b) {
-
-  for (auto& e : a) {
-    // std::cout << "checking " << e.first << ": " << e.second << std::endl;
-    auto el = b[e.first];
-
-    if (el.type() == bsoncxx::type::k_string) {
-
-      // std::cout << "Checking " << e.first << ": " << e.second.get<std::string>()
-      // << " =? " << el.get_string().value << std::endl;
-
-      if (e.second.get<std::string>() != el.get_string().value.data()) {
-
-        std::cout << "WARN: username payload and JWT don't match on "
-        << e.first << ": " << e.second << " != " << el.get_string().value
-        << std::endl;
-        return false;
-      }
-    } else if (el.type() == bsoncxx::type::k_int32) {
-
-      // std::cout << "Checking " << e.first << ": " << e.second.get<double>()
-      // << " =? " << el.get_int32().value << std::endl;
-
-      if (e.second.get<double>() != el.get_int32().value) {
-        std::cout << "WARN: username payload and JWT don't match on "
-        << e.first << ": " << e.second << " != " << el.get_int32().value
-        << std::endl;
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-
 /** Authenticate websocket users, verifying and matching the jwt token they
 provide as password against their username. */
 static int basic_auth_callback(int event, void *event_data, void *userdata) {
@@ -167,18 +128,28 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
 
 	UNUSED(event);
 	UNUSED(userdata);
+  std::cout << "basic auth check: " << username << std::endl;
 
-  // used for websockets only
-  std::cout << "basic auth " << username << std::endl;
-  auto doc = bsoncxx::from_json(username);
+  // parse username (json)
+  picojson::value doc;
+  std::string err = picojson::parse(doc, username);
+  if (! err.empty()) {
+    std::cerr << "Can't parse username as JSON:" << err << std::endl;
+    return MOSQ_ERR_AUTH;
+  }
+  picojson::object docObj = doc.get<picojson::object>();
 
-  // TODO: use picojson here instead (same as in JWT)!!
-
-  std::string name = (std::string)doc["id"].get_string().value;
+  // make sure we have the JWT for this user
+  std::string name = docObj["id"].get<std::string>();
   user u = users[name];
   if (u.jwt_secret.empty()) {
     refetchUsers();
     u = users[name];
+  }
+
+  if (u.jwt_secret.empty()) {
+    std::cout << "User has no JWT secret: " << name << std::endl;
+    return MOSQ_ERR_AUTH;
   }
 
   auto verifier = jwt::verify()
@@ -189,7 +160,8 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     verifier.verify(decoded);
 
     // Check that decoded.payload == username.payload
-    if (decoded.get_payload_json() != doc["payload"]) {
+    if (!docObj["payload"].is<picojson::object>() ||
+      decoded.get_payload_json() != docObj["payload"].get<picojson::object>()) {
       std::cout << "WARN: username payload and JWT payload don't match!"
       << std::endl;
       return MOSQ_ERR_AUTH;

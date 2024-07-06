@@ -107,8 +107,8 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   bool fleetPermission = (permitted["device"] == "_fleet");
   bool noTopicConstraints = !permitted["topics"];
 
-  // for (auto p : topicParts) std::cout << p << '/';
-  // std::cout << "  authorized?" << " " << username << " " << readAccess << std::endl;
+  for (auto p : topicParts) std::cout << p << '/';
+  std::cout << "  authorized?" << " " << username << " " << readAccess << std::endl;
   // std::cout << deviceMatch << capMatch << agentPermission << agentRequested
   // << fleetPermission << noTopicConstraints << std::endl;
 

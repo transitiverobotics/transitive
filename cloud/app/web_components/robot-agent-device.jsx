@@ -233,7 +233,8 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog } = props;
+    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
+    canPay } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -306,8 +307,8 @@ const Capability = (props) => {
                 </Button>
               </span>
             } {
-              disabled && <span title={!session.has_payment_method
-                ? 'You need to add a payment method.' : null}>
+              disabled && <span
+                title={!canPay ? 'You need to add a payment method.' : null}>
                 <Button variant='link'
                   disabled={!canPay}
                   onClick={() => reinstall(name)}>
@@ -511,7 +512,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                setPkgLog
+                setPkgLog, canPay
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

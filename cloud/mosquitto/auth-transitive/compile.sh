@@ -1,0 +1,1 @@
+g++ -std=c++2a -Wfatal-errors -fPIC -shared -fmax-errors=1   -I../../include -I../.. -I/tmp/jwt-cpp-0.7.0/include/   mosquitto_auth_transitive.cpp -o /mosquitto/mosquitto_auth_transitive.so   $(pkg-config --cflags --libs libmongocxx)

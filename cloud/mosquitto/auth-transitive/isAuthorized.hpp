@@ -46,9 +46,6 @@ inline bool operator==(const element& a, const element& b) {
   return a.get_string().value == b.get_string().value;
 }
 
-// double operator+(const element& a, const element& b) {
-//   return a.get_double().value + b.get_double().value;
-// }
 int operator+(const element& a, const element& b) {
   return a.get_int32().value + b.get_int32().value;
 }
@@ -85,20 +82,10 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
 
   /// join the topicParts of the sub-topic
   std::string sub = std::accumulate(
-    std::next(topicParts.begin() + 6),
-    topicParts.end(),
-    topicParts[6],
-    [](std::string a, std::string b) {
-      return a + "/" + b;
-    }
+    std::next(topicParts.begin() + 6), topicParts.end(), topicParts[6],
+    [](std::string a, std::string b) { return a + "/" + b; }
   );
   // std::cout << "sub: " << sub << std::endl;
-
-  // std::stringstream sub;
-  // s << R"({ "id": "user1", "payload": {
-  // "id": "user1", "device": "dev1", "capability": "@scope/capName",
-  // "validity": 10, "iat":)" << currentTime - 20 << "}}";
-
 
   bool deviceMatch = (permitted["device"] == device);
   bool capMatch = (permitted["capability"] == capability);
@@ -107,8 +94,8 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   bool fleetPermission = (permitted["device"] == "_fleet");
   bool noTopicConstraints = !permitted["topics"];
 
-  for (auto p : topicParts) std::cout << p << '/';
-  std::cout << "  authorized?" << " " << username << " " << readAccess << std::endl;
+  // for (auto p : topicParts) std::cout << p << '/';
+  // std::cout << "  authorized?" << " " << username << " " << readAccess << std::endl;
   // std::cout << deviceMatch << capMatch << agentPermission << agentRequested
   // << fleetPermission << noTopicConstraints << std::endl;
 
@@ -118,8 +105,6 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
     doc["id"] == permitted["id"] && doc["id"] == org &&
     // JWT still valid
     permitted["validity"] && permitted["iat"] &&
-    // (permitted["iat"].get_int32().value +
-    //   permitted["validity"].get_int32().value) > currentTime
     (permitted["iat"] + permitted["validity"]) > currentTime &&
     (
       ( deviceMatch && (

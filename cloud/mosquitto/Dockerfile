@@ -33,13 +33,13 @@ RUN cd mongo-cxx-driver-r3.10.1/build && \
     cmake --build . --target install
 
 # TODO: move to top when done
-RUN apk --no-cache add --virtual bash
+RUN apk --no-cache add bash>5
 
 # Get JWT library, headers only
 ADD https://github.com/Thalhammer/jwt-cpp/archive/refs/tags/v0.7.0.tar.gz jwt-cpp.tgz
 RUN tar xzf jwt-cpp.tgz jwt-cpp-0.7.0/include/
 
-
+# Install doctest, for testing the auth plugin
 ADD https://github.com/doctest/doctest/releases/download/v2.4.11/doctest.h \
     /tmp/doctest/doctest.h
 

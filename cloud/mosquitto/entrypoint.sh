@@ -9,4 +9,8 @@ iptables -A INPUT -p tcp --dport 8883 -j DROP
 
 
 # start mosquitto
-/usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
+while (true); do
+  /usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
+  echo "Mosquitto stopped with exit code $?, restarting in 2s"
+  sleep 2;
+done;

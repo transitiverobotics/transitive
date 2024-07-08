@@ -19,6 +19,13 @@
 #include <sstream>
 #include <vector>
 
+#include <chrono> // for cron jobs
+#include <ctime>
+
+
+using std::cout;
+using std::endl;
+
 // for MongoDB
 #include <cstdint>
 #include <iostream>
@@ -63,7 +70,7 @@ std::vector<std::string> split(const std::string &s, char delim, int max = 100) 
   std::string item;
   int i = 0;
 
-  while (i++ < max && getline(ss, item, delim)) {
+while (i++ < max && getline(ss, item, delim)) {
     result.push_back(item);
   }
 
@@ -71,50 +78,108 @@ std::vector<std::string> split(const std::string &s, char delim, int max = 100) 
 }
 
 
-
-typedef struct metering_struct {
-  long int hour;
-  long int month;
-} metering;
-
 typedef struct user_struct {
   std::string jwt_secret; // JWT secret
-  std::map<std::string, metering> cap_usage; // per capability usgae
+  std::map<std::string, long int> cap_usage; // per capability usgae
+  bool canPay; // has free account or has a valid payment method and is not delinquent
 } user;
 
 std::map<std::string, user> users;
 
 const long int maxBytes = 100 * 1024 * 1024;
+// const long int maxBytes = 100 * 1024; // #DEBUG
+
+const time_t cacheExpiration = 300; // seconds
+// cache of client permissions
+std::map<std::string, std::map<std::string, time_t>> clientPermissions;
 
 
 /* ----------------------------------------------------------------------------
 * Mongo
 */
 
-void refetchUsers() {
-  std::cout << "refetchUsers" << std::endl << std::flush;
-
+/** Connect to MongoDB (at most once) and get accounts collection. */
+mongocxx::collection& getAccountsCollection() {
   static mongocxx::instance instance{}; // This should be done only once.
   static mongocxx::uri uri("mongodb://mongodb:27017");
   static mongocxx::client client(uri);
   static auto db = client["transitive"];
-  static auto accounts = db["accounts"];
+  static mongocxx::collection accounts = db["accounts"];
 
-  mongocxx::options::find opts{};
+  return accounts;
+}
+
+void refetchUsers() {
+  cout << "refetchUsers" << endl << std::flush;
+
+  // mongocxx::options::find opts{};
   // specify fields we want
-  opts.projection(make_document(kvp("jwtSecret", 1)));
-  auto cursor_all = accounts.find({}, opts);
+  // auto projection = make_document(kvp("jwtSecret", 1));
+  // auto projection = document{};
+  // projection.append(kvp("jwtSecret", types::b_int32{1}));
+  // projection.append(kvp("free", types::b_int32{1}));
+  // projection.append(kvp("free", types::b_int32{1}));
+  // opts.projection(projection);
+  // auto cursor_all = accounts.find({}, opts);
+  auto cursor_all = getAccountsCollection().find({});
 
   for (auto doc : cursor_all) {
     std::string user = (std::string)doc["_id"].get_string().value;
+    cout << user;
+
+    // get user's jwt secret
     auto jwtSecretField = doc["jwtSecret"];
     if (jwtSecretField) {
       std::string jwtSecret = (std::string)jwtSecretField.get_string().value;
       users[user].jwt_secret = jwtSecret;
-      std::cout << user << " " << jwtSecret << std::endl;
+      cout << " " << jwtSecret;
     }
+
+    // check whether user can pay:
+    users[user].canPay = (doc["free"] && doc["free"].get_bool().value)
+    || ( // has payment method
+      ( doc["stripeCustomer"] &&
+        doc["stripeCustomer"]["invoice_settings"] &&
+        doc["stripeCustomer"]["invoice_settings"]["default_payment_method"] &&
+        doc["stripeCustomer"]["invoice_settings"]["default_payment_method"]
+          .type() == bsoncxx::type::k_string
+      ) && // not delinquent
+      !doc["stripeCustomer"]["delinquent"].get_bool().value
+    );
+    cout << " " << users[user].canPay;
+
+    // get current month's metered usage per capability
+    if (doc["cap_usage"]) {
+      for (auto &e : doc["cap_usage"].get_document().value) {
+        users[user].cap_usage[(std::string)e.key()] = e.get_int64().value;
+        cout << "\n " << e.key() << ": "
+        << users[user].cap_usage[(std::string)e.key()];
+      }
+    }
+
+    cout << endl;
   }
-  std::cout << std::endl;
+  cout << endl;
+}
+
+/** Record current meter readings in Mongo. */
+void recordMeterToMongo() {
+
+  for (auto it = users.cbegin(); it != users.cend(); ++it) {
+
+    auto cap_usage = it->second.cap_usage;
+    auto meter = bsoncxx::builder::basic::document{};
+    for (auto it2 = cap_usage.cbegin(); it2 != cap_usage.cend(); ++it2) {
+      meter.append(kvp(it2->first, bsoncxx::types::b_int64{it2->second}));
+    }
+    auto update_one_result = getAccountsCollection()
+        .update_one(make_document(kvp("_id", it->first)),
+        make_document(kvp("$set",
+          make_document(kvp("cap_usage", meter))
+        )));
+    cout << "updated " << it->first << " "
+    << update_one_result->modified_count() << endl;
+  }
 }
 
 
@@ -128,13 +193,13 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
 
 	UNUSED(event);
 	UNUSED(userdata);
-  std::cout << "basic auth check: " << username << std::endl;
+  cout << "basic auth check: " << username << endl;
 
   // parse username (json)
   picojson::value doc;
   std::string err = picojson::parse(doc, username);
   if (! err.empty()) {
-    std::cerr << "Can't parse username as JSON:" << err << std::endl;
+    std::cerr << "Can't parse username as JSON:" << err << endl;
     return MOSQ_ERR_AUTH;
   }
   picojson::object docObj = doc.get<picojson::object>();
@@ -148,7 +213,7 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
   }
 
   if (u.jwt_secret.empty()) {
-    std::cout << "User has no JWT secret: " << name << std::endl;
+    cout << "User has no JWT secret: " << name << endl;
     return MOSQ_ERR_AUTH;
   }
 
@@ -162,17 +227,17 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     // Check that decoded.payload == username.payload
     if (!docObj["payload"].is<picojson::object>() ||
       decoded.get_payload_json() != docObj["payload"].get<picojson::object>()) {
-      std::cout << "WARN: username payload and JWT payload don't match!"
-      << std::endl;
+      cout << "WARN: username payload and JWT payload don't match!"
+      << endl;
       return MOSQ_ERR_AUTH;
     }
-    std::cout << "verified id " << name << " " << jwt_token << std::endl;
+    cout << "verified id " << name << " " << jwt_token << endl;
 
   } catch (const jwt::error::invalid_json_exception& e) {
-    std::cout << "WARN: invalid json in JWT!" << std::endl;
+    cout << "WARN: invalid json in JWT!" << endl;
     return MOSQ_ERR_AUTH;
   } catch (const jwt::error::signature_verification_exception& e) {
-    std::cout << "WARN: signature invalid!" << std::endl;
+    cout << "WARN: signature invalid!" << endl;
     return MOSQ_ERR_AUTH;
   }
 
@@ -269,6 +334,37 @@ void update_write_counter(const char *client_id, const char *ip) {
 
 /* -------------------------------------------------------------------------- */
 
+typedef struct lastTime_struct {
+  int hour = 0;
+  int minute = 0;
+} lastTime;
+
+/** A "cron" function, called regularly, it checks for jobs that need to run */
+static void cron() {
+
+  static lastTime last;
+
+  // get current time, broken down by minute and hour
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+  std::tm* now_tm = std::localtime(&now_time_t);
+
+  if (now_tm->tm_min > last.minute) {
+    // cout << "new minute: " << now_tm->tm_min << endl;
+    last.minute = now_tm->tm_min;
+
+    recordMeterToMongo();  // #DEBUG (remove here)
+  }
+
+  if (now_tm->tm_hour > last.hour) {
+    // cout << "new hour: " << now_tm->tm_hour << endl;
+    last.hour = now_tm->tm_hour;
+
+    // recordMeterToMongo();
+  }
+}
+
+
 /** The mosquitto ACL callback */
 static int acl_callback(int event, void *event_data, void *userdata) {
 
@@ -281,6 +377,8 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 	UNUSED(userdata);
   bool output = false;
 
+  cron();
+
   std::vector<std::string> topicParts = split(ed->topic, '/');
 
   if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
@@ -289,10 +387,59 @@ static int acl_callback(int event, void *event_data, void *userdata) {
     return MOSQ_ERR_SUCCESS;
   }
 
+  // is it a superuser?
+  if (prefix("transitiverobotics:", username)) {
+	  output && printf(": superuser\n");
+    return MOSQ_ERR_SUCCESS;
+  }
+
+  // meter reads and deny if over limit
+  if (ed->access == MOSQ_ACL_READ) {
+    // printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
+
+    if (topicParts[0][0] != '$') {
+      std::string user = topicParts[1];
+      std::string capability = topicParts[4];
+      users[user].cap_usage[capability] += ed->payloadlen;
+      cout << user << ", " << capability << ": "
+      << users[user].cap_usage[capability] << " "
+      << username << " " << ed->topic << endl;
+
+      if (!users[user].canPay && users[user].cap_usage[capability] > maxBytes
+        // TODO: get list of limited capabilities from Mongo; for now just:
+        && capability == "ros-tool"
+        ) {
+
+        cout << "DENIED, " << user << ", " << capability << ": "
+        << users[user].cap_usage[capability] << " exceeds " << maxBytes << endl;
+        return MOSQ_ERR_ACL_DENIED;
+      }
+    }
+  }
+
+
   if (prefix("{", username)) {
     // The username is a JSON string, from a websocket client
-    return isAuthorized(topicParts, username, ed->access == MOSQ_ACL_READ) ?
-    MOSQ_ERR_SUCCESS : MOSQ_ERR_ACL_DENIED;
+
+    std::time_t currentTime = std::time(nullptr);
+
+    // check cache
+    time_t cached = clientPermissions[id][ed->topic];
+    if (cached + cacheExpiration > currentTime ) {
+      // cache hit
+      return MOSQ_ERR_SUCCESS;
+    }
+
+    if (isAuthorized(topicParts, username, ed->access == MOSQ_ACL_READ)) {
+      // add to cache
+      clientPermissions[id][ed->topic] = currentTime;
+      return MOSQ_ERR_SUCCESS;
+    }
+
+    // TODO: also cache disallowed clients, to avoid (unintentional) denial of
+    // service attacks when a client malfunctions; Maybe combine with caching
+    // validity of JWT instead of having a fixed cache expiration time?
+    return MOSQ_ERR_ACL_DENIED;
   }
 
   if (ed->access == MOSQ_ACL_WRITE) {
@@ -308,36 +455,6 @@ static int acl_callback(int event, void *event_data, void *userdata) {
   // not printing READ requests, because they are too verbose
 
 
-  // is it a superuser?
-  if (prefix("transitiverobotics:", username)) {
-	  output && printf(": superuser\n");
-    return MOSQ_ERR_SUCCESS;
-  }
-
-
-  // meter reads and deny if over limit
-  if (ed->access == MOSQ_ACL_READ) {
-    // printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
-
-    if (topicParts[0][0] != '$') {
-      std::string user = topicParts[1];
-      std::string capability = topicParts[4];
-      users[user].cap_usage[capability].hour += ed->payloadlen;
-      users[user].cap_usage[capability].month += ed->payloadlen;
-      std::cout << user << ", " << capability << ": "
-      << users[user].cap_usage[capability].month << std::endl;
-
-      if (users[user].cap_usage[capability].month > maxBytes) {
-        // TODO: check whether user has a payment method, if so, allow
-
-        std::cout << "DENIED " << user << " " << capability << ": "
-        << users[user].cap_usage[capability].month << " " << maxBytes << std::endl;
-        return MOSQ_ERR_ACL_DENIED;
-      }
-    }
-  }
-
-
   // if (ed->access == MOSQ_ACL_READ) {
   //   printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
   // }
@@ -345,7 +462,7 @@ static int acl_callback(int event, void *event_data, void *userdata) {
   char orgId[80], deviceId[80], scope[80], name[80];
   int result = sscanf(ed->topic, "/%79[^/]/%79[^/]/%79[^/]/%79[^/]/",
             orgId, deviceId, scope, name);
-  if(result != 4) {
+  if (result != 4) {
     printf("error parsing topic\n");
     return MOSQ_ERR_ACL_DENIED;
   }
@@ -399,6 +516,23 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 	// return MOSQ_ERR_PLUGIN_DEFER;
 }
 
+/** Clean up hash tables when client disconnects */
+static int on_disconnect_callback(int event, void *event_data, void *userdata) {
+
+	struct mosquitto_evt_disconnect *ed = (mosquitto_evt_disconnect *)event_data;
+	const char *username = mosquitto_client_username(ed->client);
+	const char *id = mosquitto_client_id(ed->client);
+	const char *ip = mosquitto_client_address(ed->client);
+
+  cout << "Client disconnected: " << id << " " << ip << endl;
+
+  clientPermissions.erase(id);
+  // TODO: also clear write rate limiting hash table, but wait until we've ported
+  // that to C++ (a std::map).
+
+  return MOSQ_ERR_SUCCESS;
+}
+
 
 int mosquitto_plugin_version(int supported_version_count,
   const int *supported_versions) {
@@ -440,7 +574,10 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
   int auth_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH,
     basic_auth_callback, NULL, NULL);
 
-  return acl_result | auth_result;
+  int disconnect_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT,
+    on_disconnect_callback, NULL, NULL);
+
+  return acl_result | auth_result | disconnect_result;
   // #TODO: register a MOSQ_EVT_DISCONNECT callback to remove clients from
   // hashtable?
 }

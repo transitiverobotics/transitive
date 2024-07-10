@@ -525,6 +525,7 @@ class _robotAgent extends Capability {
         '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages',
         {atomic: true});
 
+      log.debug('resubscribing');
       this.data.subscribePathFlat(
         '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
         async (value, topic, matched, tags) => {
@@ -1132,7 +1133,8 @@ class _robotAgent extends Capability {
 
       res.json({
         jwtSecret: account.jwtSecret,
-        capTokens: account.capTokens || {}
+        capTokens: account.capTokens || {},
+        cap_usage: account.cap_usage || {}
       });
     });
 

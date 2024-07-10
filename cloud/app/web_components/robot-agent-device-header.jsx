@@ -55,4 +55,4 @@ const Device = (props) => {
 };
 
 
-createWebComponent(Device, 'robot-agent-device-header', []);
+createWebComponent(Device, 'robot-agent-device-header');

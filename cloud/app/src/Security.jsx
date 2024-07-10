@@ -4,7 +4,7 @@ import { FaTrashAlt } from 'react-icons/fa';
 
 import _ from 'lodash';
 
-import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
+import { getLogger, fetchJson, formatBytes } from '@transitive-sdk/utils-web';
 import { ConfirmedButton } from './utils/ConfirmedButton';
 import { UserContext } from './Login.jsx';
 
@@ -80,14 +80,10 @@ export const Security = () => {
     return <div>Fetching data..</div>;
   }
 
-  console.log(account);
+  log.debug({account});
 
   return <div style={styles.wrapper}>
     <h2>Security</h2>
-    <Form.Text>
-    </Form.Text>
-
-    <hr/>
 
     <h5>Front-end</h5>
 
@@ -118,6 +114,29 @@ export const Security = () => {
 
     <CapTokens tokens={account.capTokens} removeToken={removeToken}
       session={session}/>
+
+    <hr/>
+
+    <h2>Monthly data usage</h2>
+
+    <Form.Text>
+      Shows the per-capability data usage for this calendar month (UTC).
+      This gets updated once an hour. This does not include TURN data usage
+      for WebRTC capabilities. For those, please see your Billing page.
+    </Form.Text>
+
+    {_.map(account.cap_usage, (bytes, capability) =>
+      <Form.Group as={Row} key={capability}>
+        <Form.Label column sm="2">
+          {capability}
+        </Form.Label>
+        <Col sm="10">
+          <Form.Control plaintext readOnly
+            defaultValue={formatBytes(bytes)} />
+        </Col>
+      </Form.Group>
+    )}
+
 
   </div>;
 };

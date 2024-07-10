@@ -242,6 +242,17 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
       << endl;
       return MOSQ_ERR_AUTH;
     }
+
+    // Verify that JWT is still valid
+    std::time_t currentTime = std::time(nullptr);
+    auto payload = docObj["payload"].get<picojson::object>();
+    if (!(payload["validity"].is<double>() && payload["iat"].is<double>() &&
+        (payload["iat"].get<double>() + payload["validity"].get<double>())
+        > currentTime)) {
+      cout << "WARN: JWT is expired! " << endl;
+      return MOSQ_ERR_AUTH;
+    }
+
     cout << "verified id " << name << " " << jwt_token << endl;
 
   } catch (const jwt::error::invalid_json_exception& e) {

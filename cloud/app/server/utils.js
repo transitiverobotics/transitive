@@ -47,42 +47,4 @@ const getVersionRange = (version, type) => {
   return range.format();
 };
 
-/** Decide whether the given mqtt `topic` is permitted for the user `id` by the
-*  given  auth payload (`permitted`). */
-const isAuthorized = (topic, id, permitted, readAccess = false) => {
-  const requested = parseMQTTTopic(topic);
-  // check that browser-user isn't trying to write to different org:
-  return id == permitted.id &&
-    // check that JWT-permitted org matches topic org
-    id == requested.organization &&
-    permitted.validity &&
-    (permitted.iat + permitted.validity) * 1e3 > Date.now() &&
-    (
-      (permitted.device == requested.device &&
-          (((permitted.capability == requested.capability ||
-              // _robot-agent permissions grant full device access
-              permitted.capability == '@transitive-robotics/_robot-agent')
-              &&
-              (!permitted.topics || permitted.topics?.includes(requested.sub[0]))
-            // if payload.topics exists it is a limitation of topics to allow
-          ) ||
-            // all valid JWTs for a device also grant read access to _robot-agent
-            (readAccess &&
-              requested.capability == '@transitive-robotics/_robot-agent'))
-      ) ||
-        // _fleet permissions give read access also to all devices' robot-agents
-        ( permitted.device == '_fleet' && readAccess &&
-          requested.capability == '@transitive-robotics/_robot-agent' &&
-          !permitted.topics)
-        ||
-        // _fleet permissions give access to all devices' data for the
-        // cap (in the permitted org only of course); _robot-agent permissions
-        // grant access to all devices in the fleet
-        ( permitted.device == '_fleet' &&
-            (requested.capability == permitted.capability ||
-              permitted.capability == '@transitive-robotics/_robot-agent') &&
-            !permitted.topics )
-    );
-};
-
-module.exports = { getNextInRange, getVersionRange, isAuthorized };
+module.exports = { getNextInRange, getVersionRange };

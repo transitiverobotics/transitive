@@ -141,7 +141,7 @@ export const Sidebar = () => {
           Stop impersonating</ActionLink></div> }
     <div style={styles.usermenu}>
       <div>
-        <Link to='/security'>Security</Link>
+        <Link to='/security'>Security & Data usage</Link>
       </div>
       <div>
         <a href={`//${billingHost}/v1/billingPortal`}>

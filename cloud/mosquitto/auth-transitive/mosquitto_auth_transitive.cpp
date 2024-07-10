@@ -162,6 +162,17 @@ void refetchUsers() {
   cout << endl;
 }
 
+/** Print all read counts. For each user and cap, print read bytes. */
+void printReadCounts() {
+  for (auto it = users.cbegin(); it != users.cend(); ++it) {
+    auto cap_usage = it->second.cap_usage;
+    for (auto it2 = cap_usage.cbegin(); it2 != cap_usage.cend(); ++it2) {
+      cout << "reads: " << it->first << ", " << it2->first << ": "
+      << it2->second << endl;
+    }
+  }
+}
+
 /** Record current meter readings in Mongo. */
 void recordMeterToMongo() {
 
@@ -353,14 +364,14 @@ static void cron() {
     // cout << "new minute: " << now_tm->tm_min << endl;
     last.minute = now_tm->tm_min;
 
-    recordMeterToMongo();  // #DEBUG (remove here)
+    printReadCounts();
   }
 
   if (now_tm->tm_hour > last.hour) {
     // cout << "new hour: " << now_tm->tm_hour << endl;
     last.hour = now_tm->tm_hour;
 
-    // recordMeterToMongo();
+    recordMeterToMongo();
   }
 }
 
@@ -401,9 +412,6 @@ static int acl_callback(int event, void *event_data, void *userdata) {
       std::string user = topicParts[1];
       std::string capability = topicParts[4];
       users[user].cap_usage[capability] += ed->payloadlen;
-      cout << user << ", " << capability << ": "
-      << users[user].cap_usage[capability] << " "
-      << username << " " << ed->topic << endl;
 
       if (!users[user].canPay && users[user].cap_usage[capability] > maxBytes
         // TODO: get list of limited capabilities from Mongo; for now just:

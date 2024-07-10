@@ -163,7 +163,7 @@ void refetchUsers() {
 }
 
 /** Print all read counts. For each user and cap, print read bytes. */
-void printReadCounts() {
+int printReadCounts() {
   for (auto it = users.cbegin(); it != users.cend(); ++it) {
     auto cap_usage = it->second.cap_usage;
     for (auto it2 = cap_usage.cbegin(); it2 != cap_usage.cend(); ++it2) {
@@ -171,6 +171,7 @@ void printReadCounts() {
       << it2->second << endl;
     }
   }
+  return 0; // We need to return *something* to avoid being optimized away
 }
 
 /** Record current meter readings in Mongo. */
@@ -361,6 +362,10 @@ typedef struct lastTime_struct {
   int minute = 0;
 } lastTime;
 
+// Used to prevent prints to be optimized away see
+// https://stackoverflow.com/a/1152574/1087119.
+static volatile int ignore = 0;
+
 /** A "cron" function, called regularly, it checks for jobs that need to run */
 static void cron() {
 
@@ -375,7 +380,7 @@ static void cron() {
     // cout << "new minute: " << now_tm->tm_min << endl;
     last.minute = now_tm->tm_min;
 
-    printReadCounts();
+    ignore = printReadCounts();
   }
 
   if (now_tm->tm_hour > last.hour) {

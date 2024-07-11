@@ -70,7 +70,7 @@ std::vector<std::string> split(const std::string &s, char delim, int max = 100) 
   std::string item;
   int i = 0;
 
-while (i++ < max && getline(ss, item, delim)) {
+  while (i++ < max && getline(ss, item, delim)) {
     result.push_back(item);
   }
 
@@ -207,6 +207,10 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
 	UNUSED(userdata);
   cout << "basic auth check: " << username << endl;
 
+  if (!username || !jwt_token) {
+    return MOSQ_ERR_AUTH;
+  }
+
   // parse username (json)
   picojson::value doc;
   std::string err = picojson::parse(doc, username);
@@ -215,6 +219,11 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     return MOSQ_ERR_AUTH;
   }
   picojson::object docObj = doc.get<picojson::object>();
+
+  if (!docObj["id"].is<std::string>()) {
+    std::cerr << "Id missing from username" << endl;
+    return MOSQ_ERR_AUTH;
+  }
 
   // make sure we have the JWT for this user
   std::string name = docObj["id"].get<std::string>();
@@ -406,6 +415,10 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 
   cron();
 
+  if (!ed->topic || !id || !username) {
+    return MOSQ_ERR_ACL_DENIED;
+  }
+
   std::vector<std::string> topicParts = split(ed->topic, '/');
 
   if (strcmp("$SYS/broker/uptime", ed->topic) == 0) {
@@ -550,7 +563,9 @@ static int on_disconnect_callback(int event, void *event_data, void *userdata) {
 
   cout << "Client disconnected: " << id << " " << ip << endl;
 
-  clientPermissions.erase(id);
+  if (id) {
+    clientPermissions.erase(id);
+  }
   // TODO: also clear write rate limiting hash table, but wait until we've ported
   // that to C++ (a std::map).
 

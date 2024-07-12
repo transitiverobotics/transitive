@@ -47,9 +47,8 @@ ADD https://github.com/doctest/doctest/releases/download/v2.4.11/doctest.h \
 # Build the plugin
 WORKDIR /build/mosq/plugins/auth-transitive
 COPY auth-transitive .
-# RUN gcc -I../../include -I../.. -fPIC -shared mosquitto_auth_transitive.c \
-#   -o /mosquitto/mosquitto_auth_transitive.so -fmax-errors=1
-RUN g++ -std=c++2a -Wfatal-errors -fPIC -shared -fmax-errors=1 -O2 \
+
+RUN g++ -std=c++2a -Wfatal-errors -fPIC -shared -fmax-errors=1 -O2 -fno-inline \
   -I../../include -I../.. -I/tmp/jwt-cpp-0.7.0/include/ \
   mosquitto_auth_transitive.cpp -o /mosquitto/mosquitto_auth_transitive.so \
   $(pkg-config --cflags --libs libmongocxx)

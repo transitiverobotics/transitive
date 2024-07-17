@@ -32,6 +32,9 @@ TEST_CASE("isAuthorized") {
   std::vector<std::string> topicAgent =
     split("/user1/dev1/@transitive-robotics/_robot-agent/0.1.2/myfield", '/');
 
+  std::vector<std::string> topicAgentWild =
+    split("/user1/dev1/@transitive-robotics/_robot-agent/+/status/#", '/');
+
   std::vector<std::string> topicSubs =
     split("/user1/dev1/@scope/capName/0.1.2/myfield/sub1/sub2", '/');
 
@@ -173,6 +176,9 @@ TEST_CASE("isAuthorized") {
       }
       SUBCASE("") {
         CHECK( isAuthorized(topicAgent, simpleDevPermission.str(), true) );
+      }
+      SUBCASE("") {
+        CHECK( isAuthorized(topicAgentWild, simpleDevPermission.str(), true) );
       }
       SUBCASE("") {
         std::stringstream s;

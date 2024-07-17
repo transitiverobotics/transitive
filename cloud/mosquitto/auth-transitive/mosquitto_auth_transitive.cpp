@@ -467,7 +467,9 @@ static int acl_callback(int event, void *event_data, void *userdata) {
       return MOSQ_ERR_SUCCESS;
     }
 
-    if (isAuthorized(topicParts, username, ed->access == MOSQ_ACL_READ)) {
+    bool readAccess =
+      ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
+    if (isAuthorized(topicParts, username, readAccess)) {
       // add to cache
       clientPermissions[id][ed->topic] = currentTime;
       return MOSQ_ERR_SUCCESS;

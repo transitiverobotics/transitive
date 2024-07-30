@@ -71,9 +71,10 @@ topic, decide whether the user should be granted access to the given topic.
 static int isAuthorized(std::vector<std::string> topicParts, std::string username,
   bool readAccess = false) {
 
+  if (topicParts.size() < 5) return false;
+
   auto doc = bsoncxx::from_json(username);
   auto permitted = doc["payload"];
-
 
   // requested
   auto org = topicParts[1];
@@ -81,7 +82,7 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   auto capability = topicParts[3] + '/' + topicParts[4];
 
   /// join the topicParts of the sub-topic
-  std::string sub = std::accumulate(
+  std::string sub = topicParts.size() < 7 ? "" : std::accumulate(
     std::next(topicParts.begin() + 6), topicParts.end(), topicParts[6],
     [](std::string a, std::string b) { return a + "/" + b; }
   );

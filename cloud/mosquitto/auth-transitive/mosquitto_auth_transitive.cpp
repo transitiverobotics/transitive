@@ -270,7 +270,12 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
   } catch (const jwt::error::signature_verification_exception& e) {
     cout << "WARN: signature invalid!" << endl;
     return MOSQ_ERR_AUTH;
+  } catch (const std::invalid_argument& e) {
+    cout << "WARN: invalid_argument: " << jwt_token << endl;
+
+    return MOSQ_ERR_ACL_DENIED;
   }
+
 
   return MOSQ_ERR_SUCCESS;
 }
@@ -449,32 +454,44 @@ static int acl_callback(int event, void *event_data, void *userdata) {
     }
   }
 
+  try {
+    if (prefix("{", username)) {
+      // The username is a JSON string, from a websocket client
 
-  if (prefix("{", username)) {
-    // The username is a JSON string, from a websocket client
+      std::time_t currentTime = std::time(nullptr);
 
-    std::time_t currentTime = std::time(nullptr);
+      // check cache
+      time_t cached = clientPermissions[id][ed->topic];
+      if (cached + cacheExpiration > currentTime ) {
+        // cache hit
+        return MOSQ_ERR_SUCCESS;
+      }
 
-    // check cache
-    time_t cached = clientPermissions[id][ed->topic];
-    if (cached + cacheExpiration > currentTime ) {
-      // cache hit
-      return MOSQ_ERR_SUCCESS;
+      bool readAccess =
+        ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
+      if (isAuthorized(topicParts, username, readAccess)) {
+        // add to cache
+        clientPermissions[id][ed->topic] = currentTime;
+        return MOSQ_ERR_SUCCESS;
+      }
+
+      // TODO: also cache disallowed clients, to avoid (unintentional) denial of
+      // service attacks when a client malfunctions; Maybe combine with caching
+      // validity of JWT instead of having a fixed cache expiration time?
+      return MOSQ_ERR_ACL_DENIED;
     }
 
-    bool readAccess =
-      ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
-    if (isAuthorized(topicParts, username, readAccess)) {
-      // add to cache
-      clientPermissions[id][ed->topic] = currentTime;
-      return MOSQ_ERR_SUCCESS;
-    }
+  } catch (const std::bad_alloc& e) {
+    std::cerr << "bad_alloc: " << e.what() << " " << username << " "
+    << ed->topic << " " << id << std::endl;
 
-    // TODO: also cache disallowed clients, to avoid (unintentional) denial of
-    // service attacks when a client malfunctions; Maybe combine with caching
-    // validity of JWT instead of having a fixed cache expiration time?
     return MOSQ_ERR_ACL_DENIED;
+
   }
+
+
+
+
 
   if (ed->access == MOSQ_ACL_WRITE) {
     reduce_write_counters();

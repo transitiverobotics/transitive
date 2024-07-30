@@ -38,6 +38,9 @@ TEST_CASE("isAuthorized") {
   std::vector<std::string> topicSubs =
     split("/user1/dev1/@scope/capName/0.1.2/myfield/sub1/sub2", '/');
 
+  std::vector<std::string> shortTopic = split("/user1/dev1/", '/');
+  std::vector<std::string> veryShortTopic = split("#", '/');
+
   std::stringstream simpleDevPermission;
   simpleDevPermission << R"({ "id": "user1", "payload": {
   "id": "user1", "device": "dev1", "capability": "@scope/capName",
@@ -54,6 +57,26 @@ TEST_CASE("isAuthorized") {
 
   SUBCASE("simple fleet permission") {
     CHECK( isAuthorized(topic1, simpleFleetPermission.str()) );
+  }
+
+  SUBCASE("gracefully fails on missing iat") {
+    CHECK( !isAuthorized(topic1, std::string(R"({ "id": "user1", "payload": {
+        "id": "user1", "device": "dev1", "capability": "@scope/capName",
+        "validity": 1000 }})")) );
+  }
+
+  SUBCASE("gracefully fails on missing validity") {
+    CHECK( !isAuthorized(topic1, std::string(R"({ "id": "user1", "payload": {
+        "id": "user1", "device": "dev1", "capability": "@scope/capName",
+        "iat": 1722227248 }})")) );
+  }
+
+  SUBCASE("gracefully fails on topics that are too short") {
+    CHECK( !isAuthorized(shortTopic, simpleDevPermission.str()) );
+  }
+
+  SUBCASE("gracefully fails on topics that are too short") {
+    CHECK( !isAuthorized(veryShortTopic, simpleDevPermission.str()) );
   }
 
   SUBCASE("wrong user") {

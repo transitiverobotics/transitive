@@ -507,6 +507,14 @@ class _robotAgent extends Capability {
     return (heartbeat > Date.now() - RUNNING_THRESHOLD);
   }
 
+  /** Get the version (string) of the agent running on the given device. */
+  getAgentVersion(orgId, deviceId) {
+    const agentData = this.data.get(
+      [orgId, deviceId, '@transitive-robotics', '_robot-agent']);
+    const latestVersion = Object.keys(agentData).sort(versionCompare).at(-1);
+    return latestVersion;
+  };
+
   /** get latest version status for all devices in org */
   getLatest(orgId, field = 'status') {
     const org = this.data.get([orgId]);
@@ -1165,6 +1173,18 @@ class _robotAgent extends Capability {
 
     this.router.get('/api/v1/info/', requireJWT, (req, res) => {
       res.json(this.getLatest(req.jwtSession.userId, 'info'));
+    });
+
+    /** Call agent command on device, provide `{payload}` for arguments*/
+    this.router.post('/api/v1/rpc/:deviceId/:command', requireJWT, async (req, res) => {
+      const {deviceId, command} = req.params;
+      const orgId = req.jwtSession.userId;
+      const agentVersion = this.getAgentVersion(orgId, deviceId);
+      log.debug(`API, calling rpc ${command} with payload`, req.body || {});
+      const result = await this.mqttSync.call(
+        `/${orgId}/${deviceId}/@transitive-robotics/_robot-agent/${agentVersion}/rpc/${command}`,
+        req.body || {});
+      res.json({result});
     });
   }
 };

@@ -69,6 +69,8 @@ const FleetDevice = ({status, info, device, device_url}) => {
   </ListGroup.Item>;
 };
 
+const compareHeartbeat = (a, b) =>
+  heartbeatLevel(a.status?.heartbeat) - heartbeatLevel(b.status?.heartbeat);
 
 /** Component showing the fleet from the robot-agent perspective */
 const Fleet = (props) => {
@@ -99,13 +101,14 @@ const Fleet = (props) => {
 
   // merge all robot-agent versions' data and sort by hostname
   const mergedData = _.map(data[id], (device, deviceId) => {
-    const agentData = device['@transitive-robotics']['_robot-agent'];
-    return {
-      id: deviceId,
-      status: mergeVersions(agentData, 'status').status,
-      info: mergeVersions(agentData, 'info').info,
-    }
-  }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname));
+      const agentData = device['@transitive-robotics']['_robot-agent'];
+      return {
+        id: deviceId,
+        status: mergeVersions(agentData, 'status').status,
+        info: mergeVersions(agentData, 'info').info,
+      }
+    }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname))
+      .sort(compareHeartbeat);
 
   const stale = mergedData
       .filter(({status}) => heartbeatLevel(status.heartbeat) == 2)

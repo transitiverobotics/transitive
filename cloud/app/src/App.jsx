@@ -223,7 +223,8 @@ const CapabilityWidget = ({type}) => {
   return <div>
     {type == 'device' ?
       <Capability simple={true} webComponent='robot-agent-device-header'
-        capability='@transitive-robotics/_robot-agent'/>
+        capability='@transitive-robotics/_robot-agent'
+        pkg={capability} />
       : <div>Fleet</div>
     }
     <div>&nbsp;</div>

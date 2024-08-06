@@ -112,6 +112,7 @@ export const Admin = () => {
     },
     {
       name: <DeviceColumHeader users={users} />,
+      id: 'heartbeats',
       grow: 2,
       cell: row => <div>
         {row.heartbeats.map(({count, latest}, level) =>
@@ -168,6 +169,8 @@ export const Admin = () => {
     <DataTable
       data={users}
       columns={columns}
+      defaultSortFieldId={'heartbeats'}
+      defaultSortAsc={false}
       dense
       />
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Modal, Accordion, Alert, Toast } from 'react-bootstrap';
+    Accordion, Alert, Toast } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
 const _ = {
@@ -11,7 +11,6 @@ const _ = {
   filter: require('lodash/filter'),
 };
 
-import pako from 'pako';
 import { MdAdd } from 'react-icons/md';
 import { FaExclamationTriangle } from "react-icons/fa";
 
@@ -21,7 +20,7 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, PkgLog } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -52,10 +51,6 @@ const styles = {
   },
   addList: {
     transition: 'height 1s ease'
-  },
-  log: {
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all',
   },
   toast: {
     // position: 'absolute',
@@ -144,12 +139,6 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
-/** given a compressed base64 buffer, convert and decompress */
-const decompress = (zippedBase64) => {
-  const buf = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
-  return pako.ungzip(buf, {to: 'string'});
-};
-
 /** given a package name, get it's human-readable title, e.g.,
 @transitive-robotics/remote-teleop => Remote Teleop
 */
@@ -161,38 +150,6 @@ const getPkgTitle = (name, allPackges) => {
 /** Given an object, map each item using fn, in lexicographic order of keys */
 const mapSorted = (obj, fn) =>
   Object.keys(obj).sort().map(key => fn(obj[key], key));
-
-/** Component that renders the package log response, such as
-{
-  "@transitive-robotics": {
-    "webrtc-video": {
-      "err": null,
-      "stdout": [base64 encoded gzip buffer of text],
-      "stderr": [base64 encoded gzip buffer of text],
-    }
-  }
-}
-*/
-const PkgLog = ({response, hide}) => {
-  const scope = Object.keys(response)[0];
-  const cap = Object.values(response)[0];
-  const capName = Object.keys(cap)[0];
-  const result = Object.values(cap)[0];
-  const stdout = decompress(result.stdout);
-  const stderr = decompress(result.stderr);
-
-  // fullscreen={true}
-  return <Modal show={true} size='xl' onHide={hide} >
-    <Modal.Header closeButton>
-      <Modal.Title>Package Log for {scope}/{capName}</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-      {stdout ? <pre style={styles.log}>{stdout}</pre> : <div>stdout is empty</div>}
-      {stderr ? <pre style={{... styles.log, color: 'red'}}>{stderr}</pre>
-        : <div>stderr is empty</div>}
-    </Modal.Body>
-  </Modal>;
-}
 
 /** Price as displayed in package list */
 const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
@@ -315,13 +272,13 @@ const Capability = (props) => {
                   reinstall
                 </Button>
               </span>
-              } {
-                <Button variant='link'
-                  onClick={() => runPkgCommand('getPkgLog', (response) => {
-                    const [scope, capName] = name.split('/');
-                    setPkgLog({[scope]: {[capName]: response}});
-                  })}>
-                  get log
+            } {
+              <Button variant='link'
+                onClick={() => runPkgCommand('getPkgLog', (response) => {
+                  const [scope, capName] = name.split('/');
+                  setPkgLog({[scope]: {[capName]: response}});
+                })}>
+                get log
               </Button>
             }
           </div>}

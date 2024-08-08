@@ -272,8 +272,15 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     return MOSQ_ERR_AUTH;
   } catch (const std::invalid_argument& e) {
     cout << "WARN: invalid_argument: " << jwt_token << endl;
-
-    return MOSQ_ERR_ACL_DENIED;
+    return MOSQ_ERR_AUTH;
+  } catch (const std::exception& e) {
+    std::cerr << "basic_auth std::exception: " << e.what() << " " << username
+    << " " << jwt_token << endl;
+    return MOSQ_ERR_AUTH;
+  } catch (...) {
+    std::cerr << "basic_auth unkoen exception: " << username << " "
+    << jwt_token << endl;
+    return MOSQ_ERR_AUTH;
   }
 
 
@@ -487,6 +494,16 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 
     return MOSQ_ERR_ACL_DENIED;
 
+  } catch (const std::exception& e) {
+    std::cerr << "std::exception: " << e.what() << " " << username << " "
+    << ed->topic << " " << id << std::endl;
+    return MOSQ_ERR_ACL_DENIED;
+
+  } catch (...) {
+    std::cerr << "Caught unknown exception, " << username << " "
+    << ed->topic << " " << id << std::endl;
+
+    return MOSQ_ERR_ACL_DENIED;
   }
 
 

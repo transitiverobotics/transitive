@@ -79,6 +79,24 @@ TEST_CASE("isAuthorized") {
     CHECK( !isAuthorized(veryShortTopic, simpleDevPermission.str()) );
   }
 
+  SUBCASE("gracefully fails on bad device") {
+    CHECK( !isAuthorized(topic1, std::string(R"({ "id": "user1", "payload": {
+        "id": "user1", "device": "", "capability": "@scope/capName",
+        "iat": 1722227248 }})")) );
+  }
+
+  // SUBCASE("gracefully fails on null device") {
+  //   CHECK( !isAuthorized(topic1, std::string(R"({ "id": "user1", "payload": {
+  //       "id": "user1", "device": null, "capability": "@scope/capName",
+  //       "iat": 1722227248 }})")) );
+  // }
+  // SUBCASE("gracefully fails on missing device") {
+  //   CHECK( !isAuthorized(topic1, std::string(R"({ "id": "user1", "payload": {
+  //       "id": "user1", "capability": "@scope/capName",
+  //       "iat": 1722227248 }})")) );
+  // }
+  // See https://github.com/transitiverobotics/transitive-chfritz/issues/528
+
   SUBCASE("wrong user") {
 
     SUBCASE("") {
@@ -190,6 +208,28 @@ TEST_CASE("isAuthorized") {
       "validity": 1000, "iat":)" << currentTime << "}}";
       CHECK( !isAuthorized(topicSubs, s.str(), 0) );
     }
+
+    // Check it won't break on bad inputs
+    // SUBCASE("not permitted, exception") {
+    //   std::stringstream s;
+    //   s << R"({ "id": "user1", "payload": {
+    //   "id": "user1", "device": "dev1", "capability": "@scope/capName",
+    //   "topics": [123],
+    //   "validity": 1000, "iat":)" << currentTime << "}}";
+    //   CHECK( !isAuthorized(topic1, s.str(), 0) );
+    // }
+
+    // SUBCASE("not permitted, exception") {
+    //   std::stringstream s;
+    //   s << R"({ "id": "user1", "payload": {
+    //   "id": "user1", "device": "dev1", "capability": "@scope/capName",
+    //   "topics": 123,
+    //   "validity": 1000, "iat":)" << currentTime << "}}";
+    //   CHECK( !isAuthorized(topic1, s.str(), 0) );
+    // }
+
+    // ^^ Handled by try-catch for now, which is fine
+    // See https://github.com/transitiverobotics/transitive-chfritz/issues/528
   }
 
   SUBCASE("robot-agent") {

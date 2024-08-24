@@ -3,7 +3,8 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams } from
   'react-router-dom';
 import _ from 'lodash';
-import { Alert, Form } from 'react-bootstrap';
+import { Alert, Form, Button } from 'react-bootstrap';
+import { FaBook } from 'react-icons/fa';
 
 import { getLogger, fetchJson } from '@transitive-sdk/utils-web';
 
@@ -54,13 +55,23 @@ const styles = {
     wrapper: {
       background: '#fff',
       borderRadius: '6px',
-      padding: '1em',
+      border: '1px solid #ddd',
+      padding: '0em 1em 1em 1em',
     },
     embed: {
       float: 'right'
     },
+    title: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      paddingRight: '1rem'
+    },
+    docLink: {
+      fontSize: 'smaller',
+    },
     body: {
-      padding: '1em'
+      padding: '1em',
+      clear: 'both',
     }
   },
   capName: {
@@ -68,7 +79,10 @@ const styles = {
   },
   additional: {
     marginTop: '2em'
-  }
+  },
+  icon: {
+    transform: 'translateY(-1px)',
+  },
 };
 
 /** Note, this only works on the cloud app directly when we are logged in with
@@ -184,6 +198,9 @@ const CapabilityWidget = ({type}) => {
   const webComponent = `${capabilityName}-${type}`;
   const [pkg, setPkg] = useState({});
 
+  const ssl = (location.protocol == 'https:');
+  const host = location.host.replace('portal.', '');
+
   // load all widgets defined for this capability and type
   const {ready} = ensureWebComponentIsLoaded(capability, webComponent,
     session && session.user, deviceId);
@@ -229,7 +246,13 @@ const CapabilityWidget = ({type}) => {
     }
     <div>&nbsp;</div>
 
-    <h4>{pkg?.title || componentDef?.title || capability}</h4>
+    <div style={styles.cap.title}>
+      <h4>{pkg?.title || componentDef?.title || capability}</h4>
+      <Button variant='link' href={`//${host}/caps/${capability.replace('@','')}`}
+        style={styles.cap.docLink}>
+        <FaBook style={styles.icon}/> Documentation
+      </Button>
+    </div>
     <Capability webComponent={webComponent} capability={capability}/>
 
     { /* Show widgets defined in package: remove once they all use the runtime

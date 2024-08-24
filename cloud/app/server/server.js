@@ -305,10 +305,6 @@ const addCapsRoutes = () => {
       .json({msg: 'JWT set for session'});
   });
 
-  /** Serve dist/ folders of capabilities, copied into run folder during
-  startup of the container (see docker.js). */
-  capsRouter.use('/', express.static(docker.RUN_DIR));
-
   /** for DEV: ignore version number and serve (latest) from relative path, see
   docker-compose 'cloud_dev' */
   !tryJSONParse(process.env.PRODUCTION) && process.env.COMPOSE_PROFILES == 'dev'
@@ -331,6 +327,10 @@ const addCapsRoutes = () => {
         }
       });
     });
+
+  /** Serve dist/ folders of capabilities, copied into run folder during
+  startup of the container (see docker.js). */
+  capsRouter.use('/', express.static(docker.RUN_DIR));
 
   /** http proxy for reverse proxying to web servers run by caps */
   const capsProxy = HttpProxy.createProxyServer({ xfwd: true });

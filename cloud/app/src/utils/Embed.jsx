@@ -14,6 +14,8 @@ import {Code} from './Code';
 const log = getLogger('Embed');
 log.setLevel('debug');
 
+const F = React.Fragment;
+
 const styles = {
   form: {maxWidth: '40em'},
   modalBody: {},
@@ -187,7 +189,7 @@ export const Embed = ({style, compRef, capability, name, ...props}) => {
     setShow(true);
   };
 
-  return <div>
+  return <F>
     <Button variant='link' onClick={open}>
       <FaCode style={styles.icon}/> Embed
     </Button>
@@ -202,5 +204,5 @@ export const Embed = ({style, compRef, capability, name, ...props}) => {
         <EmbedBody name={name} {...props} config={config} />
       </Modal.Body>
     </Modal>
-  </div>;
+  </F>;
 };

@@ -5,6 +5,10 @@
 #include <stdlib.h> // system calls
 #include <time.h> // for timing the reduction of counters
 
+// for "cron jobs"
+#include <thread>
+#include <functional>
+
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
@@ -77,6 +81,15 @@ std::vector<std::string> split(const std::string &s, char delim, int max = 100) 
   return result;
 }
 
+/** Repeatedly call func with interval seconds in between */
+void interval(std::function<void(void)> func, unsigned int interval) {
+  std::thread([func, interval]() {
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+      func();
+    }
+  }).detach();
+}
 
 typedef struct user_struct {
   std::string jwt_secret; // JWT secret
@@ -162,37 +175,52 @@ void refetchUsers() {
   cout << endl;
 }
 
-/** Print all read counts. For each user and cap, print read bytes. */
-void printReadCounts() {
-  for (auto it = users.cbegin(); it != users.cend(); ++it) {
-    auto cap_usage = it->second.cap_usage;
-    for (auto it2 = cap_usage.cbegin(); it2 != cap_usage.cend(); ++it2) {
-      cout << "reads: " << it->first << ", " << it2->first << ": "
-      << it2->second << endl;
-    }
-  }
-}
 
 /** Record current meter readings in Mongo. */
 void recordMeterToMongo() {
+
+  cout << "recordMeterToMongo" << endl;
+
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+  std::tm* now_tm = std::localtime(&now_time_t);
+  static int month = now_tm->tm_mon; // runs only once
+
+  // new month? if yes, reset usage
+  if (now_tm->tm_mon != month) { // can't use `>` because of new year
+    cout << "recordMeterToMongo: new month, resetting cap_usage" << endl;
+
+    for (auto it = users.begin(); it != users.end(); ++it) {
+      cout << " resetting " << it->first << endl;
+      it->second.cap_usage.clear();
+    }
+    month = now_tm->tm_mon;
+  }
 
   for (auto it = users.cbegin(); it != users.cend(); ++it) {
 
     auto cap_usage = it->second.cap_usage;
     auto meter = bsoncxx::builder::basic::document{};
     for (auto it2 = cap_usage.cbegin(); it2 != cap_usage.cend(); ++it2) {
+      cout << "reads: " << it->first << ", " << it2->first << ": "
+      << it2->second << endl;
       meter.append(kvp(it2->first, bsoncxx::types::b_int64{it2->second}));
     }
+
     auto update_one_result = getAccountsCollection()
         .update_one(make_document(kvp("_id", it->first)),
         make_document(kvp("$set",
           make_document(kvp("cap_usage", meter))
         )));
-    cout << "updated " << it->first << " "
-    << update_one_result->modified_count() << endl;
+
+    if (update_one_result->modified_count() > 0){
+      cout << "updated mqtt usage for " << it->first << endl;
+    }
   }
 }
 
+
+// --------------------------------------------------------------------------
 
 /** Authenticate websocket users, verifying and matching the jwt token they
 provide as password against their username. */
@@ -377,36 +405,6 @@ void update_write_counter(const char *client_id, const char *ip) {
 
 /* -------------------------------------------------------------------------- */
 
-typedef struct lastTime_struct {
-  int hour = 0;
-  int minute = 0;
-} lastTime;
-
-/** A "cron" function, called regularly, it checks for jobs that need to run */
-static void cron() {
-
-  static lastTime last;
-
-  // get current time, broken down by minute and hour
-  auto now = std::chrono::system_clock::now();
-  std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm* now_tm = std::localtime(&now_time_t);
-
-  if (now_tm->tm_min > last.minute) {
-    // cout << "new minute: " << now_tm->tm_min << endl;
-    last.minute = now_tm->tm_min;
-
-    printReadCounts();
-  }
-
-  if (now_tm->tm_hour > last.hour) {
-    // cout << "new hour: " << now_tm->tm_hour << endl;
-    last.hour = now_tm->tm_hour;
-
-    recordMeterToMongo();
-  }
-}
-
 
 /** The mosquitto ACL callback */
 static int acl_callback(int event, void *event_data, void *userdata) {
@@ -419,8 +417,6 @@ static int acl_callback(int event, void *event_data, void *userdata) {
  	UNUSED(event);
 	UNUSED(userdata);
   bool output = false;
-
-  cron();
 
   if (!ed->topic || !id || !username) {
     return MOSQ_ERR_ACL_DENIED;
@@ -507,21 +503,17 @@ static int acl_callback(int event, void *event_data, void *userdata) {
   }
 
 
-
-
-
   if (ed->access == MOSQ_ACL_WRITE) {
     reduce_write_counters();
     update_write_counter(username, ip);
 
-    output = true;
-   	printf("write request: %s %s %s", ed->topic, username, id);
-  } else if (ed->access == MOSQ_ACL_SUBSCRIBE) {
-    output = true;
-   	printf("subscribe request: %s %s %s", ed->topic, username, id);
+    // output = true;
+   	// printf("write request: %s %s %s", ed->topic, username, id);
+  // } else if (ed->access == MOSQ_ACL_SUBSCRIBE) {
+    // output = true;
+   	// printf("subscribe request: %s %s %s", ed->topic, username, id);
   }
   // not printing READ requests, because they are too verbose
-
 
   // if (ed->access == MOSQ_ACL_READ) {
   //   printf("read request for: %s %d\n", ed->topic, ed->payloadlen);
@@ -646,6 +638,9 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
 
   int disconnect_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT,
     on_disconnect_callback, NULL, NULL);
+
+  // set up cron job
+  interval(recordMeterToMongo, 3600000);
 
   return acl_result | auth_result | disconnect_result;
   // #TODO: register a MOSQ_EVT_DISCONNECT callback to remove clients from

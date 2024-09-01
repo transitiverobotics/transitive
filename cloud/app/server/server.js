@@ -1148,6 +1148,11 @@ class _robotAgent extends Capability {
 
     /* JWT-secured API, intended for back-end use by power users */
 
+    /** A simple echo end point to allow health check on API itself */
+    this.router.get('/api/v1/api-status', (req, res) => {
+      res.json({timestamp: Date.now()});
+    });
+
     /** list capabilities running on the given device */
     this.router.get('/api/v1/running/:deviceId', requireJWT, (req, res) => {
       const {deviceId} = req.params;

@@ -13,6 +13,7 @@ const MongoStore = require('connect-mongo');
 const HttpProxy = require('http-proxy');
 const { CronJob } = require('cron');
 const _ = require('lodash');
+const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
 mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo } =
@@ -227,7 +228,6 @@ app.use(express.static(path.join(cwd, 'public')));
 app.use(cors(), express.static(path.join(cwd, 'dist')));
 app.use(express.json());
 
-// router for standalone-component pages
 const capsRouter = express.Router();
 app.use('/caps', capsRouter);
 
@@ -427,6 +427,21 @@ class _robotAgent extends Capability {
   // store for each device which versions of which packages it is running (speaking)
   devicePackageVersions = {};
   router = express.Router();
+
+  // See options here:
+  // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
+  authConfig = {
+    authRequired: false,
+    auth0Logout: true,
+    baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/auth0`,
+    clientID: 'y2dVLGIl2XM6xJa8OW0NYiLzORMMKz3C',
+    issuerBaseURL: 'https://dev-afficects3h7o61l.us.auth0.com',
+    secret: 'so_secret',
+    routes: {
+      // callback: '@transitive-robotics/_robot-agent/openid/login'
+      // login: '/@transitive-robotics/_robot-agent/openid/login'
+    }
+  };
 
   constructor() {
     super(() => {
@@ -739,6 +754,9 @@ class _robotAgent extends Capability {
 
   /** define routes for this app */
   addRoutes() {
+    log.debug('auth0 config', this.authConfig);
+    this.router.use(auth(this.authConfig)); // TODO
+
     this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
       // TODO: add authentication headers (once #84), npm token as Bearer
@@ -772,7 +790,6 @@ class _robotAgent extends Capability {
         mongo: Mongo.db.databaseName});
     });
 
-
     this.router.post('/login', async (req, res) => {
       log.debug('login', req.body);
 
@@ -802,6 +819,21 @@ class _robotAgent extends Capability {
       // Write the verified username to the session to indicate logged in status
       req.session.user = account;
       res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
+    });
+
+    this.router.get('/openid/login', requiresAuth(), async (req, res) => {
+      log.debug('openid profile', req.oidc.user);
+      res.send(JSON.stringify(req.oidc.user, null, 2));
+    });
+
+    // this.router.get('/callback', async (req, res) => {
+    //   log.debug('openid profile', req.oidc.user);
+    //   res.send(JSON.stringify(req.oidc.user, null, 2));
+    // });
+
+    this.router.get('/profile', requiresAuth(), async (req, res) => {
+      log.debug('openid profile', req.oidc.user);
+      res.send(JSON.stringify(req.oidc.user, null, 2));
     });
 
     /** Called by client to refresh the session cookie */

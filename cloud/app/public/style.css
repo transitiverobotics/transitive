@@ -30,3 +30,7 @@ a, .btn-link {
 .sidebar .nav-item:hover {
   background-color: #15362b !important;
 }
+
+body {
+  touch-action: none;
+}

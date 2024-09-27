@@ -6,10 +6,10 @@ DIR=~/.transitive
 NODE=$DIR/usr/bin/node
 NPM="$NODE $DIR/usr/bin/npm"
 
-echo "Generating SSL certificates"
+echo "Generating SSL certificate"
 
-if [[ -d $DIR/certs ]]; then
-  echo "  certificates already exist, not replacing";
+if [[ -e $DIR/certs/client.crt ]]; then
+  echo "  certificate already exist, not replacing";
 
 else
   cd $DIR

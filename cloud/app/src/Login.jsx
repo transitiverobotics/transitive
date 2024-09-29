@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Card, Button, Form } from 'react-bootstrap';
+import { FaOpenid } from "react-icons/fa";
 
 import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-sdk/utils-web';
@@ -45,8 +46,32 @@ const styles = {
   forgotLink: {
     fontSize: 'smaller',
     marginTop: '1em'
+  },
+  divider: {
+    wrapper: {
+      margin: '1em 0 1em 0',
+      display: 'flex'
+    },
+    line: {
+      flex: '1 1 0px',
+      height: '0.5em',
+      borderBottom: '1px solid gray'
+    },
+    text: {
+      flex: '0 0 1em',
+      width: 'fit-content',
+      padding: '0 1em 0 1em',
+      height: '1em',
+      lineHeight: '1em',
+    }
   }
 };
+
+const Divider = ({text}) => <div style={styles.divider.wrapper}>
+  <div style={styles.divider.line}></div>
+  <div style={styles.divider.text}>{text}</div>
+  <div style={styles.divider.line}></div>
+</div>;
 
 export const UserContext = React.createContext({});
 export const UserContextProvider = ({children}) => {
@@ -188,10 +213,11 @@ export const Login = ({mode: presetMode = undefined}) => {
   const [password2, setPassword2] = useState('');
   const {session, login, logout, register, error, forgot, reset}
     = useContext(UserContext);
+  const [openIdOrg, setOpenIdOrg] = useState(''); // account to log in to via openId
 
   const modes = {
     login: {
-      title: 'Log In',
+      title: 'Log in',
       submit: () => login(userName, password)
     },
     register: {
@@ -206,6 +232,11 @@ export const Login = ({mode: presetMode = undefined}) => {
       title: 'Reset Password',
       submit: () => reset(userName, password, params.get('code'))
     },
+    openId: {
+      title: 'Log in with OpenID',
+      submit: () => location.href =
+        `${location.origin}/@transitive-robotics/_robot-agent/openid/${openIdOrg}/login`
+    }
   };
 
   const [mode, setMode] = useState(presetMode || 'login');
@@ -222,7 +253,7 @@ export const Login = ({mode: presetMode = undefined}) => {
 
   const formLoginRegister = <F>
     <Form.Group className='mb-3' controlId='formUsername'>
-      <Form.Label>Username</Form.Label>
+      <Form.Label>Username/Organization</Form.Label>
       <Form.Control type='text'
         placeholder={isRegister ? 'Lower case, ideally short' : 'Username'}
         value={userName} onChange={e => setUserName(e.target.value.toLowerCase())}
@@ -293,11 +324,19 @@ export const Login = ({mode: presetMode = undefined}) => {
     </span>
     {error && <div style={styles.error}>{error}</div>}
 
-    <div style={styles.forgotLink}>
-      <ActionLink onClick={() => setMode('forgot')}>
-        Forgot login/password
-      </ActionLink>
-    </div>
+    {!isRegister && <F>
+      <div style={styles.forgotLink}>
+        <ActionLink onClick={() => setMode('forgot')}>
+          Forgot login/password
+        </ActionLink>
+      </div>
+
+      <Divider text='OR'/>
+
+      <Button variant='outline-primary' onClick={() => setMode('openId')}>
+        Log in with <FaOpenid /> OpenID
+      </Button>
+    </F>}
   </F>;
 
   /* Form to request a reset password link */
@@ -362,6 +401,29 @@ export const Login = ({mode: presetMode = undefined}) => {
     {error && <div style={styles.error}>{error}</div>}
   </F>;
 
+  /* Form to enter account name for openId login */
+  const formOpenId = <F>
+    <Form.Group className='mb-3' controlId='formOpenId'>
+      <Form.Label>Account</Form.Label>
+      <Form.Control type='text' placeholder='Account name'
+        value={openIdOrg} onChange={e => setOpenIdOrg(e.target.value)}
+        required
+        />
+    </Form.Group>
+
+    <Button variant='primary' disabled={!openIdOrg}
+      type='submit'
+    >
+      Log in
+    </Button> &nbsp;<span> or <ActionLink
+        onClick={() => setMode('login')}>
+        Log in with password instead
+      </ActionLink>
+    </span>
+    {error && <div style={styles.error}>{error}</div>}
+  </F>;
+
+
   const form = <Card.Body>
     <Card.Title>
       {modeObj.title}
@@ -370,11 +432,12 @@ export const Login = ({mode: presetMode = undefined}) => {
     <Form noValidate onSubmit={(e) => {
       e.stopPropagation();
       e.preventDefault();
-      // submit();
       modeObj.submit();
     }}>
-      {mode == 'forgot' ? formForgot :
-        mode == 'reset' ? formReset : formLoginRegister}
+      { mode == 'forgot' ? formForgot :
+        mode == 'reset' ? formReset :
+        mode == 'openId' ? formOpenId :
+        formLoginRegister }
     </Form>
   </Card.Body>;
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { Form, Row, Col, ListGroup } from 'react-bootstrap';
 import { FaTrashAlt } from 'react-icons/fa';
 
@@ -63,11 +63,30 @@ export const Security = () => {
   const {session} = useContext(UserContext);
   const [forceUpdate, setForceUpdate] = useState(0);
   const [account, setAccount] = useState();
+  const [saved, setSaved] = useState(true);
 
   useEffect(() => {
       session && fetchJson('/@transitive-robotics/_robot-agent/security',
         (err, res) => err ? log.error(err) : setAccount(res));
     }, [session, forceUpdate]);
+
+  const submitOpenId = useCallback(_.debounce((o) => {
+        fetchJson(`/@transitive-robotics/_robot-agent/security`,
+          (err, res) => {
+            if (err) {
+              log.error(err);
+            } else {
+              setSaved(true);
+            }
+          },
+          { body: o });
+    }, 500), []);
+
+  useEffect(() => {
+      setSaved(false);
+      account?.openId?.domain && account?.openId?.clientId &&
+        submitOpenId(account.openId);
+    }, [account?.openId]);
 
   const removeToken = (name) => {
     log.debug('removeToken', name);
@@ -79,8 +98,6 @@ export const Security = () => {
   if (!account) {
     return <div>Fetching data..</div>;
   }
-
-  log.debug({account});
 
   return <div style={styles.wrapper}>
     <h2>Security</h2>
@@ -103,6 +120,73 @@ export const Security = () => {
         <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
       </Col>
     </Form.Group>
+
+    <hr/>
+
+    <h5>OpenID Connect</h5>
+
+    <Form.Text>
+      Here you can specify an OpenID Connect application (e.g., Okta/Auth0
+      applications) you want to grant access to your account. Anyone with access
+      to that application will be able to log into your account on this portal.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="openid-domain">
+      <Form.Label column sm="2">
+        Domain (URL)
+      </Form.Label>
+      <Col sm="10">
+        <Form.Control value={account?.openId?.domain || ''}
+          onChange={(e) => setAccount(x => ({ ...x,
+            openId: { ...x.openId, domain: e.target.value }
+          }))}
+          placeholder='Enter the domain (URL) of your Open ID application'
+          />
+      </Col>
+    </Form.Group>
+
+    <Form.Group as={Row} controlId="openid-clientId">
+      <Form.Label column sm="2">
+        Client ID
+      </Form.Label>
+      <Col sm="10">
+        <Form.Control value={account?.openId?.clientId || ''}
+          onChange={(e) => setAccount(x => ({ ...x,
+            openId: { ...x.openId, clientId: e.target.value }
+          }))}
+          placeholder='Enter the client ID of your Open ID application'
+          />
+      </Col>
+    </Form.Group>
+
+    <Form.Group as={Row} controlId="openid-domain">
+      <Form.Label column sm="2">
+        Callback URL
+      </Form.Label>
+      <Col sm="10">
+        <tt>{
+          `${location.origin}/@transitive-robotics/_robot-agent/openid/${session.user}/callback`
+        }</tt><br/>
+        <Form.Text>
+          Please add this to the list of allowed callback URLs in your application.
+        </Form.Text>
+      </Col>
+    </Form.Group>
+
+    {account?.openId?.domain && account?.openId?.clientId && saved &&
+      <Form.Group as={Row} controlId="openid-domain">
+        <Form.Label column sm="2">
+          Login Link
+        </Form.Label>
+        <Col sm="10">
+          <a href={
+            `${location.origin}/@transitive-robotics/_robot-agent/openid/${session.user}/login`
+          }>OpenID Login to {session.user}</a><br/>
+          <Form.Text>
+            Share this link internally at your organization.
+          </Form.Text>
+        </Col>
+      </Form.Group>}
 
     <hr/>
 

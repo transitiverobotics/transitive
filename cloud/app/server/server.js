@@ -16,7 +16,7 @@ const _ = require('lodash');
 const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo } =
+mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo, getRandomId } =
   require('@transitive-sdk/utils');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
@@ -428,20 +428,17 @@ class _robotAgent extends Capability {
   devicePackageVersions = {};
   router = express.Router();
 
+  // TODO: update for use with Google Login (params from .env)
   // See options here:
   // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
-  authConfig = {
-    authRequired: false,
-    auth0Logout: true,
-    baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/auth0`,
-    clientID: 'y2dVLGIl2XM6xJa8OW0NYiLzORMMKz3C',
-    issuerBaseURL: 'https://dev-afficects3h7o61l.us.auth0.com',
-    secret: 'so_secret',
-    routes: {
-      // callback: '@transitive-robotics/_robot-agent/openid/login'
-      // login: '/@transitive-robotics/_robot-agent/openid/login'
-    }
-  };
+  // authConfig = {
+  //   authRequired: false,
+  //   auth0Logout: true,
+  //   baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/google-login`,
+  //   clientID: '....',
+  //   issuerBaseURL: '....',
+  //   secret: 'so_secret',
+  // };
 
   constructor() {
     super(() => {
@@ -754,8 +751,7 @@ class _robotAgent extends Capability {
 
   /** define routes for this app */
   addRoutes() {
-    log.debug('auth0 config', this.authConfig);
-    this.router.use(auth(this.authConfig)); // TODO
+    // this.router.use('/google-login', auth(this.authConfig)); // TODO: use for Google Login
 
     this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
@@ -790,6 +786,7 @@ class _robotAgent extends Capability {
         mongo: Mongo.db.databaseName});
     });
 
+    /** Login with password */
     this.router.post('/login', async (req, res) => {
       log.debug('login', req.body);
 
@@ -821,20 +818,64 @@ class _robotAgent extends Capability {
       res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
     });
 
-    this.router.get('/openid/login', requiresAuth(), async (req, res) => {
-      log.debug('openid profile', req.oidc.user);
-      res.send(JSON.stringify(req.oidc.user, null, 2));
+    /** Dynamically configure and run openid middleware for specified org */
+    this.router.use('/openid/:orgId', async (req, res, next) => {
+
+      const fail = (error) =>
+        res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
+
+      if (!req.params.orgId) {
+        return fail('OpenId: no org specified');
+      }
+
+      const accounts = Mongo.db.collection('accounts');
+      const account = await accounts.findOne({_id: req.params.orgId});
+      if (!account) {
+        log.info('OpenId: no such account', req.params.orgId);
+        return fail('No such account or OpenId not enabled');
+        // on purpose not disclosing that the account doesn't exist
+      }
+
+      if (!account?.openId?.clientId || !account?.openId?.domain) {
+        log.info('OpenId login not permitted by account', req.params.orgId);
+        return fail('No such account or OpenId not enabled');
+        // on purpose not disclosing that the account exists
+      }
+
+      const ensureHTTPs = (url) =>
+        url.startsWith('https://') ? url : `https://${url}`;
+
+      const config = {
+        authRequired: false,
+        auth0Logout: true,
+        baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
+        // clientID: 'y2dVLGIl2XM6xJa8OW0NYiLzORMMKz3C',
+        // issuerBaseURL: 'https://dev-afficects3h7o61l.us.auth0.com',
+        clientID: account.openId.clientId,
+        issuerBaseURL: ensureHTTPs(account.openId.domain),
+        secret: account.openId.secret,
+        routes: {
+          // callback: '/auth0/callback',
+          // login: '/auth0/login',
+          // logout: '/auth0/logout'
+        }
+      };
+
+      const authMiddleware = auth(config);
+      authMiddleware(req, res, () => {
+        log.debug('logged in?', req.oidc.isAuthenticated());
+        if (req.oidc.isAuthenticated()) {
+          log.debug('openid profile', req.oidc.user);
+          // log the openid user into the given account
+          req.session.user = account;
+          res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
+        } else {
+          // res.redirect(`${config.baseURL}/login`);
+          res.send(`Not logged in. Go to: ${config.baseURL}/login`);
+        }
+      });
     });
 
-    // this.router.get('/callback', async (req, res) => {
-    //   log.debug('openid profile', req.oidc.user);
-    //   res.send(JSON.stringify(req.oidc.user, null, 2));
-    // });
-
-    this.router.get('/profile', requiresAuth(), async (req, res) => {
-      log.debug('openid profile', req.oidc.user);
-      res.send(JSON.stringify(req.oidc.user, null, 2));
-    });
 
     /** Called by client to refresh the session cookie */
     this.router.get('/refresh', requireLogin, async (req, res) => {
@@ -1100,8 +1141,28 @@ class _robotAgent extends Capability {
       res.json({
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
-        cap_usage: account.cap_usage || {}
+        cap_usage: account.cap_usage || {},
+        openId: account.openId || {}
       });
+    });
+
+    this.router.post('/security', requireLogin, async (req, res) => {
+      log.debug('POST /security', req.body);
+
+      if (!req.session.user._id) {
+        res.status(401).end('not authorized');
+        return;
+      }
+
+      const openId = req.body;
+      openId.secret = getRandomId(32);
+
+      const accounts = Mongo.db.collection('accounts');
+      const result = await accounts.updateOne({_id: req.session.user._id}, {
+        $set: { openId: req.body }
+      });
+
+      res.json({status: 'ok', result});
     });
 
     // Admin tools

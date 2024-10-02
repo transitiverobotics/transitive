@@ -70,7 +70,7 @@ export const Security = () => {
         (err, res) => err ? log.error(err) : setAccount(res));
     }, [session, forceUpdate]);
 
-  const submitOpenId = useCallback(_.debounce((o) => {
+  const submit = useCallback(_.debounce((accountModifier) => {
         fetchJson(`/@transitive-robotics/_robot-agent/security`,
           (err, res) => {
             if (err) {
@@ -79,14 +79,20 @@ export const Security = () => {
               setSaved(true);
             }
           },
-          { body: o });
+          { body: accountModifier });
     }, 500), []);
 
   useEffect(() => {
       setSaved(false);
-      account?.openId?.domain && account?.openId?.clientId &&
-        submitOpenId(account.openId);
+      // account?.openId?.domain && account?.openId?.clientId &&
+      account && submit({openId: account.openId});
     }, [account?.openId]);
+
+  useEffect(() => {
+      setSaved(false);
+      // account?.googleDomain &&
+      account && submit({googleDomain: account.googleDomain});
+    }, [account?.googleDomain]);
 
   const removeToken = (name) => {
     log.debug('removeToken', name);
@@ -123,12 +129,36 @@ export const Security = () => {
 
     <hr/>
 
+    <h5>Sign in with Google</h5>
+
+    <Form.Text>
+      Here you can associate a Google Workspace domain with your account. Anyone
+      with an account on that workspace domain will be able to log into this
+      account "{session.user}" on this portal.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="google-domain">
+      <Form.Label column sm="2">
+        Domain
+      </Form.Label>
+      <Col sm="10">
+        <Form.Control value={account?.googleDomain || ''}
+          onChange={(e) => setAccount(x => ({ ...x,
+              googleDomain: e.target.value }))}
+          placeholder='e.g., superbots.com'
+          />
+      </Col>
+    </Form.Group>
+
+    <hr/>
+
     <h5>OpenID Connect</h5>
 
     <Form.Text>
       Here you can specify an OpenID Connect application (e.g., Okta/Auth0
       applications) you want to grant access to your account. Anyone with access
-      to that application will be able to log into your account on this portal.
+      to that application will be able to log into this account "{session.user}"
+      on this portal.
     </Form.Text>
 
     <Form.Group as={Row} controlId="openid-domain">

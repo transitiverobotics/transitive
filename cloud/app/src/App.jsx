@@ -158,7 +158,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
   }
 
   const ssl = (location.protocol == 'https:');
-  const host = location.host.replace('portal.', '');
+  const host = location.hostname.replace('portal.', '');
 
   const element = React.createElement(webComponent, {
       jwt: jwtToken,
@@ -199,7 +199,7 @@ const CapabilityWidget = ({type}) => {
   const [pkg, setPkg] = useState({});
 
   const ssl = (location.protocol == 'https:');
-  const host = location.host.replace('portal.', '');
+  const host = location.hostname.replace('portal.', '');
 
   // load all widgets defined for this capability and type
   const {ready} = ensureWebComponentIsLoaded(capability, webComponent,

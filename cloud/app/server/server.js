@@ -55,7 +55,7 @@ const addSessions = (router, collectionName, secret, options = {}) => {
       dbName: Mongo.db.databaseName,
       collectionName
     }),
-    cookie: {domain: `.${process.env.TR_HOST}`}
+    // cookie: {domain: `.${process.env.TR_HOST}`}
   };
   options.genid && (obj.genid = options.genid);
   router.use(session(obj));
@@ -428,18 +428,6 @@ class _robotAgent extends Capability {
   devicePackageVersions = {};
   router = express.Router();
 
-  // TODO: update for use with Google Login (params from .env)
-  // See options here:
-  // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
-  // authConfig = {
-  //   authRequired: false,
-  //   auth0Logout: true,
-  //   baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/google-login`,
-  //   clientID: '....',
-  //   issuerBaseURL: '....',
-  //   secret: 'so_secret',
-  // };
-
   constructor() {
     super(() => {
       // Subscribe to all messages and make sure that the named capabilities are
@@ -751,7 +739,63 @@ class _robotAgent extends Capability {
 
   /** define routes for this app */
   addRoutes() {
-    // this.router.use('/google-login', auth(this.authConfig)); // TODO: use for Google Login
+
+    if (process.env.TR_GOOGLE_SIGNIN_CLIENTID &&
+        process.env.TR_GOOGLE_SIGNIN_SECRET
+    ) {
+      // Google doesn't allow .local domains as callback for OpenID, so in dev
+      // we need to use localhost:9000, and also use that for testing.
+      const host = tryJSONParse(process.env.PRODUCTION) ?
+        `https://portal.${process.env.TR_HOST}` : 'http://localhost:9000';
+
+      // See options here:
+      // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
+      const authConfig = {
+        authRequired: false,
+        auth0Logout: true,
+        baseURL: `${host}/@transitive-robotics/_robot-agent/google-login`,
+        clientID: process.env.TR_GOOGLE_SIGNIN_CLIENTID,
+        issuerBaseURL: 'https://accounts.google.com/',
+        secret: process.env.TR_GOOGLE_SIGNIN_SECRET
+      };
+
+      this.router.use('/google-login', auth(authConfig));
+
+      this.router.get('/google-login', (req, res) => {
+        if (req.oidc.isAuthenticated()) {
+          log.debug('google openid profile', req.oidc.user);
+
+          // req.oidc.user.email
+          // See https://developers.google.com/identity/openid-connect/openid-connect#hd-param
+          if (req.oidc.user.hd) {
+            // it's a workspace account (not gmail/googlemail)
+            const accounts = Mongo.db.collection('accounts');
+            const account = await accounts.findOne({
+              googleDomain: req.oidc.user.hd
+            });
+            if (account) {
+              // log into that account
+              req.session.user = account;
+              res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
+
+            } else {
+              const msg = `No account with googleDomain ${req.oidc.user.hd}`;
+              log.debug(msg);
+              res.send(msg);
+            }
+          } else {
+            // it is a gmail account
+          }
+
+          // req.session.user = account;
+          // res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
+          res.send(JSON.stringify(req.oidc.user));
+        } else {
+          // res.redirect(`${config.baseURL}/login`);
+          res.send(`Not logged in. Go to: ${authConfig.baseURL}/login`);
+        }
+      });
+    }
 
     this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
@@ -849,8 +893,6 @@ class _robotAgent extends Capability {
         authRequired: false,
         auth0Logout: true,
         baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
-        // clientID: 'y2dVLGIl2XM6xJa8OW0NYiLzORMMKz3C',
-        // issuerBaseURL: 'https://dev-afficects3h7o61l.us.auth0.com',
         clientID: account.openId.clientId,
         issuerBaseURL: ensureHTTPs(account.openId.domain),
         secret: account.openId.secret,
@@ -858,7 +900,7 @@ class _robotAgent extends Capability {
           // callback: '/auth0/callback',
           // login: '/auth0/login',
           // logout: '/auth0/logout'
-        }
+        },
       };
 
       const authMiddleware = auth(config);
@@ -1142,28 +1184,41 @@ class _robotAgent extends Capability {
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
         cap_usage: account.cap_usage || {},
-        openId: account.openId || {}
+        openId: account.openId || {},
+        googleDomain: account.googleDomain || undefined,
       });
     });
 
     this.router.post('/security', requireLogin, async (req, res) => {
-      log.debug('POST /security', req.body);
 
       if (!req.session.user._id) {
         res.status(401).end('not authorized');
         return;
       }
 
-      const openId = req.body;
-      openId.secret = getRandomId(32);
+      const $set = {}
+      if (req.body.googleDomain != undefined) {
+        $set.googleDomain = req.body.googleDomain;
+      }
 
       const accounts = Mongo.db.collection('accounts');
+
+      if (req.body.openId != undefined) {
+        $set.openId = req.body.openId;
+        if (!account.openId?.secret) {
+          // generate an openId secret for this account
+          $set.openId.secret = getRandomId(32);
+        }
+      }
+
+      log.debug('POST /security', req.body, $set);
       const result = await accounts.updateOne({_id: req.session.user._id}, {
-        $set: { openId: req.body }
+        $set
       });
 
       res.json({status: 'ok', result});
     });
+
 
     // Admin tools
 

@@ -19,7 +19,8 @@ const styles = {
     maxWidth: '20em',
   },
   wrapper: {
-    padding: '1em'
+    padding: '1em',
+    touchAction: 'none',
   }
 };
 

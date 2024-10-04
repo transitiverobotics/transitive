@@ -8,7 +8,8 @@ log.setLevel('debug');
 
 const SALT_ROUNDS = 10;
 
-const createAccount = async ({name, password, email, admin}, cb) => {
+/** Create a new account */
+const createAccount = async ({name, password, email, admin, verified}, cb) => {
   if (name == 'bot') {
     log.error('Sorry, the account name "bot" is reserved');
     return;
@@ -21,16 +22,23 @@ const createAccount = async ({name, password, email, admin}, cb) => {
     cb && cb('An account with that name already exists');
   } else {
 
-    const bcryptPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const bcryptPassword = password && await bcrypt.hash(password, SALT_ROUNDS);
     const newAccount = {
       _id: name,
       bcryptPassword,
       email,
       created: new Date(),
+      // if admin, i.e., auto-created internally:
       ...admin && {
         admin: true,
         verified: true,
         free: true,
+        jwtSecret: randomId(48),
+        robotToken: randomId(12),
+      },
+        // if already verified, e.g., from Google Login
+      ...verified && {
+        verified,
         jwtSecret: randomId(48),
         robotToken: randomId(12),
       }
@@ -39,6 +47,7 @@ const createAccount = async ({name, password, email, admin}, cb) => {
     await accounts.insertOne(newAccount);
     log.info(`New account created: ${name}`);
     cb && cb(null, newAccount);
+    return newAccount;
   }
 };
 

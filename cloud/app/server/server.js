@@ -56,6 +56,9 @@ const addSessions = (router, collectionName, secret, options = {}) => {
       collectionName
     }),
     // cookie: {domain: `.${process.env.TR_HOST}`}
+    // cookie: {sameSite: 'strict'}
+    // note: when we login from localhost:9000 this gets dynamically removed
+    cookie: {domain: `.${process.env.TR_HOST}`, sameSite: 'strict'}
   };
   options.genid && (obj.genid = options.genid);
   router.use(session(obj));
@@ -67,7 +70,9 @@ const addSessions = (router, collectionName, secret, options = {}) => {
 const requireLogin = (req, res, next) => {
   // log.debug(req.session);
   if (!req.session || !req.session.user) {
-    res.status(401).json({error: 'Not authorized. You need to be logged in.'});
+    res.status(401).json({
+      error: 'Not authorized. You need to be logged in. Please log out and back in.'
+    });
   } else {
     next();
   }
@@ -420,6 +425,21 @@ const createCookie = (account, impersonating = false) => JSON.stringify({
   impersonating
 });
 
+/** Log the user of this request into the given account. */
+const login = (req, res, {account, impersonating = false, redirect = '/'}) => {
+  if (req.hostname.startsWith('localhost')) {
+    delete req.session.cookie.domain;
+  }
+  // Write the verified username to the session to indicate logged in status
+  req.session.user = account;
+  const cookiedRes = res.cookie(COOKIE_NAME, createCookie(account, impersonating));
+  if (!redirect) {
+    cookiedRes.json({status: 'ok'});
+  } else {
+    cookiedRes.redirect(redirect);
+  }
+};
+
 /** dummy capability just to forward general info about devices */
 class _robotAgent extends Capability {
 
@@ -740,63 +760,6 @@ class _robotAgent extends Capability {
   /** define routes for this app */
   addRoutes() {
 
-    if (process.env.TR_GOOGLE_SIGNIN_CLIENTID &&
-        process.env.TR_GOOGLE_SIGNIN_SECRET
-    ) {
-      // Google doesn't allow .local domains as callback for OpenID, so in dev
-      // we need to use localhost:9000, and also use that for testing.
-      const host = tryJSONParse(process.env.PRODUCTION) ?
-        `https://portal.${process.env.TR_HOST}` : 'http://localhost:9000';
-
-      // See options here:
-      // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
-      const authConfig = {
-        authRequired: false,
-        auth0Logout: true,
-        baseURL: `${host}/@transitive-robotics/_robot-agent/google-login`,
-        clientID: process.env.TR_GOOGLE_SIGNIN_CLIENTID,
-        issuerBaseURL: 'https://accounts.google.com/',
-        secret: process.env.TR_GOOGLE_SIGNIN_SECRET
-      };
-
-      this.router.use('/google-login', auth(authConfig));
-
-      this.router.get('/google-login', (req, res) => {
-        if (req.oidc.isAuthenticated()) {
-          log.debug('google openid profile', req.oidc.user);
-
-          // req.oidc.user.email
-          // See https://developers.google.com/identity/openid-connect/openid-connect#hd-param
-          if (req.oidc.user.hd) {
-            // it's a workspace account (not gmail/googlemail)
-            const accounts = Mongo.db.collection('accounts');
-            const account = await accounts.findOne({
-              googleDomain: req.oidc.user.hd
-            });
-            if (account) {
-              // log into that account
-              req.session.user = account;
-              res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
-
-            } else {
-              const msg = `No account with googleDomain ${req.oidc.user.hd}`;
-              log.debug(msg);
-              res.send(msg);
-            }
-          } else {
-            // it is a gmail account
-          }
-
-          // req.session.user = account;
-          // res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
-          res.send(JSON.stringify(req.oidc.user));
-        } else {
-          // res.redirect(`${config.baseURL}/login`);
-          res.send(`Not logged in. Go to: ${authConfig.baseURL}/login`);
-        }
-      });
-    }
-
     this.router.use(express.json());
     this.router.get('/availablePackages', async (req, res) => {
       // TODO: add authentication headers (once #84), npm token as Bearer
@@ -832,7 +795,7 @@ class _robotAgent extends Capability {
 
     /** Login with password */
     this.router.post('/login', async (req, res) => {
-      log.debug('login', req.body);
+      log.debug('/login:', req.body.name);
 
       const fail = (error) =>
         res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
@@ -857,9 +820,7 @@ class _robotAgent extends Capability {
         return fail('invalid credentials');
       }
 
-      // Write the verified username to the session to indicate logged in status
-      req.session.user = account;
-      res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
+      login(req, res, {account, redirect: false});
     });
 
     /** Dynamically configure and run openid middleware for specified org */
@@ -909,8 +870,7 @@ class _robotAgent extends Capability {
         if (req.oidc.isAuthenticated()) {
           log.debug('openid profile', req.oidc.user);
           // log the openid user into the given account
-          req.session.user = account;
-          res.cookie(COOKIE_NAME, createCookie(account)).redirect('/');
+          login(req, res, {account});
         } else {
           // res.redirect(`${config.baseURL}/login`);
           res.send(`Not logged in. Go to: ${config.baseURL}/login`);
@@ -918,6 +878,100 @@ class _robotAgent extends Capability {
       });
     });
 
+    if (process.env.TR_GOOGLE_SIGNIN_CLIENTID &&
+        process.env.TR_GOOGLE_SIGNIN_SECRET
+    ) {
+      // Google doesn't allow .local domains as callback for OpenID, so in dev
+      // we need to use localhost:9000, and also use that for testing.
+      const host = tryJSONParse(process.env.PRODUCTION) ?
+        `https://portal.${process.env.TR_HOST}` : 'http://localhost:9000';
+
+      // See options here:
+      // https://auth0.github.io/express-openid-connect/interfaces/ConfigParams.html
+      const authConfig = {
+        authRequired: false,
+        auth0Logout: true,
+        baseURL: `${host}/@transitive-robotics/_robot-agent/google-login`,
+        clientID: process.env.TR_GOOGLE_SIGNIN_CLIENTID,
+        issuerBaseURL: 'https://accounts.google.com/',
+        secret: process.env.TR_GOOGLE_SIGNIN_SECRET,
+        transactionCookie: {
+          sameSite: 'Strict'
+        },
+      };
+
+      this.router.use('/google-login', auth(authConfig));
+
+      this.router.get('/google-login', async (req, res) => {
+        if (req.oidc.isAuthenticated()) {
+          log.debug('google openid profile', req.oidc.user);
+
+          const accounts = Mongo.db.collection('accounts');
+
+          // See https://developers.google.com/identity/openid-connect/openid-connect#hd-param
+          if (req.oidc.user.hd) {
+            // it's a workspace account (not gmail/googlemail)
+            const account = await accounts.findOne({
+              googleDomain: req.oidc.user.hd
+            });
+            if (account) {
+              // log into that account
+              login(req, res, {account});
+
+            } else {
+
+              const accountByEmail = await accounts.findOne({
+                verified: req.oidc.user.email
+              });
+
+              if (accountByEmail) {
+                login(req, res, {account: accountByEmail});
+              } else {
+                // create account, automatically named by domain
+                const name = req.oidc.user.hd.replace(/\./g, '_');
+                const newAccount = await createAccount({
+                  name,
+                  verified: req.oidc.user.email,
+                });
+
+                // already verified: create billing account
+                await this.createBillingUser({orgId: name});
+                login(req, res, {account: newAccount});
+              }
+
+            }
+          } else {
+            // it is a gmail account
+
+            // find existing or create new account
+
+            const accountByEmail = await accounts.findOne({
+              verified: req.oidc.user.email
+            });
+
+            if (accountByEmail) {
+              login(req, res, {account: accountByEmail});
+            } else {
+              // create account, automatically named by email username
+              const name = req.oidc.user.email.split('@')[0]
+                  .replace(/[^a-zA-Z0-9_]/g, '_');
+              const newAccount = await createAccount({
+                name,
+                verified: req.oidc.user.email,
+              });
+
+              // already verified: create billing account
+              await this.createBillingUser({orgId: name});
+              login(req, res, {account: newAccount});
+            }
+
+          }
+        } else {
+          // not logged in
+          res.redirect('/');
+        }
+      });
+    }
 
     /** Called by client to refresh the session cookie */
     this.router.get('/refresh', requireLogin, async (req, res) => {
@@ -933,10 +987,11 @@ class _robotAgent extends Capability {
         return fail('invalid session');
       }
 
-      req.session.user = account;
-      res.cookie(COOKIE_NAME,
-        createCookie(account, Boolean(req.session.originalUser)))
-        .json({status: 'ok'});
+      login(req, res, {
+        account,
+        impersonating: Boolean(req.session.originalUser),
+        redirect: false
+      });
     });
 
 
@@ -971,17 +1026,16 @@ class _robotAgent extends Capability {
         return fail('account already exists');
       }
 
-      createAccount(req.body, (err, account) => {
-        if (err) {
-          return fail('account already exists');
-        } else {
-          sendVerificationEmail(req.body.name);
-
-          // Write the verified username to the session to indicate logged in status
-          req.session.user = account;
-          res.cookie(COOKIE_NAME, createCookie(account)).json({status: 'ok'});
-        }
-      });
+      // sanitize request and create account
+      createAccount(_.pick(req.body, ['name', 'password', 'email']),
+        (err, account) => {
+          if (err) {
+            return fail('account already exists');
+          } else {
+            sendVerificationEmail(req.body.name);
+            login(req, res, {account, redirect: false});
+          }
+        });
     });
 
     this.router.get('/verify', async (req, res) => {
@@ -1004,12 +1058,14 @@ class _robotAgent extends Capability {
       // already create billing account
       await this.createBillingUser({orgId: id});
 
-      req.session.user = account; // also log in, in case logged out
-      res.cookie(COOKIE_NAME, JSON.stringify({
-          user: id,
-          verified: account.email,
-          robot_token: account.robotToken
-        })).redirect(`/#msg=verificationSuccessful`);
+      // req.session.user = account; // also log in, in case logged out
+      // res.cookie(COOKIE_NAME, JSON.stringify({
+      //     user: id,
+      //     verified: account.email,
+      //     robot_token: account.robotToken
+      //   })).redirect(`/#msg=verificationSuccessful`);
+      // also log in, in case logged out
+      login(req, res, {account, redirect: '/#msg=verificationSuccessful'});
     });
 
     // -- Support for forgotten login/password
@@ -1172,7 +1228,7 @@ class _robotAgent extends Capability {
     });
 
     this.router.get('/security', requireLogin, async (req, res) => {
-      log.debug('get JWT secret for', req.session.user);
+      log.debug('get profile/security data for', req.session.user._id);
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
@@ -1205,13 +1261,14 @@ class _robotAgent extends Capability {
 
       if (req.body.openId != undefined) {
         $set.openId = req.body.openId;
+        const account = await accounts.findOne({_id: req.session.user._id});
         if (!account.openId?.secret) {
           // generate an openId secret for this account
           $set.openId.secret = getRandomId(32);
         }
       }
 
-      log.debug('POST /security', req.body, $set);
+      // log.debug('POST /security', req.body, $set);
       const result = await accounts.updateOne({_id: req.session.user._id}, {
         $set
       });

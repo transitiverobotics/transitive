@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Card, Button, Form } from 'react-bootstrap';
-import { FaOpenid } from "react-icons/fa";
+import { FaOpenid, FaGoogle } from "react-icons/fa";
 
 import { loglevel, getLogger, fetchJson, parseCookie }
 from '@transitive-sdk/utils-web';
@@ -64,6 +64,15 @@ const styles = {
       height: '1em',
       lineHeight: '1em',
     }
+  },
+  buttons: {
+    display: 'flex',
+    justifyContent: 'space-between'
+  },
+  logo: {
+    height: '1.25em',
+    marginRight: '0.2em',
+    transform: 'translateY(-0.1em)'
   }
 };
 
@@ -333,9 +342,16 @@ export const Login = ({mode: presetMode = undefined}) => {
 
       <Divider text='OR'/>
 
-      <Button variant='outline-primary' onClick={() => setMode('openId')}>
-        Log in with <FaOpenid /> OpenID
-      </Button>
+      <div style={styles.buttons}>
+        <Button variant='outline-primary' onClick={() => setMode('openId')}>
+          <img src='/openid-logo.png' style={styles.logo} /> Log in with OpenID
+        </Button>
+
+        <Button variant='outline-primary'
+          href='/@transitive-robotics/_robot-agent/google-login/login'>
+          <img src='/google-logo.svg' style={styles.logo} /> Sign in with Google
+        </Button>
+      </div>
     </F>}
   </F>;
 

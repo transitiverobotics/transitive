@@ -31,6 +31,8 @@ a, .btn-link {
   background-color: #15362b !important;
 }
 
+
+/* Moved to StandAloneComponent
 body {
   touch-action: none;
-}
+} */

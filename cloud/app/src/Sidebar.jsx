@@ -122,8 +122,11 @@ export const Sidebar = () => {
   useEffect(() => {
       fetch('/@transitive-robotics/_robot-agent/runningPackages').then(
         res => res.json()).then(running => {
-        console.log({running});
-        setRunningPackages(running);
+          if (running.error) {
+            console.log('error fetching running', running.error);
+          } else {
+            setRunningPackages(running);
+          }
       });
     }, []);
 
@@ -134,7 +137,7 @@ export const Sidebar = () => {
       Logged in as {session.user}
       <Link onClick={logout} to='#' style={{
         float: 'right'
-      }}>logout</Link>
+      }}>log out</Link>
     </div>
     { session.admin && <div><Link to='/admin'>Admin</Link></div> }
     { session.impersonating && <div><ActionLink onClick={deimpersonate}>

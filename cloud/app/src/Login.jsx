@@ -19,16 +19,14 @@ const styles = {
   page: {
     minHeight: '100vh',
     background: 'linear-gradient(21deg, rgb(0, 0, 0), #000, #112, #234)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   wrapper: {
     margin: 'auto',
-    top: 'calc(50vh - 20em)',
-    // left: 'calc(50vw - 15em)',
     padding: '2em',
     maxWidth: '30em',
-    // height: '30em',
-    // width: '30em'
-    // marginTop: 'calc(50vh - 15em)'
   },
   loggedIn: {
     margin: 'auto'
@@ -290,18 +288,15 @@ export const Login = ({mode: presetMode = undefined}) => {
         required
         isInvalid={isRegister && password.length > 0 && password.length < 8}
         autoComplete={isRegister ? 'new-password' : 'current-password'}/>
-    </Form.Group>
-
-    {isRegister &&
-        <Form.Group className='mb-3' controlId='formBasicPassword2'>
-          <Form.Label>Repeat Password</Form.Label>
-          <Form.Control type='password' placeholder='Password'
+      {isRegister && <F>
+          <Form.Control type='password' placeholder='Repeat Password'
             value={password2}
             onChange={e => setPassword2(e.target.value)}
             isInvalid={password2.length > 0 && password2 != password}
             autoComplete={isRegister ? 'new-password' : 'current-password'}/>
-        </Form.Group>
-    }
+        </F>
+      }
+    </Form.Group>
 
     <div style={styles.conditions}>
       By {isRegister ? 'registering' : 'logging in'} you agree to
@@ -333,26 +328,28 @@ export const Login = ({mode: presetMode = undefined}) => {
     </span>
     {error && <div style={styles.error}>{error}</div>}
 
-    {!isRegister && <F>
+    {!isRegister &&
       <div style={styles.forgotLink}>
         <ActionLink onClick={() => setMode('forgot')}>
           Forgot login/password
         </ActionLink>
       </div>
+    }
 
       <Divider text='OR'/>
 
       <div style={styles.buttons}>
-        <Button variant='outline-primary' onClick={() => setMode('openId')}>
-          <img src='/openid-logo.png' style={styles.logo} /> Log in with OpenID
-        </Button>
+      {!isRegister &&
+          <Button variant='outline-primary' onClick={() => setMode('openId')}>
+            <img src='/openid-logo.png' style={styles.logo} /> Log in with OpenID
+          </Button>
+      }
 
         <Button variant='outline-primary'
           href='/@transitive-robotics/_robot-agent/google-login/login'>
           <img src='/google-logo.svg' style={styles.logo} /> Sign in with Google
         </Button>
       </div>
-    </F>}
   </F>;
 
   /* Form to request a reset password link */

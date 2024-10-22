@@ -4,8 +4,8 @@
   "private": true,
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",
-    "@transitive-sdk/utils": "^0.12.10",
-    "@transitive-sdk/utils-web": "^0.12.10",
+    "@transitive-sdk/utils": "^0.12.12",
+    "@transitive-sdk/utils-web": "^0.12.12",
     "bcrypt": "^5.0.1",
     "bootstrap": "^5.1.3",
     "codesandbox": "^2.2.3",

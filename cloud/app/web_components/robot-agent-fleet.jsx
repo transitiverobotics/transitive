@@ -176,7 +176,7 @@ const Fleet = (props) => {
                 />
               For instructions on getting started or to pre-install the agent and
               capabilities in Docker, please see the <a
-                href={`//${host}/docs/documentation`}>documentation</a>.
+                href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
 
               If you just want to try it out quickly you can use our example
               Docker image: <Code language='bash' code={dockerCommand} />

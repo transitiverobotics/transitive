@@ -82,7 +82,7 @@ router.post('/csr', (req, res) => {
           ].join(' ')).toString('ascii');
 
       // get user id alleged by the certificate signing request
-      const match = stdout.match(/subject=CN = ([^:]*):.*/);
+      const match = stdout.match(/subject=CN = ([^:]*):d_.*/);
       if (!match) {
         res.status(400).end('invalid signing request');
         return;

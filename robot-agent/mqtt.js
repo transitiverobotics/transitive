@@ -44,7 +44,9 @@ let data;
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version;
-const AGENT_PREFIX = `${PREFIX}/@transitive-robotics/_robot-agent/${version}`;
+const CAP_NAME = '@transitive-robotics/_robot-agent'
+const AGENT_PREFIX = `${PREFIX}/${CAP_NAME}/${version}`;
+const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${version}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 log.debug('using', {AGENT_PREFIX, MQTT_HOST});
 assert(version, 'env var npm_package_version is required');
@@ -93,13 +95,20 @@ mqttClient.on('connect', function(connackPacket) {
             data.update(`${AGENT_PREFIX}/status/ready`, true);
           });
         });
+
+
+        mqttSync.subscribe(`${FLEET_PREFIX}/config`, (err) => {
+          err && log.warn('failed to subscribe to fleet config', err);
+        });
+        mqttSync.data.subscribePath(`${FLEET_PREFIX}/config`,
+          (value, key) => log.debug('got config', key, value));
       }
     });
   }
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
   // "publication", of which this may be a "clear on start" functionality
-  const allVersionsPrefix = `${PREFIX}/@transitive-robotics/_robot-agent`;
+  const allVersionsPrefix = `${PREFIX}/${CAP_NAME}`;
   !initialized && mqttClearRetained(mqttClient,
     [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
 
@@ -125,7 +134,7 @@ mqttClient.on('connect', function(connackPacket) {
 
           const parsedTopic = parseMQTTTopic(topic);
           // TODO: ensure no one tries to publish a capability with this name -> registry
-          if (parsedTopic.capability != '@transitive-robotics/_robot-agent') {
+          if (parsedTopic.capability != CAP_NAME) {
             // Not for us, relay it locally.
             /* We do NOT want to retain package-specific messages because we do not
             subscribe to them all the time and could be missing "clear" messages,

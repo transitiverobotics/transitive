@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ListGroup, Badge } from 'react-bootstrap';
-
-import { heartbeatLevel, Heartbeat, ensureProps } from './shared';
-import { ConfirmedButton } from '../src/utils/ConfirmedButton';
+import { ListGroup, Badge, Form } from 'react-bootstrap';
+import MultiRangeSlider from "multi-range-slider-react";
 
 const _ = {
   map: require('lodash/map'),
@@ -11,11 +9,13 @@ const _ = {
 };
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-toFlatObject, getLogger, mergeVersions } from '@transitive-sdk/utils-web';
+  toFlatObject, getLogger, mergeVersions } from '@transitive-sdk/utils-web';
 
+import { heartbeatLevel, Heartbeat, ensureProps } from './shared';
 import { Code } from '../src/utils/Code';
 import { Fold } from '../src/utils/Fold';
 import { Delayed } from '../src/utils/Delayed';
+import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
 const log = getLogger('robot-agent-fleet');
 log.setLevel('debug');
@@ -29,11 +29,28 @@ const styles = {
   },
   cap: {
     marginRight: '1em'
+  },
+  flex: {
+    wrapper: {
+      marginTop: '0.5em',
+      display: 'flex',
+    },
+    label: {
+      flex: '1 2 20em',
+      margin: 'auto',
+    },
+    control: {
+      flex: '20 1 10em',
+      margin: 'auto',
+    }
   }
 };
 
 const explanation = `This will remove the data for all inactive devices.
   They will reappear if they reconnect, but all capability data will be gone.`;
+
+// array from 0 to 24
+const hours = Array.from({ length: 25 }, (v, i) => i);
 
 /** Show one device */
 const FleetDevice = ({status, info, device, device_url}) => {
@@ -143,48 +160,83 @@ const Fleet = (props) => {
     ].filter(Boolean).join(' ');
 
   return <div>
-    <h5>Devices</h5>
-
     <div>
-      {counts[0]} online, {counts[1]} offline, {counts[2]} inactive {
-        stale.length > 0 && <ConfirmedButton
-          onClick={clear} variant='link' style={{verticalAlign: 'initial'}}
-          question='Remove inactive devices?'
-          explanation={explanation}>
-          Remove inactive devices
-        </ConfirmedButton>}
+      <h4>Devices</h4>
+
+      <div>
+        {counts[0]} online, {counts[1]} offline, {counts[2]} inactive {
+          stale.length > 0 && <ConfirmedButton
+            onClick={clear} variant='link' style={{verticalAlign: 'initial'}}
+            question='Remove inactive devices?'
+            explanation={explanation}>
+            Remove inactive devices
+          </ConfirmedButton>}
+      </div>
+
+
+      <ListGroup variant="flush">
+        {!empty ? _.map(mergedData, ({status, info, id}) =>
+            <FleetDevice key={id} status={status} info={info} device={id}
+              device_url={device_url} />)
+          :
+          <ListGroup.Item>
+            <i>No devices yet.</i>
+          </ListGroup.Item>
+        }
+        <ListGroup.Item>
+          <Delayed>
+            <Fold title="Add devices" expanded={empty}>
+              <F>
+                Execute this command on your device to add it:
+                <Code
+                  code={`curl -s "${curlURL}?id=${id}&token=${
+                    encodeURIComponent(session.robot_token)}" | bash`}
+                  />
+                For instructions on getting started or to pre-install the agent and
+                capabilities in Docker, please see the <a
+                  href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
+
+                If you just want to try it out quickly you can use our example
+                Docker image: <Code language='bash' code={dockerCommand} />
+              </F>
+            </Fold>
+          </Delayed>
+        </ListGroup.Item>
+      </ListGroup>
     </div>
 
+    <hr/>
 
-    <ListGroup variant="flush">
-      {!empty ? _.map(mergedData, ({status, info, id}) =>
-          <FleetDevice key={id} status={status} info={info} device={id}
-            device_url={device_url} />)
-        :
-        <ListGroup.Item>
-          <i>No devices yet.</i>
-        </ListGroup.Item>
-      }
-      <ListGroup.Item>
-        <Delayed>
-          <Fold title="Add devices" expanded={empty}>
-            <F>
-              Execute this command on your device to add it:
-              <Code
-                code={`curl -s "${curlURL}?id=${id}&token=${
-                  encodeURIComponent(session.robot_token)}" | bash`}
-                />
-              For instructions on getting started or to pre-install the agent and
-              capabilities in Docker, please see the <a
-                href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
+    <div>
+      <h4>Fleetwide Configuration</h4>
 
-              If you just want to try it out quickly you can use our example
-              Docker image: <Code language='bash' code={dockerCommand} />
-            </F>
-          </Fold>
-        </Delayed>
-      </ListGroup.Item>
-    </ListGroup>
+      <Form.Text>
+        Configuration you set here applies to all your devices.
+      </Form.Text>
+
+      <div style={styles.flex.wrapper}>
+        <div style={styles.flex.label}>
+          Update window<br/>
+          <Form.Text>
+            Defines the daily hours in UTC between which the device may perform
+            auto-updates.
+          </Form.Text>
+        </div>
+        <div style={styles.flex.control}>
+          <MultiRangeSlider
+            labels={hours}
+            min={0}
+            max={24}
+            step={1}
+            minValue={0}
+            maxValue={24}
+            onChange={({minValue, maxValue}) => {
+              console.log({minValue, maxValue});
+            }}
+            />
+        </div>
+      </div>
+    </div>
   </div>
 };
 

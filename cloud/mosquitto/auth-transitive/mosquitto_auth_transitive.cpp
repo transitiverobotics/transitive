@@ -457,6 +457,9 @@ static int acl_callback(int event, void *event_data, void *userdata) {
     }
   }
 
+  bool readAccess =
+    ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
+
   try {
     if (prefix("{", username)) {
       // The username is a JSON string, from a websocket client
@@ -470,8 +473,6 @@ static int acl_callback(int event, void *event_data, void *userdata) {
         return MOSQ_ERR_SUCCESS;
       }
 
-      bool readAccess =
-        ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
       if (isAuthorized(topicParts, username, readAccess)) {
         // add to cache
         clientPermissions[id][ed->topic] = currentTime;
@@ -547,7 +548,18 @@ static int acl_callback(int event, void *event_data, void *userdata) {
   	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }
-    if (strcmp(user_orgId, orgId) != 0 || strcmp(user_deviceId, deviceId) != 0) {
+    if (strcmp(user_orgId, orgId) != 0) {
+  	  printf(": DENIED (%s)\n", ip);
+      return MOSQ_ERR_ACL_DENIED;
+    }
+
+    // allow all robots read access to the /orgId/_fleet namespace
+    if (readAccess && strcmp("_fleet", deviceId) != 0) {
+      output && printf(": requesting _fleet namespace\n");
+      return MOSQ_ERR_SUCCESS;
+    }
+
+    if (strcmp(user_deviceId, deviceId) != 0) {
   	  printf(": DENIED (%s)\n", ip);
       return MOSQ_ERR_ACL_DENIED;
     }

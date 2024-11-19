@@ -17,6 +17,10 @@ const config = {
   sourcemap: isDevelopment,
   target: ['es2022'],
   outdir: 'dist',
+  define: {
+    TR_PKG_VERSION_NS: JSON.stringify(process.env.npm_package_version?.split('.')
+      .slice(0, 2).join('.')),
+  },
   loader: {
     '.js': 'jsx',
     '.svg': 'text',

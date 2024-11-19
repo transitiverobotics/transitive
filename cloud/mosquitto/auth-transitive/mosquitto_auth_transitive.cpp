@@ -459,6 +459,7 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 
   bool readAccess =
     ed->access == MOSQ_ACL_READ || ed->access == MOSQ_ACL_SUBSCRIBE;
+  output && printf("%d, %s\n", readAccess, ed->topic);
 
   try {
     if (prefix("{", username)) {
@@ -554,8 +555,8 @@ static int acl_callback(int event, void *event_data, void *userdata) {
     }
 
     // allow all robots read access to the /orgId/_fleet namespace
-    if (readAccess && strcmp("_fleet", deviceId) != 0) {
-      output && printf(": requesting _fleet namespace\n");
+    if (readAccess && strcmp("_fleet", deviceId) == 0) {
+      output && printf(": readonly access to _fleet namespace\n");
       return MOSQ_ERR_SUCCESS;
     }
 

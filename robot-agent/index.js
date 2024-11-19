@@ -1,19 +1,8 @@
 
 
 const fs = require('fs');
-const dotenv = require('dotenv');
 const constants = require('./constants');
-
-dotenv.config({path: './.env'});
-dotenv.config({path: './.env_user'});
-
-global.config = {};
-try {
-  global.config = JSON.parse(fs.readFileSync('./config.json', {encoding: 'utf8'}));
-  console.log(`Using config:\n${JSON.stringify(global.config, true, 2)}`);
-} catch (e) {
-  console.log('No config.json file found or not valid JSON, proceeding without.');
-}
+const { getConfig } = require('./config');
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
 
@@ -102,9 +91,19 @@ const selfUpdate = (callback) => {
     });
 };
 
+/** Are we allowed to update right now? */
+const canWeUpdate = () => {
+  const updateHours = getConfig('updateHours');
+  const currentHour = (new Date()).getHours();
+  return (!updateHours || (
+      ( updateHours.from || 0) <= currentHour
+        && (updateHours.to || 24) > currentHour)
+  );
+};
 
 /** update package "name" */
 const updatePackage = (name) => {
+
   log.info(`checking for updates for package ${name}`);
   exec(`${constants.NPM} outdated --json`,
     { cwd: `${constants.TRANSITIVE_DIR}/packages/${name}` },
@@ -123,8 +122,15 @@ const updatePackage = (name) => {
 };
 
 const updateAllPackages = () => {
+  log.debug('updateAllPackages');
   const packages = getInstalledPackages();
-  packages.forEach(name => updatePackage(name));
+
+  if (canWeUpdate()) {
+    packages.forEach(name => updatePackage(name));
+  } else {
+    log.debug('Not in update window, skipping package updates');
+    packages.forEach(name => startPackage(name));
+  }
 };
 
 /** update self and all packages */
@@ -134,7 +140,7 @@ const update = () => {
   } else {
     updateAllPackages();
   }
-}
+};
 
 setInterval(update, UPDATE_INTERVAL);
 // rotate all log files at 1am

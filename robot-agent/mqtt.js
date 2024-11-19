@@ -31,6 +31,7 @@ const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
 const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
+const { updateFleetConfig } = require('./config');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -46,7 +47,8 @@ const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version;
 const CAP_NAME = '@transitive-robotics/_robot-agent'
 const AGENT_PREFIX = `${PREFIX}/${CAP_NAME}/${version}`;
-const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${version}`;
+const minorVersion = version.split('.').slice(0, 2).join('.')
+const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${minorVersion}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 log.debug('using', {AGENT_PREFIX, MQTT_HOST});
 assert(version, 'env var npm_package_version is required');
@@ -96,12 +98,15 @@ mqttClient.on('connect', function(connackPacket) {
           });
         });
 
-
+        // subscribe to _fleet config
         mqttSync.subscribe(`${FLEET_PREFIX}/config`, (err) => {
           err && log.warn('failed to subscribe to fleet config', err);
         });
-        mqttSync.data.subscribePath(`${FLEET_PREFIX}/config`,
-          (value, key) => log.debug('got config', key, value));
+        mqttSync.data.subscribePath(`${FLEET_PREFIX}/config/+key`,
+          (value, topic, {key}) => {
+            log.info('got fleet config update:', key, value);
+            updateFleetConfig(key, value);
+          });
       }
     });
   }
@@ -125,7 +130,7 @@ mqttClient.on('connect', function(connackPacket) {
       setInterval(heartbeat, 60 * 1e3);
 
       mqttClient.on('message', (topic, payload, packet) => {
-        log.debug(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
+        // log.debug(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
         // relay the upstream message to local
         if (topic == HEARTBEAT_TOPIC) {
           // relay heartbeat locally:
@@ -168,6 +173,7 @@ const staticInfo = () => {
       version: os.version(),
       networkInterfaces: os.networkInterfaces(),
       userInfo: os.userInfo(),
+      timeZone: new Date().toTimeString().slice(9)
     },
     nodejs: process.versions,
   };

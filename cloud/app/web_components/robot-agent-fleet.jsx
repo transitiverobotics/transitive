@@ -99,17 +99,21 @@ const Fleet = (props) => {
   const ssl = props.ssl && JSON.parse(props.ssl);
   // log.debug('Fleet', host, device_url);
   const session = props.session && JSON.parse(props.session);
+  const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
+  // NOTE: make sure the cloud/app minor version is the same as the robot-agent.
+  // This is done manually for now. #TODO: automate
+  const fleetPrefix = `/${id}/_fleet/@transitive-robotics/_robot-agent/${TR_PKG_VERSION_NS}`;
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
 
-  const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
-
-  // TODO: use useEffect
-  if (mqttSync) {
-    mqttSync.subscribe(`${prefix}/status`);
-    mqttSync.subscribe(`${prefix}/info`);
-  }
+  useEffect(() => {
+      if (mqttSync) {
+        mqttSync.subscribe(`${prefix}/status`);
+        mqttSync.subscribe(`${prefix}/info`);
+        mqttSync.publish(`${fleetPrefix}/config`);
+      }
+    }, [mqttSync]);
 
   log.debug('data', data);
   if (!ready || !data) return <StatusComponent />;
@@ -159,6 +163,13 @@ const Fleet = (props) => {
       localDev && location.origin.replace('portal', 'install')
     ].filter(Boolean).join(' ');
 
+  const setFleetConfig = (key, value) => {
+    mqttSync.data.update(`${fleetPrefix}/config/${key}`, value);
+  };
+
+  const fleetConfig = mqttSync.data.getByTopic(`${fleetPrefix}/config`);
+  log.debug({fleetConfig});
+
   return <div>
     <div>
       <h4>Devices</h4>
@@ -207,36 +218,40 @@ const Fleet = (props) => {
 
     <hr/>
 
-    <div>
-      <h4>Fleetwide Configuration</h4>
+    <Fold
+      title={<h5 style={{display: 'inline'}}>Fleetwide Configuration</h5>}
+      expanded={false}>
+      <div>
 
-      <Form.Text>
-        Configuration you set here applies to all your devices.
-      </Form.Text>
+        <Form.Text>
+          Configuration you set here applies to all your devices unless
+          overwritten at the device level.
+        </Form.Text>
 
-      <div style={styles.flex.wrapper}>
-        <div style={styles.flex.label}>
-          Update window<br/>
-          <Form.Text>
-            Defines the daily hours in UTC between which the device may perform
-            auto-updates.
-          </Form.Text>
-        </div>
-        <div style={styles.flex.control}>
-          <MultiRangeSlider
-            labels={hours}
-            min={0}
-            max={24}
-            step={1}
-            minValue={0}
-            maxValue={24}
-            onChange={({minValue, maxValue}) => {
-              console.log({minValue, maxValue});
-            }}
-            />
+        <div style={styles.flex.wrapper}>
+          <div style={styles.flex.label}>
+            Update window<br/>
+            <Form.Text>
+              Defines the daily hours between which devices may perform
+              auto-updates (in device's timezone).
+            </Form.Text>
+          </div>
+          <div style={styles.flex.control}>
+            <MultiRangeSlider
+              labels={hours}
+              min={0}
+              max={24}
+              step={1}
+              minValue={fleetConfig?.updateHours?.from || 0}
+              maxValue={fleetConfig?.updateHours?.to ||24}
+              onChange={({minValue, maxValue}) => {
+                setFleetConfig('updateHours', {from: minValue, to: maxValue});
+              }}
+              />
+          </div>
         </div>
       </div>
-    </div>
+    </Fold>
   </div>
 };
 

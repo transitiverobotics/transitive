@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "0.2.1",
+  "version": "2.1.0",
   "private": true,
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",

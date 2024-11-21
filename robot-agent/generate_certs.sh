@@ -9,7 +9,7 @@ NPM="$NODE $DIR/usr/bin/npm"
 echo "Generating SSL certificate"
 
 if [[ -e $DIR/certs/client.crt ]]; then
-  echo "  certificate already exist, not replacing";
+  echo "  certificate already exists, not replacing";
 
 else
   cd $DIR

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ListGroup, Badge, Form } from 'react-bootstrap';
-import MultiRangeSlider from "multi-range-slider-react";
+import MultiRangeSlider from 'multi-range-slider-react';
 
 const _ = {
   map: require('lodash/map'),
@@ -102,7 +102,8 @@ const Fleet = (props) => {
   const prefix = `/${id}/+/@transitive-robotics/_robot-agent/+`;
   // NOTE: make sure the cloud/app minor version is the same as the robot-agent.
   // This is done manually for now. #TODO: automate
-  const fleetPrefix = `/${id}/_fleet/@transitive-robotics/_robot-agent/${TR_PKG_VERSION_NS}`;
+  const fleetPrefix = `/${id}/_fleet/@transitive-robotics/_robot-agent`;
+  const fleetPrefixVersion = `${fleetPrefix}/${TR_PKG_VERSION_NS}`;
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
@@ -111,7 +112,8 @@ const Fleet = (props) => {
       if (mqttSync) {
         mqttSync.subscribe(`${prefix}/status`);
         mqttSync.subscribe(`${prefix}/info`);
-        mqttSync.publish(`${fleetPrefix}/config`);
+        mqttSync.subscribe(`${fleetPrefix}/+/config`);
+        mqttSync.publish(`${fleetPrefixVersion}/config`);
       }
     }, [mqttSync]);
 
@@ -163,11 +165,14 @@ const Fleet = (props) => {
       localDev && location.origin.replace('portal', 'install')
     ].filter(Boolean).join(' ');
 
+  // set the fleet config
   const setFleetConfig = (key, value) => {
-    mqttSync.data.update(`${fleetPrefix}/config/${key}`, value);
+    mqttSync.data.update(`${fleetPrefixVersion}/config/${key}`, value);
   };
 
-  const fleetConfig = mqttSync.data.getByTopic(`${fleetPrefix}/config`);
+  // Merge fleet data to get config
+  const fleetData = mqttSync.data.getByTopic(fleetPrefix);
+  const fleetConfig = fleetData && mergeVersions(fleetData, 'config').config;
   log.debug({fleetConfig});
 
   return <div>

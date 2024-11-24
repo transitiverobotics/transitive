@@ -89,6 +89,11 @@ services:
       - shared
     logging:
       driver: local
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 600M
 
   mosquitto_prod:
     <<: *shared_mosquitto

@@ -1,6 +1,12 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
 
+const { getPackageVersionNamespace } = require('@transitive-sdk/utils');
+
+// Read config.versionNamespace from package.json to determine which
+// version namespace to use: major, minor, or patch (default).
+const versionNS = getPackageVersionNamespace();
+
 const entryPoints = fs.readdirSync('./web_components', {withFileTypes: true})
     .filter(item => !item.isDirectory())
     .filter(({name}) => name.search('test.js') == -1)
@@ -17,10 +23,7 @@ const config = {
   sourcemap: isDevelopment,
   target: ['es2022'],
   outdir: 'dist',
-  define: {
-    TR_PKG_VERSION_NS: JSON.stringify(process.env.npm_package_version?.split('.')
-      .slice(0, 2).join('.')),
-  },
+  define: { TR_PKG_VERSION_NS: versionNS },
   loader: {
     '.js': 'jsx',
     '.svg': 'text',

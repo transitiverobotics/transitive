@@ -26,7 +26,7 @@ const exec = require('child_process').exec;
 const _ = require('lodash');
 
 const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
-  loglevel, clone } = require('@transitive-sdk/utils');
+  loglevel, clone, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
@@ -37,6 +37,8 @@ const log = getLogger('mqtt.js');
 log.setLevel('info');
 // loglevel.setAll('debug');
 
+const versionNS = getPackageVersionNamespace();
+
 // TODO: get this from utils
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
@@ -46,9 +48,8 @@ let data;
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version;
 const CAP_NAME = '@transitive-robotics/_robot-agent'
-const AGENT_PREFIX = `${PREFIX}/${CAP_NAME}/${version}`;
-const minorVersion = version.split('.').slice(0, 2).join('.')
-const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${minorVersion}`;
+const AGENT_PREFIX = `${PREFIX}/${CAP_NAME}/${version}`; // not yet using versionNS!
+const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${versionNS}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
 log.debug('using', {AGENT_PREFIX, MQTT_HOST});
 assert(version, 'env var npm_package_version is required');

@@ -25,6 +25,7 @@
     "mocha": "^9.1.4"
   },
   "config": {
-    "desiredNodeVersion": 20
+    "desiredNodeVersion": 20,
+    "versionNamespace": "minor"
   }
 }

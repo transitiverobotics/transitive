@@ -16,8 +16,8 @@ const _ = require('lodash');
 const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo, getRandomId } =
-  require('@transitive-sdk/utils');
+mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo,
+getRandomId, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
@@ -43,6 +43,8 @@ const log = getLogger('server');
 log.setLevel('debug');
 
 const cwd = process.cwd();
+
+const versionNS = getPackageVersionNamespace();
 
 const addSessions = (router, collectionName, secret, options = {}) => {
   const obj = {
@@ -515,6 +517,15 @@ class _robotAgent extends Capability {
         new CronJob('0 0 * * * *', this.updateAllSubscriptions.bind(this),
           null, true);
       });
+
+      // migrate fleet config
+      this.mqttSync.migrate([{
+          topic: '/+/_fleet/@transitive-robotics/_robot-agent/+/config/updateHours',
+          // topic: '/+/_fleet/@transitive-robotics/_robot-agent/+',
+          newVersion: versionNS
+        }], () => {
+          log.debug('migrated fleet config');
+        });
     });
   }
 

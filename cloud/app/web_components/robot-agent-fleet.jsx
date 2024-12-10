@@ -124,13 +124,15 @@ const Fleet = (props) => {
 
   // merge all robot-agent versions' data and sort by hostname
   const mergedData = _.map(data[id], (device, deviceId) => {
+      if (deviceId.startsWith('_')) return; // ignore _fleet
       const agentData = device['@transitive-robotics']['_robot-agent'];
       return {
         id: deviceId,
         status: mergeVersions(agentData, 'status').status,
         info: mergeVersions(agentData, 'info').info,
       }
-    }).sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname))
+    }).filter(Boolean)
+      .sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname))
       .sort(compareHeartbeat);
 
   const stale = mergedData

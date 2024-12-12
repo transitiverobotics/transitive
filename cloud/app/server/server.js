@@ -233,10 +233,13 @@ const app = express();
 
 app.use(express.static(path.join(cwd, 'public')));
 app.use(cors(), express.static(path.join(cwd, 'dist')));
-app.use(express.json());
 
 const capsRouter = express.Router();
 app.use('/caps', capsRouter);
+
+// Needs to come *after* capsRouter, to allow per-capability servers to parse
+// the body when it arrives there.
+app.use(express.json());
 
 const addCapsRoutes = () => {
   log.debug('adding caps router');
@@ -255,7 +258,7 @@ const addCapsRoutes = () => {
 
   /** Trades our token for a JWT with the permissions that were granted to
   this token when it was created. */
-  capsRouter.post('/getJWTFromToken', async (req, res) => {
+  capsRouter.post('/getJWTFromToken', express.json(), async (req, res) => {
     log.debug('tokenSession', req.session);
 
     log.debug('get JWT from simple access token', req.body);
@@ -305,7 +308,7 @@ const addCapsRoutes = () => {
   /** If the client already has a JWT, it can set it for the session here.
   * This will authenticate him for capability routes who can just check the
   * cookie. */
-  capsRouter.post('/setSessionJWT', async (req, res) => {
+  capsRouter.post('/setSessionJWT', express.json(), async (req, res) => {
     log.debug('setting session JWT', req.body);
     const {token} = req.body;
     res.cookie(TOKEN_COOKIE, JSON.stringify({token}))

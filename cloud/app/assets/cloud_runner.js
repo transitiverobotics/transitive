@@ -8,7 +8,6 @@ symlinks created by docker.js.
 const fs = require('fs');
 const {exec, execSync, spawn} = require('child_process');
 
-const STATUS_FILE = 'run/status.json';
 const packageName = process.argv[2];
 
 const log = {};
@@ -21,9 +20,6 @@ if (!packageName) {
 }
 
 const pkgPath = `node_modules/${packageName}`;
-
-// Copy capability's web components to cloud-agent for serving
-
 let capProcess = null;
 
 /** (Re-)Start the capability process */
@@ -35,12 +31,6 @@ const restart = () => {
     process.kill(-capProcess.pid);
     // Note the minus: this kills the process group, not just `npm run cloud`
   }
-
-  // Copy web bundles to mounted run folder host.
-  // TODO let the cloud serve these bundles directly without cooperation from
-  // the cloud cap (that will also make sure we always serve the latest for the
-  // version, e.g., using `npm install --ignore-scripts` based on running version.
-  execSync(`cp -a ${pkgPath}/dist ${pkgPath}/package.json run`);
 
   capProcess = spawn('npm', ['run', 'cloud'],
     {cwd: pkgPath, stdio: 'inherit', detached: true});

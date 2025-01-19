@@ -98,6 +98,12 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   const app = express();
   app.use(express.json({limit: '10mb'}));
 
+  /** log all requests */
+  app.use(function(req, res, next) {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+  });
+
   /** --- Authentication ---------------------------------------------------- */
 
   app.post('/-/v1/login', (req, res) => {
@@ -193,6 +199,61 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
       transitiverobotics: data.pkg.transitiverobotics
     }});
     res.status(200).json(result);
+  });
+
+    /** Not sure how `/-/all` was supposed to be used, npm doesn't use it anymore,
+    but we need something like that, so creating our own on this path: list all
+    packages, omitting `images` unless requested via `?images`. Can specify a
+  selector in `q`, e.g., `'versions.transitiverobotics': {$exists: 1}`.
+  */
+  app.use('/-/custom/all', cors(), async (req, res) => {
+    const projection = {
+      versions: {$slice: -1} // get latest version of each package
+    };
+    !('images' in req.query) && (projection.images = 0);
+    const selector = req.query.q ? JSON.parse(req.query.q) : {};
+
+    const results = await packages.find(selector, {projection}).toArray();
+    res.json(results);
+  });
+
+  /** Get file from package tarball; understands special version 'latest' */
+  app.get('/-/custom/files/:scope/:pkgName/:version/:path(**)', async (req, res) => {
+    const {scope, pkgName, version, path} = req.params;
+
+    const versionNumber = (version == 'latest' ?
+      ( pkg = await packages.findOne({_id: `${scope}/${pkgName}`}, {version: 1}),
+        pkg?.version )
+      : version);
+
+    if (!versionNumber) {
+      res.status(404).end(`No package found for ${scope}/${pkgName}`);
+      return;
+    }
+
+    const tarballId = `${scope}/${pkgName}-${versionNumber}.tgz`
+    const file = await tarballs.findOne({ _id: tarballId });
+
+    if (!file) {
+      res.status(404).end(`No tarball for ${tarballId}`);
+      return;
+    }
+
+    const tmpPath = `/tmp/${scope}/${pkgName}-${versionNumber}`;
+    const filePath = `${tmpPath}/package/${path}`;
+    if (fs.existsSync(filePath)) {
+      // path already extracted
+      res.sendFile(filePath);
+    } else {
+      // extract and send it
+      fs.mkdirSync(tmpPath, {recursive: true});
+
+      const stream = Readable.from(Buffer.from(file.data, 'base64'));
+      stream.pipe(tar.x({ cwd: tmpPath },[`package/${path}`]))
+        .on('end', () => {
+          res.sendFile(filePath);
+        });
+    }
   });
 
 
@@ -365,21 +426,6 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     });
   });
 
-  /** Not sure how `/-/all` was supposed to be used, npm doesn't use it anymore,
-    but we need something like that, so creating our own on this path: list all
-    packages, omitting `images` unless requested via `?images`. Can specify a
-  selector in `q`, e.g., `'versions.transitiverobotics': {$exists: 1}`.
-  */
-  app.use('/-/custom/all', cors(), async (req, res) => {
-    const projection = {
-      versions: {$slice: -1} // get latest version of each package
-    };
-    !('images' in req.query) && (projection.images = 0);
-    const selector = req.query.q ? JSON.parse(req.query.q) : {};
-
-    const results = await packages.find(selector, {projection}).toArray();
-    res.json(results);
-  });
 
   /** --- Other ------------------------------------------------------------- */
 

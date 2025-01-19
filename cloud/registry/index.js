@@ -15,7 +15,7 @@ const { Readable } = require('stream');
 const Mongo = require('@transitive-sdk/utils/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
-const {randomId} = require('@transitive-sdk/utils');
+const {randomId, tryJSONParse} = require('@transitive-sdk/utils');
 
 const PORT = 6000;
 
@@ -217,8 +217,26 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     res.json(results);
   });
 
+  /** for DEV: ignore version number and serve (latest) from relative path, see
+  docker-compose 'cloud_dev' */
+  process.env.COMPOSE_PROFILES == 'dev' &&
+    app.get('/-/custom/files/:scope/:pkgName/:version/:path(**)', cors(),
+      async (req, res, next) => {
+        const {scope, pkgName, version, path} = req.params;
+        const filePath = `/app/caps/${scope}/${pkgName}/${path}`;
+        if (fs.existsSync(filePath)) {
+          console.log(`Sending dev files for ${req.url}`);
+          res.sendFile(filePath);
+        } else {
+          next();
+        }
+      });
+
   /** Get file from package tarball; understands special version 'latest' */
-  app.get('/-/custom/files/:scope/:pkgName/:version/:path(**)', async (req, res) => {
+  // enable pre-flight CORS requests:
+  const packageFilesRoute = '/-/custom/files/:scope/:pkgName/:version/:path(**)';
+  app.options(packageFilesRoute, cors());
+  app.get(packageFilesRoute, cors(), async (req, res) => {
     const {scope, pkgName, version, path} = req.params;
 
     const versionNumber = (version == 'latest' ?
@@ -363,8 +381,9 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
    * Test with, e.g., `npm v @transitive-robotics/terminal --json | fx`
   */
   app.get('/:package', cors(), async (req, res) => {
-    console.log('GET', req.params, req.headers.authorization);
+
     const package = await packages.findOne({_id: req.params.package});
+
     if (!package) {
       res.status(404).end();
     } else {

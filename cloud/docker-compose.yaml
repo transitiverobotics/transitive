@@ -57,6 +57,29 @@ x-mosquitto: &shared_mosquitto
         cpus: '0.9'
         memory: 250M
 
+x-registry: &shared_registry
+  container_name: registry
+  build: ./registry
+  image: transitiverobotics/registry:latest
+  restart: always
+  depends_on:
+    - mongodb
+  env_file:
+    - .env
+  ports:
+    - 6000:6000
+  networks:
+    - default
+    - shared
+    - caps
+  logging:
+    driver: local
+  deploy:
+    resources:
+      limits:
+        cpus: '0.7'
+        memory: 500M
+
 
 networks:
   caps:
@@ -121,7 +144,7 @@ services:
       target: prod
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /run/user/0:/run/user/0
+      # - /run/user/0:/run/user/0
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
 
   cloud_dev:
@@ -136,15 +159,12 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
-      - /run/user/0:/run/user/0
+      # - /run/user/0:/run/user/0
       - ./app/src:/app/src
       - ./app/web_components:/app/web_components
       - ./app/server:/app/server
       - ./app/assets:/app/assets
       - ./app/public:/app/public
-      # In dev we allow serving local dev files for capability bundles. This
-      # assumes a specific directory layout.
-      - /tmp/caps:/app/caps:ro
 
   proxy:
     build: ./proxy
@@ -168,34 +188,39 @@ services:
           cpus: '0.9'
           memory: 300M
 
-  registry:
-    build: ./registry
-    image: transitiverobotics/registry:latest
-    restart: always
-    depends_on:
-      - mongodb
-    env_file:
-      - .env
-    ports:
-      - 6000:6000
-    networks:
-      - default
-      - shared
-      - caps
-    logging:
-      driver: local
-    deploy:
-      resources:
-        limits:
-          cpus: '0.7'
-          memory: 500M
+  registry_prod:
+    <<: *shared_registry
+    profiles:
+      - prod
+
+  registry_dev:
+    <<: *shared_registry
+    profiles:
+      - dev
+    volumes:
+      - ./registry/index.js:/app/index.js
+      # In dev we allow serving local dev files for capability bundles. This
+      # assumes a specific directory layout.
+      - /tmp/caps:/app/caps:ro
 
   # Once the registry is up, republish the robot-agent to it, in case it changed
-  publish:
+  publish_prod:
+    profiles:
+      - prod
     build: ../robot-agent
     image: transitiverobotics/publish_agent:latest
     depends_on:
-      - registry
+      - registry_prod
+    env_file:
+      - .env
+
+  publish_dev:
+    profiles:
+      - dev
+    build: ../robot-agent
+    image: transitiverobotics/publish_agent:latest
+    depends_on:
+      - registry_dev
     env_file:
       - .env
 

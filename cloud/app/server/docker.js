@@ -177,8 +177,6 @@ const portsUsedByUs = [];
 const start = async ({name, version, pkgInfo}) => {
 
   const tagName = getTagName({name, version});
-  const runDir = path.join(RUN_DIR, name, version);
-  fs.mkdirSync(runDir, {recursive: true});
   const list = await docker.listImages();
   const exists = list.some(image =>
     image.RepoTags && image.RepoTags.includes(tagName));
@@ -201,7 +199,6 @@ const start = async ({name, version, pkgInfo}) => {
     AutoRemove: true,
     // expose app run folder to host, we are hosting the js bundle here
     Binds: [
-      `${runDir}:/app/run`,
       `${process.env.TR_VAR_DIR}/caps/common:/persistent/common`,
       `${process.env.TR_VAR_DIR}/caps/${name}:/persistent/self`,
     ],

@@ -148,7 +148,6 @@ const getVersion = (userId, deviceId, scope, capName) => {
   } else {
     const runningPkgs = robotAgent.getDevicePackages(userId, deviceId);
     const running = runningPkgs?.[scope][capName];
-    log.debug({running});
     return running && _.findKey(running, (isTrue) => isTrue);
   }
 };
@@ -309,38 +308,11 @@ const addCapsRoutes = () => {
   * This will authenticate him for capability routes who can just check the
   * cookie. */
   capsRouter.post('/setSessionJWT', express.json(), async (req, res) => {
-    log.debug('setting session JWT', req.body);
+    // log.debug('setting session JWT', req.body);
     const {token} = req.body;
     res.cookie(TOKEN_COOKIE, JSON.stringify({token}))
       .json({msg: 'JWT set for session'});
   });
-
-  /** for DEV: ignore version number and serve (latest) from relative path, see
-  docker-compose 'cloud_dev' */
-  !tryJSONParse(process.env.PRODUCTION) && process.env.COMPOSE_PROFILES == 'dev'
-    && capsRouter.use('/:scope/:capabilityName/:version/', (req, res, next) => {
-      const filePath = path.resolve('caps',
-        req.params.scope,
-        req.params.capabilityName,
-        req.path.slice(1) // drop initial slash from filename
-      );
-      log.debug('checking for dev bundle', filePath);
-      fs.access(filePath, (err) => {
-        if (err) {
-          next();
-        } else {
-          // This also triggers if filePath is a parent directory of a
-          // non-existing file; it does the right thing and falls back to the
-          // /caps route
-          log.info('trying to send capability bundle from dev:', filePath);
-          res.sendFile(filePath);
-        }
-      });
-    });
-
-  /** Serve dist/ folders of capabilities, copied into run folder during
-  startup of the container (see docker.js). */
-  capsRouter.use('/', express.static(docker.RUN_DIR));
 
   /** http proxy for reverse proxying to web servers run by caps */
   const capsProxy = HttpProxy.createProxyServer({ xfwd: true });
@@ -388,20 +360,25 @@ app.use('/running/@transitive-robotics/_robot-agent',
   express.static(cwd));
 
 app.get('/running/:scope/:capName/*', (req, res) => {
-  log.debug(`getting ${req.path}`, req.query, req.params);
+  // log.debug(`getting ${req.path}`, req.query, req.params);
   const {scope, capName} = req.params;
+  const {userId, deviceId} = req.query;
   const capability = `${scope}/${capName}`;
   const filePath = req.params[0]; // the part that matched the *
-  const version = getVersion(req.query.userId, req.query.deviceId, scope, capName);
-  log.debug('running', {version});
+  const version = getVersion(userId, deviceId, scope, capName);
+  log.debug(`${userId}/${deviceId} running ${scope}/${capName}: ${version}`);
 
+  const registryUrl = `//registry.${process.env.TR_HOST}/-/custom/files/${capability}`;
   if (version) {
-    // redirect to the folder in dist (symlinked to the place where the named
-    // package exposes its distribution files bundles: in production from docker,
-    // in dev symlinked in folder).
-    res.redirect(`/caps/${capability}/${version}/${filePath}`);
+    // redirect to registry URL to fetch package files directly
+    res.redirect(`${registryUrl}/${version}/${filePath}`);
   } else {
-    res.status(404).end('package not running on this device');
+    if (req.query.deviceId == '_fleet') {
+      // just serve latest from registry
+      res.redirect(`${registryUrl}/latest/${filePath}`);
+    } else {
+      res.status(404).end('package not running on this device');
+    }
   }
 });
 // test with:
@@ -989,7 +966,7 @@ class _robotAgent extends Capability {
 
     /** Called by client to refresh the session cookie */
     this.router.get('/refresh', requireLogin, async (req, res) => {
-      log.debug('refresh');
+      // log.debug('refresh');
 
       const fail = (error) =>
         res.clearCookie(COOKIE_NAME).status(401).json({error, ok: false});
@@ -1153,7 +1130,7 @@ class _robotAgent extends Capability {
     // --
 
     this.router.post('/getJWT', requireLogin, async (req, res) => {
-      log.debug('get JWT token', req.body);
+      // log.debug('get JWT token', req.body);
 
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
@@ -1165,7 +1142,7 @@ class _robotAgent extends Capability {
       }
 
       const token = jwt.sign(req.body, account.jwtSecret);
-      log.debug('responding with', {token});
+      // log.debug('responding with', {token});
       res.json({token});
     });
 

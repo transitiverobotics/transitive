@@ -69,7 +69,7 @@ const handleRequest = (req, res) => {
 
 /** handler for web socket upgrade */
 const handleUpgrade = function(req, socket, head) {
-  console.log('ws:', req.headers.host, req.url);
+  console.log(`ws: ${req.socket.remoteAddress}: ${req.headers.host}${req.url}`);
   const target = getTarget(req);
   if (!target) {
     res.statusCode = 404;

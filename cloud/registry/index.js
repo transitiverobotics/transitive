@@ -217,35 +217,52 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     res.json(results);
   });
 
-  /** for DEV: ignore version number and serve (latest) from relative path, see
-  docker-compose 'cloud_dev' */
-  process.env.COMPOSE_PROFILES == 'dev' &&
-    app.get('/-/custom/files/:scope/:pkgName/:version/:path(**)', cors(),
-      async (req, res, next) => {
-        const {scope, pkgName, version, path} = req.params;
-        const filePath = `/app/caps/${scope}/${pkgName}/${path}`;
-        if (fs.existsSync(filePath)) {
-          console.log(`Sending dev files for ${req.url}`);
-          res.sendFile(filePath);
-        } else {
-          next();
-        }
-      });
-
-  /** Get file from package tarball; understands special version 'latest' */
+  /** -----------------------------------------------------------------------
+  * Get file from package tarball; understands special version 'latest'
+  * */
   // enable pre-flight CORS requests:
   const packageFilesRoute = '/-/custom/files/:scope/:pkgName/:version/:path(**)';
   app.options(packageFilesRoute, cors());
+
+  /** for DEV: ignore version number and serve (latest) from relative path, see
+  docker-compose 'cloud_dev' */
+  process.env.COMPOSE_PROFILES == 'dev' &&
+    app.get(packageFilesRoute, cors(), async (req, res, next) => {
+      const {scope, pkgName, version, path} = req.params;
+      const filePath = `/app/caps/${scope}/${pkgName}/${path}`;
+      if (fs.existsSync(filePath)) {
+        console.log(`Sending dev files for ${req.url}`);
+        res.sendFile(filePath);
+      } else {
+        next();
+      }
+    });
+
+  /** Prod */
   app.get(packageFilesRoute, cors(), async (req, res) => {
     const {scope, pkgName, version, path} = req.params;
 
-    const versionNumber = (version == 'latest' ?
-      ( pkg = await packages.findOne({_id: `${scope}/${pkgName}`}, {version: 1}),
-        pkg?.version )
-      : version);
+    const pkg = await packages.findOne({_id: `${scope}/${pkgName}`});
+
+    if (!pkg) {
+      res.status(404).end(`No package found for ${scope}/${pkgName}`);
+      return;
+    }
+
+    // is the version complete, i.e., down to patch level?
+    const completeVersion = version.split('.').length == 3;
+
+    const versionNumber = (version == 'latest' ? pkg.version
+      : (completeVersion
+        ? version
+        : // incomplete version: find latest version that matches
+        pkg.versions.map(({version: pkgVersion}) => pkgVersion)
+          .filter(v => v.startsWith(version)).at(-1)
+      )
+    );
 
     if (!versionNumber) {
-      res.status(404).end(`No package found for ${scope}/${pkgName}`);
+      res.status(404).end(`No package found for ${scope}/${pkgName}:${version}`);
       return;
     }
 

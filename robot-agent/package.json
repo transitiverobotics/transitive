@@ -1,6 +1,6 @@
 {
   "name": "@transitive-robotics/robot-agent",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@transitive-sdk/utils": "^0.12.4",
-    "aedes-preunsub": "^0.45.0",
+    "aedes-preunsub": "^0.51.3",
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",
     "lodash": "^4.17.21",

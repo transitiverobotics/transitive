@@ -4,18 +4,24 @@
 
 const fs = require('fs');
 
-const persistence = require('aedes-persistence')();
-// var NedbPersistence = require('aedes-persistence-nedb');
-// var persistence = new NedbPersistence({
-//   path: './db',     // defaults to './data',
-//   prefix: 'mqtt'    // defaults to ''
-// });
 const Aedes = require('aedes-preunsub');
+const persistence = require('aedes-persistence')();
+
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('localMQTT');
 log.setLevel('info');
 
 const PORT = 1883;
+
+/* Monkey-patch persistence to *not* retain anything. Avoids Issue#512. We do
+NOT want to retain package-specific messages because we do not subscribe to
+them all the time and could be missing "clear" messages, which would cause
+discrepancies between the master data (in the cloud) and our local copy.
+Instead, we just un-subscribe and resubscribe to upstream and get retained
+messages from there when we connect. Alo local messages, coming from
+capabilities running locally, should not be retained, because we may be
+missing a corresponding "clear" from upstream. */
+persistence.storeRetained = (packet, callback) => { callback(); };
 
 // subscription options for upstream client: required to see the retain flag
 const subOptions = {rap: true};

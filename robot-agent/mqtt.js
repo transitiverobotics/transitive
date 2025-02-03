@@ -131,7 +131,7 @@ mqttClient.on('connect', function(connackPacket) {
       setInterval(heartbeat, 60 * 1e3);
 
       mqttClient.on('message', (topic, payload, packet) => {
-        // log.debug(`upstream mqtt, ${topic}: ${payload.toString()}`, packet.retain);
+        // log.debug(`upstream mqtt, ${topic}:`, payload, packet.retain);
         // relay the upstream message to local
         if (topic == HEARTBEAT_TOPIC) {
           // relay heartbeat locally:
@@ -142,12 +142,7 @@ mqttClient.on('connect', function(connackPacket) {
           // TODO: ensure no one tries to publish a capability with this name -> registry
           if (parsedTopic.capability != CAP_NAME) {
             // Not for us, relay it locally.
-            /* We do NOT want to retain package-specific messages because we do not
-            subscribe to them all the time and could be missing "clear" messages,
-            which would cause discrepancies between the master data (in the cloud)
-            and our local copy. Instead, we just un-subscribe and resubscribe to
-            upstream and get retained messages from there when we connect. */
-            packet.retain = false;
+            // if (payload.length > 0) packet.retain = false;
             localBroker && localBroker.publish(packet, () => {});
           }
         }

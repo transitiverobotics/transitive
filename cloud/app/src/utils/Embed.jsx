@@ -57,7 +57,8 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
     delete jwtPayloadExample.iat;
 
     const defaultParams = `id="${id}" host="${host}" ssl="${ssl}"`;
-    const paramString = formatParams({...extra, ...config});
+    const componentProp = bundle != name && {component: name};
+    const paramString = formatParams({...extra, ...config, ...componentProp});
 
     const createToken = () => {
       log.debug({tokenName, password});

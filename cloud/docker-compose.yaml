@@ -1,6 +1,14 @@
+# This file defines the services involved in hosting Transitive. It is shared
+# by all four modes defined in
+# https://github.com/transitiverobotics/transitive/wiki#deployment-modes.
+# The two rows of that table, dev and prod, are distinguished via compose
+# profiles of the same names.
+
 version: "3.9"
 
-# An "extension": cloud service definition shared between dev and prod
+# --------------------------------------------------------------------------
+# "Extensions": service definitions shared between dev and prod
+
 x-cloud: &shared_cloud
   container_name: cloud
   image: transitiverobotics/cloud:latest
@@ -29,7 +37,6 @@ x-cloud: &shared_cloud
 
 x-mosquitto: &shared_mosquitto
   container_name: mosquitto
-  build: ./mosquitto
   image: transitiverobotics/mosquitto:latest
   restart: always
   depends_on:
@@ -59,7 +66,6 @@ x-mosquitto: &shared_mosquitto
 
 x-registry: &shared_registry
   container_name: registry
-  build: ./registry
   image: transitiverobotics/registry:latest
   restart: always
   depends_on:
@@ -80,6 +86,7 @@ x-registry: &shared_registry
         cpus: '0.7'
         memory: 500M
 
+# --------------------------------------------------------------------------
 
 networks:
   caps:
@@ -92,13 +99,11 @@ services:
   # mounted volume
   ensure_certs:
     image: transitiverobotics/ensure_certs:latest
-    build: ./certs
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/generated
 
   # MongoDB with replset, required to watch for changes
   mongodb:
-    build: ./mongo
     image: transitiverobotics/mongo:latest
     restart: always
     command: --replSet rs0
@@ -123,7 +128,6 @@ services:
     profiles:
       - prod
 
-
   mosquitto_dev:
     <<: *shared_mosquitto
     profiles:
@@ -131,43 +135,24 @@ services:
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
       - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
-      - ./mosquitto/auth-transitive:/build/mosq/plugins/auth-transitive
 
   cloud_prod:
     <<: *shared_cloud
     profiles:
       - prod
-    build:
-      context: ./app
-      args:
-        - TR_HOST=${TR_HOST:-localhost}
-      target: prod
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # - /run/user/0:/run/user/0
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
 
   cloud_dev:
     <<: *shared_cloud
     profiles:
       - dev
-    build:
-      context: ./app
-      args:
-        - TR_HOST=${TR_HOST:-localhost}
-      target: dev
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
-      # - /run/user/0:/run/user/0
-      - ./app/src:/app/src
-      - ./app/web_components:/app/web_components
-      - ./app/server:/app/server
-      - ./app/assets:/app/assets
-      - ./app/public:/app/public
 
   proxy:
-    build: ./proxy
     image: transitiverobotics/proxy:latest
     restart: always
     volumes:
@@ -197,36 +182,9 @@ services:
     <<: *shared_registry
     profiles:
       - dev
-    volumes:
-      - ./registry/index.js:/app/index.js
-      # In dev we allow serving local dev files for capability bundles. This
-      # assumes a specific directory layout.
-      - /tmp/caps:/app/caps:ro
-
-  # Once the registry is up, republish the robot-agent to it, in case it changed
-  publish_prod:
-    profiles:
-      - prod
-    build: ../robot-agent
-    image: transitiverobotics/publish_agent:latest
-    depends_on:
-      - registry_prod
-    env_file:
-      - .env
-
-  publish_dev:
-    profiles:
-      - dev
-    build: ../robot-agent
-    image: transitiverobotics/publish_agent:latest
-    depends_on:
-      - registry_dev
-    env_file:
-      - .env
 
   # In Dev: run a small mDNS service to allow local testing with subdomains
   mdns:
-    build: ./tools/mDNS
     image: transitiverobotics/mdns:latest
     restart: always
     volumes:

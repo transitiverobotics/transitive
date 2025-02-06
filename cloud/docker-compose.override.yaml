@@ -1,0 +1,81 @@
+# This file defines the overrides applied for the "source" deplyment mode in
+# https://github.com/transitiverobotics/transitive/wiki#deployment-modes
+
+version: "3.9"
+
+services:
+  # a minimal container that ensures certificates are present in the shared,
+  # mounted volume
+  ensure_certs:
+    build: ./certs
+
+  # MongoDB with replset, required to watch for changes
+  mongodb:
+    build: ./mongo
+
+  mosquitto_prod:
+    build: ./mosquitto
+
+  mosquitto_dev:
+    build: ./mosquitto
+    volumes:
+      - ./mosquitto/auth-transitive:/build/mosq/plugins/auth-transitive
+
+  cloud_prod:
+    build:
+      context: ./app
+      args:
+        - TR_HOST=${TR_HOST:-localhost}
+      target: prod
+
+  cloud_dev:
+    build:
+      context: ./app
+      args:
+        - TR_HOST=${TR_HOST:-localhost}
+      target: dev
+    volumes:
+      - ./app/src:/app/src
+      - ./app/web_components:/app/web_components
+      - ./app/server:/app/server
+      - ./app/assets:/app/assets
+      - ./app/public:/app/public
+
+  proxy:
+    build: ./proxy
+
+  registry_prod:
+    build: ./registry
+
+  registry_dev:
+    build: ./registry
+    volumes:
+      - ./registry/index.js:/app/index.js
+      # In dev we allow serving local dev files for capability bundles. This
+      # assumes a specific directory layout.
+      - /tmp/caps:/app/caps:ro
+
+  # Once the registry is up, republish the robot-agent to it, in case it changed
+  publish_prod:
+    profiles:
+      - prod
+    build: ../robot-agent
+    image: transitiverobotics/publish_agent:latest
+    depends_on:
+      - registry_prod
+    env_file:
+      - .env
+
+  publish_dev:
+    profiles:
+      - dev
+    build: ../robot-agent
+    image: transitiverobotics/publish_agent:latest
+    depends_on:
+      - registry_dev
+    env_file:
+      - .env
+
+  # In Dev: run a small mDNS service to allow local testing with subdomains
+  mdns:
+    build: ./tools/mDNS

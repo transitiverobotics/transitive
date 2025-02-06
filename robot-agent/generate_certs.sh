@@ -16,7 +16,8 @@ else
   . .env
   . .token
 
-  HASH=${TR_INSTALL_HASH//[^a-zA-Z0-9\-\_]/}
+  # HASH=${TR_INSTALL_HASH//[^a-zA-Z0-9\-\_]/} # see #580
+  HASH=${TR_INSTALL_HASH//[^a-zA-Z0-9]/}
   if [[ -z $HASH ]]; then
     echo "  computing hashed machine-id"
     DEVICEID=$(cat /etc/machine-id)

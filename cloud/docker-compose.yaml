@@ -182,6 +182,10 @@ services:
     <<: *shared_registry
     profiles:
       - dev
+    volumes:
+      # In dev we allow serving local dev files for capability bundles. This
+      # assumes a specific directory layout.
+      - /tmp/caps:/app/caps:ro
 
   # In Dev: run a small mDNS service to allow local testing with subdomains
   mdns:

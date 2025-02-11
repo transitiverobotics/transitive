@@ -368,7 +368,12 @@ app.get('/running/:scope/:capName/*', (req, res) => {
   const version = getVersion(userId, deviceId, scope, capName);
   log.debug(`${userId}/${deviceId} running ${scope}/${capName}: ${version}`);
 
-  const registryUrl = `//registry.${process.env.TR_HOST}/-/custom/files/${capability}`;
+  // determine which registry to redirect to
+  const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL ?
+    'transitiverobotics.com'
+    : process.env.TR_HOST);
+
+  const registryUrl = `//registry.${host}/-/custom/files/${capability}`;
   if (version) {
     // redirect to registry URL to fetch package files directly
     res.redirect(`${registryUrl}/${version}/${filePath}`);

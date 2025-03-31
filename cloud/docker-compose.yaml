@@ -62,7 +62,7 @@ x-mosquitto: &shared_mosquitto
     resources:
       limits:
         cpus: '0.9'
-        memory: 250M
+        memory: 850M
 
 x-registry: &shared_registry
   container_name: registry

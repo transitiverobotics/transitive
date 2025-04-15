@@ -162,7 +162,7 @@ const Fleet = (props) => {
       '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',
       localDev && '-v /var/run/dbus:/var/run/dbus',
       localDev && '-v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket',
-      '--name tr-robot --hostname robot1 transitiverobotics/try',
+      '--name tr-robot --hostname robot1 transitiverobotics/try_noetic',
       `${id} '${session.robot_token}'`,
       localDev && location.origin.replace('portal', 'install')
     ].filter(Boolean).join(' ');
@@ -214,8 +214,11 @@ const Fleet = (props) => {
                 capabilities in Docker, please see the <a
                   href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
 
-                If you just want to try it out quickly you can use our example
-                Docker image: <Code language='bash' code={dockerCommand} />
+                If you just want to try it out quickly you can use one of our example
+                Docker images: <Code language='bash' code={dockerCommand} />
+                Besides <tt>try_noetic</tt> we also provide Docker images for
+                ROS Humble and Jazzy (<tt>try_humble</tt> and <tt>try_jazzy
+                </tt> respectively).
               </F>
             </Fold>
           </Delayed>

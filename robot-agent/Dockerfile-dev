@@ -1,0 +1,6 @@
+# A Dockerfile for building a slightly extended docker image for testing the
+# agent in a docker container from source. See run_in_docker.sh.
+
+FROM transitiverobotics/try_noetic
+
+RUN apt update && apt install -y iproute2

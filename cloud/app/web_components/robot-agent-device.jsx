@@ -303,6 +303,7 @@ const explanation = `This will delete all meta data for this device. If the
   agent is still running, the device will come back but will require a
   restart of the agent in order to get back all meta data, such as the hostname.`;
 
+
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
 
@@ -336,6 +337,12 @@ const Device = (props) => {
         mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
+        mqttSync.publish(`${prefix}/+/client/#`); // for client pings
+
+        mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
+          // received pong back from server for our ping:
+          log.debug({ping, pong}, `round-trip: ${Date.now() - ping} ms`);
+        });
       }}, [mqttSync]);
 
   const deviceData = data && data[id] && data[id][device] &&
@@ -394,6 +401,16 @@ const Device = (props) => {
     });
   };
 
+  /** send a sequence of pings *not* via RPC */
+  const ping = (count = 1) => {
+    setTimeout(() => {
+        if (count > 0) {
+          mqttSync.data.update(`${versionPrefix}/client/ping`, Date.now());
+          ping(count - 1);
+        }
+      }, 1000);
+  };
+
   // Augment the `info` object with derived variables for testing requirements
   const info = latestVersionData?.info;
   // active ROS releases are those that are installed and permitted by the
@@ -428,6 +445,7 @@ const Device = (props) => {
           (time) => setToast({ title: 'Pong!',
             body: `Server time: ${new Date(time)}`})
         )}
+        onContextMenu={() => ping(10)} // hidden feature: right-click
       >
         Ping
       </ActionLink>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>

@@ -125,6 +125,14 @@ mqttClient.on('connect', function(connackPacket) {
       mqttSync.publish(`${AGENT_PREFIX}/info`);
       mqttSync.publish(`${AGENT_PREFIX}/status`);
 
+      // for ongoing ping checking (not to be confused with ping RPC command)
+      mqttSync.subscribe(`${AGENT_PREFIX}/client/ping`);
+      mqttSync.data.subscribePath(`${AGENT_PREFIX}/client/ping`, ping => {
+        log.debug(`ping: ${ping}`);
+        mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
+          {ping, pong: Date.now()});
+      });
+
       staticInfo();
 
       heartbeat();

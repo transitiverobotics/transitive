@@ -97,7 +97,6 @@ const long int maxBytes = 100 * 1024 * 1024;
 const time_t cacheExpiration = 300; // seconds
 // cache of client permissions
 std::map<std::string, std::map<std::string, time_t>> clientPermissions;
-// TODO: add this to `clients`?
 
 /* ----------------------------------------------------------------------------
 * Mongo
@@ -313,6 +312,7 @@ struct client_struct {
   std::string ip;   // The client IP
   int count;        // Request count
   bool isLimited;   // Whether the client is rate-limited
+  std::map<std::string, time_t> permissions; // Cached permissions for this client
 };
 
 // Hash table of connected Clients
@@ -324,7 +324,7 @@ void add_or_update_client(const std::string &client_id, const std::string &ip) {
 
   if (it == clients.end()) {
     // Add new client
-    client_struct client{client_id, ip, 0, false};
+    client_struct client{client_id, ip, 0, false, {}};
     clients[client_id] = client;
     printf("Adding client IP %s\n", ip.c_str());
   } else {
@@ -472,7 +472,7 @@ static int acl_callback(int event, void *event_data, void *userdata) {
       std::time_t currentTime = std::time(nullptr);
 
       // check cache
-      time_t cached = clientPermissions[id][ed->topic];
+      time_t cached = clients[username].permissions[ed->topic];
       if (cached + cacheExpiration > currentTime ) {
         // cache hit
         return MOSQ_ERR_SUCCESS;
@@ -480,7 +480,7 @@ static int acl_callback(int event, void *event_data, void *userdata) {
 
       if (isAuthorized(topicParts, username, readAccess)) {
         // add to cache
-        clientPermissions[id][ed->topic] = currentTime;
+        clients[username].permissions[ed->topic] = currentTime;
         return MOSQ_ERR_SUCCESS;
       }
 
@@ -547,7 +547,10 @@ static int acl_callback(int event, void *event_data, void *userdata) {
       return MOSQ_ERR_ACL_DENIED;
     }
 	  output && printf(": capability namespace matches\n");
+
   } else {
+    // it's a robot/device
+
     char user_orgId[80], user_deviceId[80];
     if (sscanf(username, "%79[^:]:%s", user_orgId, user_deviceId) != 2) {
   	  printf(": DENIED (%s)\n", ip);
@@ -604,7 +607,6 @@ static int on_disconnect_callback(int event, void *event_data, void *userdata) {
   cout << "Client disconnected: " << id << " " << ip << endl;
 
   if (id && prefix("{", username)) {
-    clientPermissions.erase(id);
     remove_client(username);
   }
 

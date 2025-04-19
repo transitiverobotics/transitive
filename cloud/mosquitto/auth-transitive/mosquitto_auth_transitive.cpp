@@ -13,7 +13,6 @@
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
-#include "uthash.h" // https://troydhanson.github.io/uthash/
 
 #include <string>
 #include <map>
@@ -59,14 +58,6 @@ bool prefix(const char *pre, const char *str) {
   return strncmp(pre, str, strlen(pre)) == 0;
 }
 
-// max function, from https://stackoverflow.com/a/58532788/1087119
-#define max(a,b)             \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a > _b ? _a : _b;       \
-})
-
 /** Split the given string using the delimiter, return a vector */
 std::vector<std::string> split(const std::string &s, char delim, int max = 100) {
   std::vector<std::string> result;
@@ -97,6 +88,7 @@ typedef struct user_struct {
   bool canPay; // has free account or has a valid payment method and is not delinquent
 } user;
 
+/// Hash table for user accounts, used to cache JWTs and track read quotas
 std::map<std::string, user> users;
 
 const long int maxBytes = 100 * 1024 * 1024;
@@ -105,7 +97,7 @@ const long int maxBytes = 100 * 1024 * 1024;
 const time_t cacheExpiration = 300; // seconds
 // cache of client permissions
 std::map<std::string, std::map<std::string, time_t>> clientPermissions;
-
+// TODO: add this to `clients`?
 
 /* ----------------------------------------------------------------------------
 * Mongo
@@ -122,18 +114,10 @@ mongocxx::collection& getAccountsCollection() {
   return accounts;
 }
 
+/** Fetch all users from MongoDB, including their JWTs and data usage stats */
 void refetchUsers() {
   cout << "refetchUsers" << endl << std::flush;
 
-  // mongocxx::options::find opts{};
-  // specify fields we want
-  // auto projection = make_document(kvp("jwtSecret", 1));
-  // auto projection = document{};
-  // projection.append(kvp("jwtSecret", types::b_int32{1}));
-  // projection.append(kvp("free", types::b_int32{1}));
-  // projection.append(kvp("free", types::b_int32{1}));
-  // opts.projection(projection);
-  // auto cursor_all = accounts.find({}, opts);
   auto cursor_all = getAccountsCollection().find({});
 
   for (auto doc : cursor_all) {
@@ -323,60 +307,76 @@ Rate limiting
 #define THRESHOLD 200 // permitted requests per second before rate limiting
 #define BURST_THRESHOLD 2 * THRESHOLD // permitted bursts
 
+// Structure to represent a client
 struct client_struct {
-  char id[80];   /* client username */
-  char ip[16];   /* the client IP */
-  int count;
-  bool isLimited;    // whether we've added this client to the `limit` ipset
-  UT_hash_handle hh; /* makes this structure hashable */
+  std::string id;   // Client username
+  std::string ip;   // The client IP
+  int count;        // Request count
+  bool isLimited;   // Whether the client is rate-limited
 };
 
-struct client_struct *clients = NULL;
+// Hash table of connected Clients
+std::map<std::string, client_struct> clients;
 
-/** Add client to the hashtable where we count write requests */
-void add_client(const char *client_id, const char *ip) {
-  printf("adding client ip %s\n", ip);
-  struct client_struct *client = (struct client_struct *)malloc(sizeof *clients);
-  strcpy(client->id, client_id);
-  strcpy(client->ip, ip);
-  client->count = 0;
-  client->isLimited = false;
-  HASH_ADD_STR(clients, id, client);
+/** Add or update a client in the map */
+void add_or_update_client(const std::string &client_id, const std::string &ip) {
+  auto it = clients.find(client_id);
+
+  if (it == clients.end()) {
+    // Add new client
+    client_struct client{client_id, ip, 0, false};
+    clients[client_id] = client;
+    printf("Adding client IP %s\n", ip.c_str());
+  } else {
+    // Update existing client
+    it->second.ip = ip;
+  }
 }
 
-/** add or remove the given client to/from the ipset */
-void update_ipset(const char *ip, bool add) {
-  // printf("%s-ing ip to ipset\n", add ? "add" : "del");
-  printf("%s ipset 'limit' %s\n",
-    add ? "adding ip to" : "deleting ip from",
-    ip);
+/** Remove client from rate limiting hash table */
+void remove_client(const std::string &client_id) {
+  auto it = clients.find(client_id);
+  if (it != clients.end()) {
+    clients.erase(it);
+  }
+}
 
-  char cmd[80];
-  sprintf(cmd, "ipset %s limit %s", add ? "add" : "del", ip);
-  printf("running %s\n", cmd);
-  int status = system(cmd);
-  printf("result %d\n", status);
+/** Add or remove the given client to/from the ipset */
+void update_ipset(const std::string &ip, bool add) {
+  printf("%s ipset 'limit' %s\n",
+         add ? "Adding IP to" : "Deleting IP from",
+         ip.c_str());
+
+  std::string cmd = "ipset " + std::string(add ? "add" : "del") + " limit " + ip;
+  printf("Running %s\n", cmd.c_str());
+  int status = system(cmd.c_str());
+  printf("Result: %d\n", status);
   fflush(stdout);
 }
 
-// last time we ran counter-reduction
+// Last time we ran counter-reduction
 time_t last_time = 0;
-/** reduce all counters every time two or more seconds have passed */
+
+/** Reduce all counters every time two or more seconds have passed */
 void reduce_write_counters() {
   time_t current_time = time(NULL);
   time_t time_diff = current_time - last_time;
+
   if (time_diff >= 2) {
-    struct client_struct *client, *tmp;
-    HASH_ITER(hh, clients, client, tmp) {
-      if (client->count > 0) {
-        printf("reducing client counter %s (%s): %d\n",
-          client->id, client->ip, client->count);
-        // reduce all counters by THRESHOLD per second
-        client->count = max(client->count - THRESHOLD * time_diff, 0);
-        if (client->isLimited && client->count < THRESHOLD) {
-          // client is behaving again, remove from rate limiting ipset.
-          update_ipset(client->ip, false);
-          client->isLimited = false;
+    for (auto &entry : clients) {
+      client_struct &client = entry.second;
+
+      if (client.count > 0) {
+        // printf("Reducing client counter %s (%s): %d\n",
+        //   client.id.c_str(), client.ip.c_str(), client.count);
+
+        // Reduce all counters by THRESHOLD per second
+        client.count = std::max(client.count - THRESHOLD * static_cast<int>(time_diff), 0);
+
+        if (client.isLimited && client.count < THRESHOLD) {
+          // Client is behaving again; remove from rate-limiting ipset
+          update_ipset(client.ip, false);
+          client.isLimited = false;
         }
       }
     }
@@ -386,20 +386,22 @@ void reduce_write_counters() {
 }
 
 /** Find the write-counter for this client/IP and update it */
-void update_write_counter(const char *client_id, const char *ip) {
-  struct client_struct *client = NULL;
-  HASH_FIND_STR(clients, client_id, client);
-  if (client) {
-    client->count++;
-    if (!client->isLimited && client->count > BURST_THRESHOLD) {
-      // client is misbehaving: add to rate limiting ipset
-      printf("client %s (%s) has reached write rate limit: %d\n",
-        client->id, client->ip, client->count);
-      update_ipset(client->ip, true);
-      client->isLimited = true;
+void update_write_counter(const std::string &client_id, const std::string &ip) {
+  auto it = clients.find(client_id);
+
+  if (it != clients.end()) {
+    client_struct &client = it->second;
+    client.count++;
+
+    if (!client.isLimited && client.count > BURST_THRESHOLD) {
+      // Client is misbehaving; add to rate-limiting ipset
+      printf("Client %s (%s) has reached write rate limit: %d\n",
+             client.id.c_str(), client.ip.c_str(), client.count);
+      update_ipset(client.ip, true);
+      client.isLimited = true;
     }
   } else {
-    add_client(client_id, ip);
+    add_or_update_client(client_id, ip);
   }
 }
 
@@ -450,8 +452,10 @@ static int acl_callback(int event, void *event_data, void *userdata) {
         && capability == "ros-tool"
         ) {
 
-        cout << "DENIED, " << user << ", " << capability << ": "
-        << users[user].cap_usage[capability] << " exceeds " << maxBytes << endl;
+        // cout << "DENIED, " << user << ", " << capability << ": "
+        // << users[user].cap_usage[capability] << " exceeds " << maxBytes << endl;
+        printf("DENIED, %s %s: %ld exceeds %ld\n", user.c_str(), capability.c_str(),
+          users[user].cap_usage[capability], maxBytes);
         return MOSQ_ERR_ACL_DENIED;
       }
     }
@@ -599,11 +603,10 @@ static int on_disconnect_callback(int event, void *event_data, void *userdata) {
 
   cout << "Client disconnected: " << id << " " << ip << endl;
 
-  if (id) {
+  if (id && prefix("{", username)) {
     clientPermissions.erase(id);
+    remove_client(username);
   }
-  // TODO: also clear write rate limiting hash table, but wait until we've ported
-  // that to C++ (a std::map).
 
   return MOSQ_ERR_SUCCESS;
 }
@@ -652,12 +655,11 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
   int disconnect_result = mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT,
     on_disconnect_callback, NULL, NULL);
 
-  // set up cron job
+  // set up cron jobs
   interval(recordMeterToMongo, 3600000);
+  interval(refetchUsers, 300000);
 
   return acl_result | auth_result | disconnect_result;
-  // #TODO: register a MOSQ_EVT_DISCONNECT callback to remove clients from
-  // hashtable?
 }
 
 

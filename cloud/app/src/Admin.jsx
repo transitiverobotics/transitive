@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 
 import { Col, Row, Form, Badge, Toast } from 'react-bootstrap';
 import DataTable from 'react-data-table-component';
-import { FaRegCreditCard } from 'react-icons/fa';
+import { FaRegCreditCard, FaExclamationTriangle } from 'react-icons/fa';
 import { PiUserSwitch } from 'react-icons/pi';
 import _ from 'lodash';
 
@@ -25,6 +25,10 @@ const styles = {
     position: 'absolute',
     top: '1em',
     right: '1em',
+  },
+  warning: {
+    color: '#b00',
+    marginLeft: '0.25em'
   }
 }
 
@@ -149,10 +153,15 @@ export const Admin = () => {
       sortable: true,
       sortFunction: (a, b) => (a.free ? 1 : 0) - (b.free ? 1 : 0)
     },
-    { name: 'Has card',
+    { /* Whether account has a payment method on file, and whether it is delinquent */
+      name: 'Has card',
       grow: 2,
-      cell: row => row.stripeCustomer?.invoice_settings?.default_payment_method
-        && <FaRegCreditCard />,
+      cell: row => <span>
+        {row.stripeCustomer?.invoice_settings?.default_payment_method
+          && <FaRegCreditCard />}
+        {row.stripeCustomer?.delinquent &&
+          <FaExclamationTriangle style={styles.warning} />}
+      </span>,
       sortable: true,
       sortFunction: (a, b) =>
       (a.stripeCustomer?.invoice_settings?.default_payment_method ? 1 : 0) -

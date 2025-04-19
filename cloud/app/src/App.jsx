@@ -331,6 +331,10 @@ const Portal = () => {
     <div style={styles.body}>
       { msg && <Message msg={msg} session={session} /> }
 
+      { session.delinquent && <Alert variant='danger'>
+        <strong>Failed payments.</strong> Please check your payment method in Billing.
+      </Alert>}
+
       { session.verified ? <Routes>
           <Route path="/admin" element={<Admin />}/>
           <Route path="/security" element={<Security />} />

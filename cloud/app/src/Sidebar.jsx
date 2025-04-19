@@ -5,6 +5,7 @@ import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge }
   from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
+import { FaExclamationTriangle } from 'react-icons/fa';
 import { Login, UserContext } from './Login.jsx';
 import { ActionLink } from './utils/index';
 
@@ -66,6 +67,9 @@ const styles = {
   },
   checkmark: {
     color: '#1ec21e',
+  },
+  delinquent: {
+    color: '#b00',
   },
   usermenu: {
     lineHeight: '2em',
@@ -150,8 +154,13 @@ export const Sidebar = () => {
         <a href={`//${billingHost}/v1/billingPortal`}>
           Billing
         </a> {
-          session.has_payment_method && <span style={styles.checkmark}>
-            ✓</span>
+          session.delinquent
+          ? <span style={styles.delinquent}
+            title="Failed payments. Please check your payment method."
+          ><FaExclamationTriangle />
+          </span>
+          : session.has_payment_method
+            && <span style={styles.checkmark}>✓</span>
         } {
           session.free && <Badge size='sm' bg='success'
             title='You are currently on our invite-only free plan'>

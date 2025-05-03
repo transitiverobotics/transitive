@@ -72,6 +72,11 @@ const DeviceColumHeader = ({users}) => {
   return <div>Devices<br/>{sum(0)}/{sum(1)}/{sum(2)}</div>;
 }
 
+/** can this account pay? */
+const canPay = (account) =>
+  account.stripeCustomer?.invoice_settings?.default_payment_method
+    || account.stripeCustomer?.metadata?.collection_method == 'send_invoice';
+
 export const Admin = () => {
   const [users, setUsers] = useState([]);
   const {impersonate} = useContext(UserContext);
@@ -157,15 +162,12 @@ export const Admin = () => {
       name: 'Has card',
       grow: 2,
       cell: row => <span>
-        {row.stripeCustomer?.invoice_settings?.default_payment_method
-          && <FaRegCreditCard />}
+        {canPay(row) && <FaRegCreditCard />}
         {row.stripeCustomer?.delinquent &&
           <FaExclamationTriangle style={styles.warning} />}
       </span>,
       sortable: true,
-      sortFunction: (a, b) =>
-      (a.stripeCustomer?.invoice_settings?.default_payment_method ? 1 : 0) -
-        (b.stripeCustomer?.invoice_settings?.default_payment_method ? 1 : 0)
+      sortFunction: (a, b) => (canPay(a) ? 1 : 0) - (canPay(b) ? 1 : 0)
     },
   ];
 

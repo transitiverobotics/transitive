@@ -133,13 +133,22 @@ void refetchUsers() {
 
     // check whether user can pay:
     users[user].canPay = (doc["free"] && doc["free"].get_bool().value)
-    || ( // has payment method
-      ( doc["stripeCustomer"] &&
-        doc["stripeCustomer"]["invoice_settings"] &&
-        doc["stripeCustomer"]["invoice_settings"]["default_payment_method"] &&
-        doc["stripeCustomer"]["invoice_settings"]["default_payment_method"]
-          .type() == bsoncxx::type::k_string
-      ) && // not delinquent
+    || (
+      ( doc["stripeCustomer"] && (( // has payment method
+            doc["stripeCustomer"]["invoice_settings"] &&
+            doc["stripeCustomer"]["invoice_settings"]["default_payment_method"] &&
+            doc["stripeCustomer"]["invoice_settings"]["default_payment_method"]
+              .type() == bsoncxx::type::k_string
+          ) || ( // or is allowed to pay by invoice
+            doc["stripeCustomer"]["metadata"] &&
+            doc["stripeCustomer"]["metadata"]["collection_method"] &&
+            doc["stripeCustomer"]["metadata"]["collection_method"]
+              .type() == bsoncxx::type::k_string &&
+            doc["stripeCustomer"]["metadata"]["collection_method"]
+              .get_string().value.data() == "send_invoice"
+          ))
+      )
+      && // not delinquent
       !doc["stripeCustomer"]["delinquent"].get_bool().value
     );
     cout << " " << users[user].canPay;

@@ -403,8 +403,10 @@ const createCookie = (account, impersonating = false) => JSON.stringify({
   user: account._id,
   robot_token: account.robotToken,
   verified: account.verified,
-  has_payment_method: Boolean(
-    account?.stripeCustomer?.invoice_settings?.default_payment_method),
+  has_payment_method: (
+    Boolean(account?.stripeCustomer?.invoice_settings?.default_payment_method)
+      || account?.stripeCustomer?.metadata?.collection_method == 'send_invoice'
+  ),
   delinquent: Boolean(account?.stripeCustomer?.delinquent),
   free: account.free,
   balance: account?.stripeCustomer?.balance,

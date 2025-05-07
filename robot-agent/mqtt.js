@@ -133,7 +133,19 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
+      // publish device info including config
       staticInfo();
+      const globalProxy = new Proxy(global, {
+        set(target, property, value) {
+          target[property] = value;
+          if (property == 'config') {
+            console.log('config changed, republishing staticInfo');
+            staticInfo(); // Republish staticInfo on config change
+          }
+          return true;
+        }
+      });
+      global = globalProxy;
 
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);

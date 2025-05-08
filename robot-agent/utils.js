@@ -7,6 +7,7 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
+const { registerConfigChangeHandler } = require('./config');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -116,11 +117,20 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-      const config = {
-        global: global.config.global,      // global, shared config
-        package: global.config[name] || {} // pkg specific config
+      const updatePackageConfigFile = () => {
+        const config = {
+          global: global.config.global,      // global, shared config
+          package: global.config[name] || {} // pkg specific config
+        };
+        log.info(`Updating config for ${name}`, config);
+        // update the config.json file for this package
+        fs.writeFileSync(`${basePath}/${name}/config.json`,
+          JSON.stringify(config, null, 2));
       };
+      registerConfigChangeHandler(updatePackageConfigFile);
+      updatePackageConfigFile();
 
+      // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -130,7 +140,6 @@ const startPackage = (name) => {
             process.env, // TODO: is this safe? we may *not* want capabilities to see this
             {
               TRPACKAGE: name,
-              TRCONFIG: JSON.stringify(config),
               TR_ROS_RELEASES: config?.global?.rosReleases?.join(' ')
             })
         });

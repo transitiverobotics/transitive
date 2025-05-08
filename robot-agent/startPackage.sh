@@ -53,6 +53,7 @@ pid=
 
 BASE=$PWD
 STATUS_FILE="$BASE/status.json"
+CONFIG_FILE="$BASE/config.json"
 
 # trap SIGUSR1 and restart the node application
 # The `-` in front of the pid ensures that the entire process group gets killed,
@@ -72,6 +73,8 @@ do
   # be sure we are in the base directory before running update
   cd $BASE
 
+  # Log the TRCONFIG environment variable
+  echo "----------------------------------------- TRCONFIG: $TRCONFIG"
   # Clear out old npm folders from a potentially failed update (or whatever
   # else leaves these beind, see
   # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.
@@ -103,6 +106,21 @@ do
     # record the used node modules version, since this may be the first install
     echo $CURRENT_MODULES_VERSION > .compiled_modules_version
   fi;
+
+  # Check if the config file exists, then update TRCONFIG with the contents of the file
+  if [ -e $CONFIG_FILE ]; then
+    # Check if the config file is empty
+    if [ -s $CONFIG_FILE ]; then
+      # Read the config file and set the TRCONFIG environment variable
+      export TRCONFIG=$(cat $CONFIG_FILE)
+    else
+      export TRCONFIG="{}"
+    fi
+  else
+    echo "Config file $CONFIG_FILE not found"
+  fi
+  
+  echo "TRCONFIG: $TRCONFIG"
 
   cd "$BASE/node_modules/$1"
   export PASSWORD=$(cat ../../../password)

@@ -31,7 +31,7 @@ const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
 const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
-const { updateFleetConfig } = require('./config');
+const { updateFleetConfig, registerConfigChangeHandler } = require('./config');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -133,7 +133,13 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
+      // publish device info including config
       staticInfo();
+
+      registerConfigChangeHandler((config) => {
+        console.log('config changed, republishing staticInfo');
+        staticInfo();
+      });
 
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);

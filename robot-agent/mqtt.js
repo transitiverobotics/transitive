@@ -134,6 +134,7 @@ mqttClient.on('connect', function(connackPacket) {
       });
 
       staticInfo();
+
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 

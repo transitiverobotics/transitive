@@ -31,7 +31,7 @@ const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
 const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
-const { updateFleetConfig, registerConfigChangeHandler } = require('./config');
+const { updateFleetConfig } = require('./config');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');

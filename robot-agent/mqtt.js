@@ -122,7 +122,7 @@ mqttClient.on('connect', function(connackPacket) {
       global.data = data; // #hacky; need this in commands.js
       global.AGENT_PREFIX = AGENT_PREFIX;
 
-      mqttSync.publish(`${AGENT_PREFIX}/info`);
+      mqttSync.publish(`${AGENT_PREFIX}/info`, {atomic: true});
       mqttSync.publish(`${AGENT_PREFIX}/status`);
 
       // for ongoing ping checking (not to be confused with ping RPC command)
@@ -133,14 +133,7 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
-      // publish device info including config
       staticInfo();
-
-      registerConfigChangeHandler((config) => {
-        console.log('config changed, republishing staticInfo');
-        staticInfo();
-      });
-
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 

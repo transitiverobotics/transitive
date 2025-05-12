@@ -1,5 +1,6 @@
 const fs = require('fs');
 const dotenv = require('dotenv');
+const { clone } = require('@transitive-sdk/utils');
 
 dotenv.config({path: './.env'});
 dotenv.config({path: './.env_user'});
@@ -7,23 +8,24 @@ dotenv.config({path: './.env_user'});
 global.config = {};
 const fleetConfig = {};
 
-const configChangeHandlers = [];
-
-const refreshGlobalConfig = () => {
+const refreshGlobalConfigFromFile = () => {
   try {
     global.config = JSON.parse(fs.readFileSync('./config.json', {encoding: 'utf8'}));
     console.log(`Using config:\n${JSON.stringify(global.config, true, 2)}`);
-    // Notify all handlers of the config change
-    configChangeHandlers.forEach(handler => handler(global.config));
+    if (global.data) {
+      // update the config in the fleet data store
+      console.log(`Updating global config in ${global.AGENT_PREFIX}/info/config`);
+      global.data.update(`${global.AGENT_PREFIX}/info/config`, clone(global.config));
+    }
   } catch (e) {
     console.log('No config.json file found or not valid JSON, proceeding without.');
   }
 };
-refreshGlobalConfig();
+refreshGlobalConfigFromFile();
 
-fs.watch('./config.json', {interval: 1000}, (curr, prev) => {
-  console.log('Reloading config.json');
-  refreshGlobalConfig();
+fs.watch('./config.json', (curr, prev) => {
+  console.log('config.json changed, updating global config');
+  refreshGlobalConfigFromFile();
 });
 
 /** Set the `key` in the fleet config to `value` */
@@ -35,8 +37,4 @@ const getConfig = (key) =>
   ? global.config[key]
   : fleetConfig[key];
 
-const registerConfigChangeHandler = (handler) => {
-  configChangeHandlers.push(handler);
-}
-
-module.exports = { updateFleetConfig, getConfig, registerConfigChangeHandler };
+module.exports = { updateFleetConfig, getConfig };

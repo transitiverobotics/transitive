@@ -67,10 +67,25 @@ const removePackage = (pkg) => {
   });
 };
 
+/** update the config.json file for the package with the current global config
+  and the package specific config.*/
+const updatePackageConfigFile = (packageName) => {
+  const config = {
+    global: global.config.global,      // global, shared config
+    package: global.config[packageName] || {} // pkg specific config
+  };
+  log.info(`Updating ${packageName} config.json file`, config);
+  // update the config.json file for this package
+  fs.writeFileSync(`${basePath}/${packageName}/config.json`,
+    JSON.stringify(config, null, 2));
+};
+
+
 /** restart the named package by sending a SIGUSR1 to its startPackage.sh process
   e.g., name = '@transitive-robotics/health-monitoring'
 */
 const restartPackage = (name, startIfNotRunning = false) => {
+  updatePackageConfigFile(name);
   killPackage(name, 'SIGUSR1', (code) => {
     if (code == 1) {
       log.warn(`package ${name} not running`);
@@ -103,6 +118,7 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 /** start the named package if it isn't already running */
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
+  updatePackageConfigFile(name);
 
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
@@ -117,18 +133,6 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-      const updatePackageConfigFile = () => {
-        const config = {
-          global: global.config.global,      // global, shared config
-          package: global.config[name] || {} // pkg specific config
-        };
-        log.info(`Updating config for ${name}`, config);
-        // update the config.json file for this package
-        fs.writeFileSync(`${basePath}/${name}/config.json`,
-          JSON.stringify(config, null, 2));
-      };
-      registerConfigChangeHandler(updatePackageConfigFile);
-      updatePackageConfigFile();
 
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,

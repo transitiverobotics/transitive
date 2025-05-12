@@ -73,8 +73,6 @@ do
   # be sure we are in the base directory before running update
   cd $BASE
 
-  # Log the TRCONFIG environment variable
-  echo "----------------------------------------- TRCONFIG: $TRCONFIG"
   # Clear out old npm folders from a potentially failed update (or whatever
   # else leaves these beind, see
   # https://docs.npmjs.com/common-errors#many-enoent--enotempty-errors-in-output.

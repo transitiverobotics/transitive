@@ -58,17 +58,14 @@ const commands = {
   updateConfig: ({modifier}) => {
     log.debug('updateConfig', modifier);
     // now set it in `global.config` and write it back to disk
-    _.forEach(modifier, (value, path) => _.set(global.config, path, value));
-    log.debug('backing up old config and writing new', global.config);
+    const newConfig = clone(global.config);
+    _.forEach(modifier, (value, path) => _.set(newConfig, path, value));
+    log.debug('backing up old config and writing new', newConfig);
     try {
       fs.copyFileSync('./config.json', './config.json.bak');
     } catch (e) {}
-    fs.writeFileSync('./config.json', JSON.stringify(global.config, true, 2),
+    fs.writeFileSync('./config.json', JSON.stringify(newConfig, true, 2),
       {encoding: 'utf8'});
-
-    global.data.update(`${global.AGENT_PREFIX}/info/config`,
-      clone(global.config)
-    );
   },
 
   upgradeNodejs: () => {

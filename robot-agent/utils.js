@@ -7,7 +7,6 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
-const { registerConfigChangeHandler } = require('./config');
 
 const log = getLogger('utils');
 log.setLevel('debug');

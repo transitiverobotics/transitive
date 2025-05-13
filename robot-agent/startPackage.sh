@@ -105,17 +105,19 @@ do
     echo $CURRENT_MODULES_VERSION > .compiled_modules_version
   fi;
 
-  # Check if the config file exists, then update TRCONFIG with the contents of the file
   if [ -e $CONFIG_FILE ]; then
-    # Check if the config file is empty
+    # Config file exists
     if [ -s $CONFIG_FILE ]; then
-      # Read the config file and set the TRCONFIG environment variable
+      # Config file is not empty
       export TRCONFIG=$(cat $CONFIG_FILE)
     else
+      # If the config file is empty
+      echo "Config file $CONFIG_FILE is empty"
       export TRCONFIG="{}"
     fi
-  else
+  else    
     echo "Config file $CONFIG_FILE not found"
+     export TRCONFIG="{}"
   fi
   
   echo "TRCONFIG: $TRCONFIG"

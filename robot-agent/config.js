@@ -23,11 +23,12 @@ const refreshGlobalConfigFromFile = () => {
 };
 refreshGlobalConfigFromFile();
 
-fs.watch('./config.json', {persistence: false},
-  (eventType, filename) => {
+fs.watchFile('./config.json', { interval: 500 }, (curr, prev) => {
+  if (curr.mtime !== prev.mtime) {
     console.log('config.json changed, updating global config');
     refreshGlobalConfigFromFile();
-  });
+  }
+});
 
 /** Set the `key` in the fleet config to `value` */
 const updateFleetConfig = (key, value) => fleetConfig[key] = value;

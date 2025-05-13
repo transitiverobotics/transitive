@@ -1,6 +1,7 @@
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { clone } = require('@transitive-sdk/utils');
+const { getInstalledPackages, updatePackageConfigFile } = require('./utils');
 
 dotenv.config({path: './.env'});
 dotenv.config({path: './.env_user'});
@@ -12,6 +13,10 @@ const refreshGlobalConfigFromFile = () => {
   try {
     global.config = JSON.parse(fs.readFileSync('./config.json', {encoding: 'utf8'}));
     console.log(`Using config:\n${JSON.stringify(global.config, true, 2)}`);
+    const packages = getInstalledPackages();
+    // generate config.json for each package
+    packages.forEach(updatePackageConfigFile);
+    // update the config in the fleet data store
     if (global.data) {
       // update the config in the fleet data store
       console.log(`Updating global config in ${global.AGENT_PREFIX}/info/config`);

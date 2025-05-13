@@ -84,7 +84,6 @@ const updatePackageConfigFile = (packageName) => {
   e.g., name = '@transitive-robotics/health-monitoring'
 */
 const restartPackage = (name, startIfNotRunning = false) => {
-  updatePackageConfigFile(name);
   killPackage(name, 'SIGUSR1', (code) => {
     if (code == 1) {
       log.warn(`package ${name} not running`);
@@ -117,7 +116,6 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 /** start the named package if it isn't already running */
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
-  updatePackageConfigFile(name);
 
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
@@ -349,5 +347,6 @@ module.exports = {
   rotateAllLogs,
   killAllPackages,
   ensureDesiredPackages,
-  upgradeNodejs
+  upgradeNodejs,
+  updatePackageConfigFile
 };

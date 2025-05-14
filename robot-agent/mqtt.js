@@ -22,7 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const assert = require('assert');
 const mqtt = require('mqtt');
-const exec = require('child_process').exec;
+const { exec, execSync } = require('child_process');
 const _ = require('lodash');
 
 const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
@@ -134,7 +134,7 @@ mqttClient.on('connect', function(connackPacket) {
       });
 
       staticInfo();
-
+      executeSelfChecks();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 
@@ -214,6 +214,74 @@ const staticInfo = () => {
     });
   });
 };
+
+// list of self checks to run
+const selfChecks = [
+  {
+    name: 'unshare supported',
+    check: () => {
+      // check if unshare is available
+      try {
+        const result = execSync('unshare -rm whoami', {encoding: 'utf8'});
+        // check if it returns root
+        return result.trim() == 'root';
+      }
+      catch (e) {
+        return false;
+      }
+    },
+    error: 'unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf'
+  },
+  // check if bash is installed and is the default shell
+  {
+    name: 'bash installed',
+    check: () => {
+      // check if bash is available
+      try {
+        const result = execSync('which bash', {encoding: 'utf8'});
+        // check if it returns a path
+        return result.trim() != '';
+      }
+      catch (e) {
+        return false;
+      }
+    },
+    error: 'bash not installed, install bash'
+  },
+  // check if bash is the default shell
+  {
+    name: 'bash default shell',
+    check: () => {
+      // check if bash is the default shell
+      try {
+        const result = execSync('echo $SHELL', {encoding: 'utf8'});
+        return result.trim() == '/bin/bash';
+      }
+      catch (e) {
+        return false;
+      }
+    },
+    error: 'bash not default shell, set bash as default shell'
+  }
+]
+
+const executeSelfChecks = () => {
+  log.info('executing self checks');
+  data.update(`${AGENT_PREFIX}/status/selfChecks`, {running: true});
+  const errors = [];
+  selfChecks.forEach(check => {
+    if (!check.check()) {
+      errors.push(check.error);
+    }
+  });
+  if (errors.length > 0) {
+    log.error('self checks failed:', errors);
+    data.update(`${AGENT_PREFIX}/status/selfChecks`, {errors});
+  } else {
+    log.info('self checks passed');
+    data.update(`${AGENT_PREFIX}/status/selfChecks`, {success: true});
+  }
+}
 
 /** parse lsb_release info, e.g.,
 'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'

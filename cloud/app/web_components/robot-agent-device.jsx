@@ -24,6 +24,7 @@ import { Heartbeat, heartbeatLevel, ensureProps, PkgLog } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
+import SelfCheck from './self-check';
 
 const F = React.Fragment;
 
@@ -469,6 +470,9 @@ const Device = (props) => {
       </Fold>
     </div>
 
+    <div style={styles.row}>
+      <SelfCheck mqttSync={mqttSync} agentPrefix={versionPrefix} />
+    </div>
 
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 

@@ -28,45 +28,18 @@ const refreshGlobalConfigFromFile = () => {
 };
 refreshGlobalConfigFromFile();
 
-let watcher;
-
-// Wait for the file to exist before using it
-// This is useful for VI or other editors that creates a new file
-// on save, which can cause the watcher to trigger before the file is ready
-// to be read.
-const waitForFile = (filePath, callback) => {
-  const interval = setInterval(() => {
-    if (fs.existsSync(filePath)) {
-      clearInterval(interval);
-      callback();
-    }
-  }, 500);
-};
-
-const startWatchingConfig = () => {
-  if (watcher) {
-    watcher.close();
-    console.log('Previous watcher closed.');
+fs.watch('./', { persistence: false }, (eventType, filename) => {
+  if (filename !== 'config.json') {
+    return;
   }
-
-  waitForFile('./config.json', () => {
-    try {
-      watcher = fs.watch('./config.json', { persistence: false }, (eventType, filename) => {
-        console.log('config.json changed');
-        waitForFile('./config.json', () => {
-          refreshGlobalConfigFromFile();
-        });
-        startWatchingConfig(); // Restart the watcher
-      });
-
-      console.log('Started watching config.json');
-    } catch (err) {
-      console.error('Error setting up watcher:', err);
-    }
-  });
-};
-
-startWatchingConfig();
+  // check if the file exists, eventType == 'rename' triggers when the file is created or deleted
+  // but we only want to reload if the file is changed or created
+  if (eventType == 'rename' && !fs.existsSync('./config.json')) {
+    return;
+  }        
+  console.log('config.json changed, reloading...');
+  refreshGlobalConfigFromFile();
+});
 
 /** Set the `key` in the fleet config to `value` */
 const updateFleetConfig = (key, value) => fleetConfig[key] = value;

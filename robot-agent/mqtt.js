@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const os = require('os');
-const net = require('net');
+
 const assert = require('assert');
 const mqtt = require('mqtt');
 const { exec, execSync } = require('child_process');
@@ -33,6 +33,7 @@ const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
+const { selfChecks } = require('./selfChecks');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -216,73 +217,12 @@ const staticInfo = () => {
   });
 };
 
-// list of self checks to run
-const selfChecks = {
-  // check if unshare is available
-  unshareNotSupported: () => {
-    log.info('Running self check: unshareNotSupported');
-    try {
-      const result = execSync('unshare -rm whoami', {encoding: 'utf8'});
-      const failed = result.trim() !== 'root';
-      log.info(`unshareNotSupported result: ${failed ? 'FAILED' : 'PASSED'}`);
-      return failed;
-    }
-    catch (e) {
-      log.info('unshareNotSupported error:', e.message || e);
-      return true;
-    }
-  },
-  // check if bash is installed
-  bashNotInstalled: () => {
-    log.info('Running self check: bashNotInstalled');
-    try {
-      const result = execSync('which bash', {encoding: 'utf8'});
-      const failed = result.trim() == '';
-      log.info(`bashNotInstalled result: ${failed ? 'FAILED' : 'PASSED'}`);
-      return failed;
-    }
-    catch (e) {
-      log.info('bashNotInstalled error:', e.message || e);
-      return true;
-    }
-  },
-  // check if bash is the default shell
-  bashNotDefaultShell: () => {
-    log.info('Running self check: bashNotDefaultShell');
-    try {
-      const result = execSync('echo $SHELL', {encoding: 'utf8'});
-      const failed = result.trim() !== '/bin/bash';
-      log.info(`bashNotDefaultShell result: ${failed ? 'FAILED' : 'PASSED'}`);
-      return failed;
-    }
-    catch (e) {
-      log.info('bashNotDefaultShell error:', e.message || e);
-      return true;
-    }
-  },
-  // check if mqtt port (1883) is available (not in use)
-  mqttPortNotAvailable: () => {
-    log.info('Running self check: mqttPortNotAvailable');
-    try {
-      // Try to bind to the port synchronously using execSync and nc (netcat)
-      execSync('nc -z 127.0.0.1 1883', { stdio: 'ignore' });
-      // If nc exits with 0, port is open (in use)
-      log.info('mqttPortNotAvailable result: FAILED (port in use)');
-      return true;
-    } catch (e) {
-      // If nc exits with non-zero, port is not open (available)
-      log.info('mqttPortNotAvailable result: PASSED');
-      return false;
-    }
-  }
-}
-
 const executeSelfChecks = () => {
   log.info('executing self checks');
   data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, []);
   const errors = [];
   _.forEach(selfChecks, (check, name) => {
-    const error = check();
+    const error = check.run();
     if (error) {
       errors.push(name);
       log.error(`self check failed: ${name}`);

@@ -470,9 +470,7 @@ const Device = (props) => {
       </Fold>
     </div>
 
-    <div style={styles.row}>
-      <SelfCheck mqttSync={mqttSync} agentPrefix={versionPrefix} />
-    </div>
+    <SelfCheck mqttSync={mqttSync} agentPrefix={versionPrefix} />
 
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 

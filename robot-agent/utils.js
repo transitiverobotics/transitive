@@ -47,6 +47,7 @@ const addPackage = (addedPkg) => {
   fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
   fs.writeFileSync(`${dir}/package.json`,
     `{ "dependencies": {"${addedPkg}": "*"} }`);
+  updatePackageConfigFile(addedPkg);
   startPackage(addedPkg);
 };
 

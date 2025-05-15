@@ -5,6 +5,7 @@ const selfCheckErrorMessages = {
   unshareNotSupported: 'unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
   bashNotInstalled: 'bash not installed, install bash',
   bashNotDefaultShell: 'bash not default shell, set bash as default shell',
+  mqttPortNotAvailable: 'mqtt port (1883) not available, check if other process is using it',
 };
 
 const styles = {

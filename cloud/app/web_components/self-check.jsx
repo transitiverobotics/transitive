@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-bootstrap';
 
-const selfCheckErrorMessages = {
-  unshareNotSupported: 'unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
-  bashNotInstalled: 'bash not installed, install bash',
-  bashNotDefaultShell: 'bash not default shell, set bash as default shell',
-  mqttPortNotAvailable: 'mqtt port (1883) not available, check if other process is using it',
-};
+import { selfChecks } from '../../../robot-agent/selfChecks';
 
 const styles = {
   error: {
@@ -15,7 +10,7 @@ const styles = {
 };
 
 const SelfCheck = ({ mqttSync, agentPrefix }) => {
-  const [selfCheckErrors, setSelfCheckErrors] = useState(null);
+  const [failedChecks, setFailedChecks] = useState(null);
 
   useEffect(() => {
     const topic = `${agentPrefix}/status/selfCheckErrors`;
@@ -23,7 +18,7 @@ const SelfCheck = ({ mqttSync, agentPrefix }) => {
 
     const handleUpdate = (data) => {
       console.log('Received self-check data:', data);
-      setSelfCheckErrors(data);
+      setFailedChecks(data);
     };
 
     handleUpdate(mqttSync.data.getByTopic(topic));
@@ -37,17 +32,15 @@ const SelfCheck = ({ mqttSync, agentPrefix }) => {
   }, [mqttSync, agentPrefix]);
 
 
-  if (selfCheckErrors && selfCheckErrors.length > 0) {
-    console.log('Self-check errors:', selfCheckErrors);
+  if (failedChecks && failedChecks.length > 0) {
+    console.log('Self-check errors:', failedChecks);
     return (
       <div style={styles.error}>
         <Alert variant="danger">
           <strong>Self-checks failed:</strong>
           <ul>
-            {selfCheckErrors.map((error, name) => (
-              <li key={name}>
-                {selfCheckErrorMessages[error] || error}
-              </li>
+            {failedChecks.map((check, index) => (
+              <li key={index}>{selfChecks[check].error}</li>
             ))}
           </ul>
         </Alert>

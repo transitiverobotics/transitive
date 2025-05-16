@@ -234,10 +234,19 @@ const executeSelfChecks = () => {
   data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, []);
   const errors = [];
   _.forEach(selfChecks, (check, name) => {
-    const error = check.run();
+    log.info(`running self check: ${name}`);
+    let error;
+    try {
+      const result = execSync(check.command, {encoding: 'utf8', stdio: 'pipe'});
+      error = check.checkResult(result);
+    } catch (e) {
+      error = check.checkException ? check.checkException(e) : true;
+    }
     if (error) {
+      log.error(`self check ${name} FAILED`);
       errors.push(name);
-      log.error(`self check failed: ${name}`);
+    } else {
+      log.info(`self check ${name} PASSED`);
     }
   });
   data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, errors);

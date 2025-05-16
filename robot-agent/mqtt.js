@@ -118,7 +118,7 @@ mqttClient.on('connect', function(connackPacket) {
   // "publication", of which this may be a "clear on start" functionality
   const allVersionsPrefix = `${PREFIX}/${CAP_NAME}`;
   !initialized && mqttClearRetained(mqttClient,
-    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
+    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], async () => {
 
       data = mqttSync.data;
       global.data = data; // #hacky; need this in commands.js
@@ -135,7 +135,7 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
-      staticInfo();
+      await staticInfo();
       executeSelfChecks();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
@@ -172,7 +172,7 @@ mqttClient.on('connect', function(connackPacket) {
 });
 
 /** publish static info about this machine */
-const staticInfo = () => {
+const staticInfo = async () => {
   const info = {os: {
       hostname: process.env.TR_DISPLAYNAME || os.hostname(),
       release: os.release(),
@@ -202,6 +202,18 @@ const staticInfo = () => {
     info.isDocker = true;
   } catch (e) {
     info.isDocker = false;
+  }
+  // get geolocation and add to info
+  try {
+    const response = await fetch('http://ip-api.com/json');
+    if (response.ok) {
+      info.geo = await response.json();
+      log.info('geo:', info.geo);
+    } else {
+      info.geo = {};
+    }
+  } catch (apiError) {
+    info.geo = {};
   }
 
   exec('lsb_release -a', (err, stdout, stderr) => {

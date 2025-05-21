@@ -43,6 +43,17 @@ const selfChecks = {
     },
     error: 'mqtt port (1883) not available, check if other process is using it',
   },
+  // check if an overlay file system can be created
+  overlayNotSupported: {
+    command: 'TRPACKAGE=@test_overlay/test ./unshare.sh whoami',
+    checkResult: (result) => {
+      return false;
+    },
+    checkException: (e) => {
+      return true;
+    },
+    error: 'overlay file system not supported',
+  },
 };
 
 const executeSelfChecks = () => {

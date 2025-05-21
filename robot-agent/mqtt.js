@@ -33,7 +33,7 @@ const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
-const { selfChecks } = require('./selfChecks');
+const { executeSelfChecks } = require('./selfChecks');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -229,28 +229,6 @@ const staticInfo = async () => {
   });
 };
 
-const executeSelfChecks = () => {
-  log.info('executing self checks');
-  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, []);
-  const errors = [];
-  _.forEach(selfChecks, (check, name) => {
-    log.info(`running self check: ${name}`);
-    let error;
-    try {
-      const result = execSync(check.command, {encoding: 'utf8', stdio: 'pipe'});
-      error = check.checkResult(result);
-    } catch (e) {
-      error = check.checkException ? check.checkException(e) : true;
-    }
-    if (error) {
-      log.error(`self check ${name} FAILED`);
-      errors.push(name);
-    } else {
-      log.info(`self check ${name} PASSED`);
-    }
-  });
-  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, errors);
-}
 
 /** parse lsb_release info, e.g.,
 'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'

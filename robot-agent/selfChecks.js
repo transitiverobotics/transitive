@@ -8,51 +8,48 @@ log.setLevel('info');
 
 // list of self checks to run
 const selfChecks = {
-  // check if unshare is available
-  unshareNotSupported: {
+  // check if unshare is supported
+  unshareSupported: {
     command: 'unshare -rm whoami',
     checkResult: (result) => {
-      return result.trim() !== 'root';
+      return result.trim() === 'root';
     },
-    error: 'unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
+    error: 'Unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
   },
   // check if bash is installed
-  bashNotInstalled: {
+  bashInstalled: {
     command: 'which bash',
     checkResult: (result) => {
-      return result.trim() === '';
+      return result.trim() !== '';
     },
-    error: 'bash not installed, install bash',
+    error: 'Bash not installed, install bash',
   },
   // check if bash is the default shell
-  bashNotDefaultShell: {
+  bashDefaultShell: {
     command: 'echo $SHELL',
     checkResult: (result) => {
-      return result.trim() !== '/bin/bash';
+      return result.trim() === '/bin/bash';
     },
-    error: 'bash not default shell, set bash as default shell',
+    error: 'Bash is not the default shell, set bash as the default shell',
   },
   // check if mqtt port (1883) is available (not in use)
-  mqttPortNotAvailable: {
+  mqttPortAvailable: {
     command: 'nc -z 127.0.0.1 1883',
     checkResult: (result) => {
-      return true; // nc returns a line if the port is in use
-    },
-    checkException: (e) => {
-      return false;
-    },
-    error: 'mqtt port (1883) not available, check if other process is using it',
-  },
-  // check if an overlay file system can be created
-  overlayNotSupported: {
-    command: 'TRPACKAGE=@test_overlay/test ./unshare.sh whoami',
-    checkResult: (result) => {
-      return false;
+      return false; // nc returns a line if the port is in use
     },
     checkException: (e) => {
       return true;
     },
-    error: 'overlay file system not supported',
+    error: 'Mqtt port (1883) not available, check if other process is using it',
+  },
+  // check if an overlay file system can be created
+  overlaySupported: {
+    command: 'TRPACKAGE=@test_overlay/test ./unshare.sh whoami',
+    checkResult: (result) => {
+      return true;
+    },
+    error: 'Overlay file system not supported',
   },
 };
 
@@ -65,9 +62,9 @@ const executeSelfChecks = () => {
     let error;
     try {
       const result = execSync(check.command, {encoding: 'utf8', stdio: 'pipe'});
-      error = check.checkResult(result);
+      error = !check.checkResult(result);
     } catch (e) {
-      error = check.checkException ? check.checkException(e) : true;
+      error = check.checkException ? !check.checkException(e) : true;
     }
     if (error) {
       log.error(`self check ${name} FAILED`);

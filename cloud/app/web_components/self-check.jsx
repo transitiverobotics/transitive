@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-bootstrap';
 
-import { selfChecks } from '../../../robot-agent/selfChecks';
-
 const styles = {
   error: {
     marginBottom: '2em',
@@ -39,8 +37,8 @@ const SelfCheck = ({ mqttSync, agentPrefix }) => {
         <Alert variant="danger">
           <strong>Self-checks failed:</strong>
           <ul>
-            {failedChecks.map((check, index) => (
-              <li key={index}>{selfChecks[check].error}</li>
+            {failedChecks.map((error, index) => (
+              <li key={index}>{error}</li>
             ))}
           </ul>
         </Alert>

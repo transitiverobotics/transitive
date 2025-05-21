@@ -138,6 +138,10 @@ const OSInfo = ({info}) => !info ? <div></div> :
     <Form.Text>
       {info.os.dpkgArch}, {info.os.lsb?.Description}
     </Form.Text>
+    <br></br>
+    <Form.Text>
+      {info.geo?.country}, {info.geo?.city}
+    </Form.Text>
   </div>;
 
 /** given a package name, get it's human-readable title, e.g.,

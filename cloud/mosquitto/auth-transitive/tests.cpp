@@ -26,6 +26,12 @@ TEST_CASE("isAuthorized") {
   std::vector<std::string> topic1 =
     split("/user1/dev1/@scope/capName/0.1.2/myfield", '/');
 
+  std::vector<std::string> topic1HashWild =
+    split("/user1/dev1/@scope/capName/0.1.2/myfield/#", '/');
+
+  std::vector<std::string> topic1VersionAndHashWild =
+    split("/user1/dev1/@scope/capName/+/myfield/#", '/');
+
   std::vector<std::string> topicFleet =
     split("/user1/_fleet/@scope/capName/0.1.2/myfield", '/');
 
@@ -230,6 +236,16 @@ TEST_CASE("isAuthorized") {
 
     // ^^ Handled by try-catch for now, which is fine
     // See https://github.com/transitiverobotics/transitive-chfritz/issues/528
+
+    SUBCASE("permitted, simple, hash wildcard") {
+      std::stringstream s;
+      s << R"({ "id": "user1", "payload": {
+      "id": "user1", "device": "dev1", "capability": "@scope/capName",
+      "topics": ["myfield", "myfield2"],
+      "validity": 1000, "iat":)" << currentTime << "}}";
+      CHECK( isAuthorized(topic1HashWild, s.str(), 0) );
+    }
+
   }
 
   SUBCASE("robot-agent") {

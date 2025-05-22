@@ -52,13 +52,13 @@ int operator+(const element& a, const element& b) {
 
 /* -------------------------------------------------------------------------- */
 
-/** Whether or not the given string is contained in the array. */
-bool arrayIncludes(const element& array, const std::string& s) {
+/** Whether or not the array contains a prefix of s. */
+bool arrayIncludesPrefix(const element& array, const std::string& s) {
   bsoncxx::array::view view{array.get_array().value};
 
   for (bsoncxx::array::element item : view){
-    std::cout << item.get_string().value << std::endl;
-    if (item.get_string().value.data() == s) {
+    std::string itemStr = item.get_string().value.to_string();
+    if (s.starts_with(itemStr)) {
       return true;
     }
   }
@@ -100,6 +100,8 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
   // std::cout << deviceMatch << capMatch << agentPermission << agentRequested
   // << fleetPermission << noTopicConstraints << std::endl;
 
+  // std::cout << "permitted:" << username << sub << std::endl;
+
   std::time_t currentTime = std::time(nullptr);
 
   if (
@@ -114,7 +116,7 @@ static int isAuthorized(std::vector<std::string> topicParts, std::string usernam
             // _robot-agent permissions grant full device access
             &&
             // if payload.topics exists it is a limitation of topics to allow:
-            (noTopicConstraints || arrayIncludes(permitted["topics"], sub))
+            (noTopicConstraints || arrayIncludesPrefix(permitted["topics"], sub))
             // TODO: allow wildcards in permitted.topics ?
           ) ||
           // all valid JWTs for a device also grant read access to _robot-agent

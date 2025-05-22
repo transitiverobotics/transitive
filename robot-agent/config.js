@@ -36,7 +36,7 @@ fs.watch('./', { persistence: false }, (eventType, filename) => {
   // but we only want to reload if the file is changed or created
   if (eventType == 'rename' && !fs.existsSync('./config.json')) {
     return;
-  }        
+  }
   console.log('config.json changed, reloading...');
   refreshGlobalConfigFromFile();
 });

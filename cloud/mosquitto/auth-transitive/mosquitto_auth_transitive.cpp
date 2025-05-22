@@ -492,6 +492,7 @@ static int acl_callback(int event, void *event_data, void *userdata) {
         clients[username].permissions[ed->topic] = currentTime;
         return MOSQ_ERR_SUCCESS;
       }
+      // std::cout << "DENIED: " << username << " " << ed->topic << std::endl;
 
       // TODO: also cache disallowed clients, to avoid (unintentional) denial of
       // service attacks when a client malfunctions; Maybe combine with caching

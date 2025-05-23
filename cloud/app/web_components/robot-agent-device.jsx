@@ -24,6 +24,7 @@ import { Heartbeat, heartbeatLevel, ensureProps, PkgLog } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
+import SelfCheck from './self-check';
 
 const F = React.Fragment;
 
@@ -136,6 +137,10 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </div>
     <Form.Text>
       {info.os.dpkgArch}, {info.os.lsb?.Description}
+    </Form.Text>
+    <br></br>
+    <Form.Text>
+      {info.geo?.country}, {info.geo?.city}
     </Form.Text>
   </div>;
 
@@ -469,6 +474,7 @@ const Device = (props) => {
       </Fold>
     </div>
 
+    <SelfCheck mqttSync={mqttSync} agentPrefix={versionPrefix} />
 
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 

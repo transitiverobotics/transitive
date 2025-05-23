@@ -20,9 +20,10 @@
 
 const fs = require('fs');
 const os = require('os');
+
 const assert = require('assert');
 const mqtt = require('mqtt');
-const exec = require('child_process').exec;
+const { exec, execSync } = require('child_process');
 const _ = require('lodash');
 
 const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
@@ -32,6 +33,7 @@ const { handleAgentCommand, commands } = require('./commands');
 const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
+const { executeSelfChecks } = require('./selfChecks');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -116,7 +118,7 @@ mqttClient.on('connect', function(connackPacket) {
   // "publication", of which this may be a "clear on start" functionality
   const allVersionsPrefix = `${PREFIX}/${CAP_NAME}`;
   !initialized && mqttClearRetained(mqttClient,
-    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
+    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], async () => {
 
       data = mqttSync.data;
       global.data = data; // #hacky; need this in commands.js
@@ -133,8 +135,8 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
-      staticInfo();
-
+      await staticInfo();
+      executeSelfChecks();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 
@@ -170,7 +172,7 @@ mqttClient.on('connect', function(connackPacket) {
 });
 
 /** publish static info about this machine */
-const staticInfo = () => {
+const staticInfo = async () => {
   const info = {os: {
       hostname: process.env.TR_DISPLAYNAME || os.hostname(),
       release: os.release(),
@@ -201,6 +203,18 @@ const staticInfo = () => {
   } catch (e) {
     info.isDocker = false;
   }
+  // get geolocation and add to info
+  try {
+    const response = await fetch('http://ip-api.com/json');
+    if (response.ok) {
+      info.geo = await response.json();
+      log.info('geo:', info.geo);
+    } else {
+      info.geo = {};
+    }
+  } catch (apiError) {
+    info.geo = {};
+  }
 
   exec('lsb_release -a', (err, stdout, stderr) => {
     if (!err) {
@@ -214,6 +228,7 @@ const staticInfo = () => {
     });
   });
 };
+
 
 /** parse lsb_release info, e.g.,
 'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'

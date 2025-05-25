@@ -23,7 +23,7 @@ const selfChecks = {
   // check if bash is the default shell
   bashDefaultShell: {
     command: 'echo $SHELL',
-    checkResult: (result) => result.trim() === '/bin/bash',
+    checkResult: (result) => result.trim().endsWith('/bash'),
     error: 'Bash is not the default shell, please set bash as the default shell',
   },
   // check if an overlay file system can be created

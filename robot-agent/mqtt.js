@@ -139,8 +139,6 @@ mqttClient.on('connect', function(connackPacket) {
       });
 
       staticInfo();
-      getGeoIP();
-      executeSelfChecks(data);
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 
@@ -175,6 +173,9 @@ mqttClient.on('connect', function(connackPacket) {
         log.info(`registering ${command}`);
         mqttSync.register(command, cmdHandler);
       });
+
+      getGeoIP();
+      executeSelfChecks(data);
 
       initialized = true;
     });

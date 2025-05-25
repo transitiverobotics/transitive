@@ -6,73 +6,60 @@ const { getLogger} = require('@transitive-sdk/utils');
 const log = getLogger('selfChecks');
 log.setLevel('info');
 
-// list of self checks to run
+/** List of self checks to run */
 const selfChecks = {
   // check if unshare is supported
   unshareSupported: {
     command: 'unshare -rm whoami',
-    checkResult: (result) => {
-      return result.trim() === 'root';
-    },
-    error: 'Unshare not supported, add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
+    checkResult: (result) => result.trim() === 'root',
+    error: 'Unshare not supported, please add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
   },
   // check if bash is installed
   bashInstalled: {
     command: 'which bash',
-    checkResult: (result) => {
-      return result.trim() !== '';
-    },
-    error: 'Bash not installed, install bash',
+    checkResult: (result) => result.trim() !== '',
+    error: 'Bash not installed, please install bash.',
   },
   // check if bash is the default shell
   bashDefaultShell: {
     command: 'echo $SHELL',
-    checkResult: (result) => {
-      return result.trim() === '/bin/bash';
-    },
-    error: 'Bash is not the default shell, set bash as the default shell',
-  },
-  // check if mqtt port (1883) is available (not in use)
-  mqttPortAvailable: {
-    command: 'nc -z 127.0.0.1 1883',
-    checkResult: (result) => {
-      return false; // nc returns a line if the port is in use
-    },
-    checkException: (e) => {
-      return true;
-    },
-    error: 'Mqtt port (1883) not available, check if other process is using it',
+    checkResult: (result) => result.trim() === '/bin/bash',
+    error: 'Bash is not the default shell, please set bash as the default shell',
   },
   // check if an overlay file system can be created
   overlaySupported: {
     command: 'TRPACKAGE=@test_overlay/test ./unshare.sh whoami',
-    checkResult: (result) => {
-      return true;
-    },
-    error: 'Overlay file system not supported',
+    error: 'Overlay file system not supported, please see https://transitiverobotics.com/docs/guides/troubleshooting/',
   },
 };
 
+
+/** Perform self-checks and report results via MQTTSync so the front-end can
+* show the failing test (if any) to the user. */
 const executeSelfChecks = () => {
   log.info('executing self checks');
-  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, []);
-  const errors = [];
+  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, {});
+  const errors = {};
+
   _.forEach(selfChecks, (check, name) => {
     log.info(`running self check: ${name}`);
     let error;
+
     try {
       const result = execSync(check.command, {encoding: 'utf8', stdio: 'pipe'});
-      error = !check.checkResult(result);
+      error = check.checkResult && !check.checkResult(result);
     } catch (e) {
-      error = check.checkException ? !check.checkException(e) : true;
+      error = true;
     }
+
     if (error) {
       log.error(`self check ${name} FAILED`);
-      errors.push(check.error);
+      errors[name] = check.error;
     } else {
       log.info(`self check ${name} PASSED`);
     }
   });
+
   data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, errors);
 }
 

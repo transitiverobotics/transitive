@@ -158,7 +158,12 @@ mqttClient.on('connect', function(connackPacket) {
         }
       });
 
-      const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX);
+      const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX,
+        (error) => {
+          data.update(`${AGENT_PREFIX}/status/selfCheckErrors/mqttPortAvailable`,
+            'Failed to start local MQTT broker on port 1883, please check if another process is using it.'
+          );
+        });
 
       // register all commands as RPCs
       _.forEach(commands, (cmdHandler, cmdName) => {

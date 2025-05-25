@@ -137,10 +137,7 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </div>
     <Form.Text>
       {info.os.dpkgArch}, {info.os.lsb?.Description}
-    </Form.Text>
-    <br></br>
-    <Form.Text>
-      {info.geo?.country}, {info.geo?.city}
+      {info.geo && <span>, {info.geo.city}, {info.geo.country}</span>}
     </Form.Text>
   </div>;
 

@@ -24,7 +24,7 @@ const SelfCheck = ({ data, agentPrefix }) => {
     return (
       <div style={styles.error}>
         <Alert variant="danger">
-          <strong>Self-checks failed:</strong>
+          <strong>Some self-checks failed</strong>
           <ul>
             {_.map(failedChecks, (error, name) => <li key={name}>{error}</li>)}
           </ul>

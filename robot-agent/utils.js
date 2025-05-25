@@ -168,7 +168,7 @@ const watchStatus = (name, status) => {
 
     const watcher = fs.watch(statusFile, {persistence: false},
       (eventType, filename) => {
-        log.debug(`event type is: ${eventType}`);
+        // log.debug(`event type is: ${eventType}`);
         if (filename) {
           fs.readFile(statusFile, {encoding: 'utf-8'}, (err, res) => {
             if (err) {

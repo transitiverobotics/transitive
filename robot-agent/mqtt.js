@@ -23,7 +23,7 @@ const os = require('os');
 
 const assert = require('assert');
 const mqtt = require('mqtt');
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 const _ = require('lodash');
 
 const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
@@ -112,6 +112,9 @@ mqttClient.on('connect', function(connackPacket) {
           });
       }
     });
+  } else {
+    // send a new heartbeat right away
+    heartbeat();
   }
 
   // TODO: somehow make this part of DataCache and/or a stronger notion of a
@@ -135,8 +138,9 @@ mqttClient.on('connect', function(connackPacket) {
           {ping, pong: Date.now()});
       });
 
-      await staticInfo();
-      executeSelfChecks();
+      staticInfo();
+      getGeoIP();
+      executeSelfChecks(data);
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
 
@@ -177,7 +181,7 @@ mqttClient.on('connect', function(connackPacket) {
 });
 
 /** publish static info about this machine */
-const staticInfo = async () => {
+const staticInfo = () => {
   const info = {os: {
       hostname: process.env.TR_DISPLAYNAME || os.hostname(),
       release: os.release(),
@@ -208,18 +212,9 @@ const staticInfo = async () => {
   } catch (e) {
     info.isDocker = false;
   }
-  // get geolocation and add to info
-  try {
-    const response = await fetch('http://ip-api.com/json');
-    if (response.ok) {
-      info.geo = await response.json();
-      log.info('geo:', info.geo);
-    } else {
-      info.geo = {};
-    }
-  } catch (apiError) {
-    info.geo = {};
-  }
+
+  // placeholder for geo info
+  info.geo = {};
 
   exec('lsb_release -a', (err, stdout, stderr) => {
     if (!err) {
@@ -234,6 +229,21 @@ const staticInfo = async () => {
   });
 };
 
+/** Look up approximate location of this device using a geoip web service.
+* Add to static data in mqttsync. */
+const getGeoIP = async () => {
+  // get geolocation and add to info
+  try {
+    const response = await fetch('https://ipconfig.io/json');
+    if (response.ok) {
+      const geo = await response.json();
+      log.debug('got geo info:', geo);
+      data.update(`${AGENT_PREFIX}/info/geo`, geo);
+    }
+  } catch (error) {
+    log.warn('Error getting geoIP:', error);
+  }
+};
 
 /** parse lsb_release info, e.g.,
 'LSB Version:\tcore-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch\nDistributor ID:\tUbuntu\nDescription:\tUbuntu 20.04.3 LTS\nRelease:\t20.04\nCodename:\tfocal'

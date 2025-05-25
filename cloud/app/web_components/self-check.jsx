@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-bootstrap';
+import _ from 'lodash';
+
+import { getLogger } from '@transitive-sdk/utils-web';
+const log = getLogger('SelfChecks');
+log.setLevel('info');
 
 const styles = {
   error: {
@@ -7,39 +12,21 @@ const styles = {
   }
 };
 
-const SelfCheck = ({ mqttSync, agentPrefix }) => {
-  const [failedChecks, setFailedChecks] = useState(null);
+/** UI component to show the results of the robot's self-checks. See
+ * issues#400 */
+const SelfCheck = ({ data, agentPrefix }) => {
 
-  useEffect(() => {
-    const topic = `${agentPrefix}/status/selfCheckErrors`;
-    console.log('Subscribing to topic:', topic);
+  const failedChecks = data?.status?.selfCheckErrors;
 
-    const handleUpdate = (data) => {
-      console.log('Received self-check data:', data);
-      setFailedChecks(data);
-    };
+  if (failedChecks && Object.keys(failedChecks).length > 0) {
+    log.info('Self-check errors:', failedChecks);
 
-    handleUpdate(mqttSync.data.getByTopic(topic));
-    mqttSync.data.subscribePath(topic, handleUpdate);
-
-    // Cleanup subscription on unmount
-    return () => {
-      console.log('Unsubscribing from topic:', topic);
-      mqttSync.data.unsubscribePath(topic, handleUpdate);
-    };
-  }, [mqttSync, agentPrefix]);
-
-
-  if (failedChecks && failedChecks.length > 0) {
-    console.log('Self-check errors:', failedChecks);
     return (
       <div style={styles.error}>
         <Alert variant="danger">
           <strong>Self-checks failed:</strong>
           <ul>
-            {failedChecks.map((error, index) => (
-              <li key={index}>{error}</li>
-            ))}
+            {_.map(failedChecks, (error, name) => <li key={name}>{error}</li>)}
           </ul>
         </Alert>
       </div>

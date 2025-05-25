@@ -11,7 +11,8 @@ const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('localMQTT');
 log.setLevel('info');
 
-const PORT = 1883;
+// const PORT = 1883;
+const PORT = 8080;  // #DEBUG
 
 /* Monkey-patch persistence to *not* retain anything. Avoids Issue#512. We do
 NOT want to retain package-specific messages because we do not subscribe to
@@ -39,16 +40,19 @@ const tryJSONParse = (string) => {
 const ensureSlash = (topic) => `${(topic[0] == '/' ? '' : '/')}${topic}`;
 
 /** Start the local mqtt broker. upstreamClient is the upstream mqtt client */
-const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix) => {
+const startLocalMQTTBroker = (upstreamClient, prefix, agentPrefix, onError) => {
 
   const aedes = Aedes({persistence});
 
   const server = require('net').createServer(aedes.handle);
   log.debug('prefix =', prefix);
 
-  server.listen(PORT, () => {
-    log.info('mqtt server bound');
+  server.on('error', (error) => {
+    log.error(`Error starting local mqtt server:`, error);
+    onError?.(error);
   });
+
+  server.listen(PORT, () => log.info('local mqtt server bound'));
 
   aedes.on('publish', (packet, client) => {
     if (!packet.topic.startsWith('$SYS') && client && upstreamClient) {

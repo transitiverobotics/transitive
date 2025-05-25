@@ -11,8 +11,7 @@ const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('localMQTT');
 log.setLevel('info');
 
-// const PORT = 1883;
-const PORT = 8080;  // #DEBUG
+const PORT = 1883;
 
 /* Monkey-patch persistence to *not* retain anything. Avoids Issue#512. We do
 NOT want to retain package-specific messages because we do not subscribe to

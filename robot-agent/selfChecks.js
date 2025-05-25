@@ -36,31 +36,33 @@ const selfChecks = {
 
 /** Perform self-checks and report results via MQTTSync so the front-end can
 * show the failing test (if any) to the user. */
-const executeSelfChecks = () => {
+const executeSelfChecks = (data) => {
   log.info('executing self checks');
-  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, {});
-  const errors = {};
 
   _.forEach(selfChecks, (check, name) => {
     log.info(`running self check: ${name}`);
-    let error;
+    let failed;
 
     try {
-      const result = execSync(check.command, {encoding: 'utf8', stdio: 'pipe'});
-      error = check.checkResult && !check.checkResult(result);
+      const result = execSync(check.command,
+        {encoding: 'utf8', stdio: 'pipe', timeout: 5000});
+      failed = check.checkResult && !check.checkResult(result);
+      // If checkResult is not defined, then the test is successful unless there
+      // is an exception.
     } catch (e) {
-      error = true;
+      failed = true;
     }
 
-    if (error) {
+    if (failed) {
       log.error(`self check ${name} FAILED`);
-      errors[name] = check.error;
     } else {
       log.info(`self check ${name} PASSED`);
     }
-  });
 
-  data.update(`${AGENT_PREFIX}/status/selfCheckErrors`, errors);
+    // update status in MQTTSync
+    data.update(`${AGENT_PREFIX}/status/selfCheckErrors/${name}`,
+      failed ? check.error : null);
+  });
 }
 
 

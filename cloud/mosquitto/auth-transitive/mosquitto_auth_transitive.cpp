@@ -37,12 +37,12 @@ using std::endl;
 #include <bsoncxx/json.hpp>
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
-#include <mongocxx/stdx.hpp>
 #include <mongocxx/uri.hpp>
+#include <mongocxx/v_noabi/mongocxx/exception/query_exception.hpp>
+
 using bsoncxx::builder::basic::kvp;
 using bsoncxx::builder::basic::make_array;
 using bsoncxx::builder::basic::make_document;
-// using bsoncxx::builder::stream::document;
 using bsoncxx::v_noabi::document::element;
 
 // JWT
@@ -117,54 +117,59 @@ mongocxx::collection& getAccountsCollection() {
 void refetchUsers() {
   cout << "refetchUsers" << endl << std::flush;
 
-  auto cursor_all = getAccountsCollection().find({});
+  try {
+    auto cursor_all = getAccountsCollection().find({});
 
-  for (auto doc : cursor_all) {
-    std::string user = (std::string)doc["_id"].get_string().value;
-    cout << user;
+    for (auto doc : cursor_all) {
+      std::string user = (std::string)doc["_id"].get_string().value;
+      cout << user;
 
-    // get user's jwt secret
-    auto jwtSecretField = doc["jwtSecret"];
-    if (jwtSecretField) {
-      std::string jwtSecret = (std::string)jwtSecretField.get_string().value;
-      users[user].jwt_secret = jwtSecret;
-      cout << " " << jwtSecret;
-    }
-
-    // check whether user can pay:
-    users[user].canPay = (doc["free"] && doc["free"].get_bool().value)
-    || (
-      ( doc["stripeCustomer"] && (( // has payment method
-            doc["stripeCustomer"]["invoice_settings"] &&
-            doc["stripeCustomer"]["invoice_settings"]["default_payment_method"] &&
-            doc["stripeCustomer"]["invoice_settings"]["default_payment_method"]
-              .type() == bsoncxx::type::k_string
-          ) || ( // or is allowed to pay by invoice
-            doc["stripeCustomer"]["metadata"] &&
-            doc["stripeCustomer"]["metadata"]["collection_method"] &&
-            doc["stripeCustomer"]["metadata"]["collection_method"]
-              .type() == bsoncxx::type::k_string &&
-            doc["stripeCustomer"]["metadata"]["collection_method"]
-              .get_string().value.data() == "send_invoice"
-          ))
-      )
-      && // not delinquent
-      !doc["stripeCustomer"]["delinquent"].get_bool().value
-    );
-    cout << " " << users[user].canPay;
-
-    // get current month's metered usage per capability
-    if (doc["cap_usage"]) {
-      for (auto &e : doc["cap_usage"].get_document().value) {
-        users[user].cap_usage[(std::string)e.key()] = e.get_int64().value;
-        cout << "\n " << e.key() << ": "
-        << users[user].cap_usage[(std::string)e.key()];
+      // get user's jwt secret
+      auto jwtSecretField = doc["jwtSecret"];
+      if (jwtSecretField) {
+        std::string jwtSecret = (std::string)jwtSecretField.get_string().value;
+        users[user].jwt_secret = jwtSecret;
+        cout << " " << jwtSecret;
       }
-    }
 
+      // check whether user can pay:
+      users[user].canPay = (doc["free"] && doc["free"].get_bool().value)
+      || (
+        ( doc["stripeCustomer"] && (( // has payment method
+              doc["stripeCustomer"]["invoice_settings"] &&
+              doc["stripeCustomer"]["invoice_settings"]["default_payment_method"] &&
+              doc["stripeCustomer"]["invoice_settings"]["default_payment_method"]
+                .type() == bsoncxx::type::k_string
+            ) || ( // or is allowed to pay by invoice
+              doc["stripeCustomer"]["metadata"] &&
+              doc["stripeCustomer"]["metadata"]["collection_method"] &&
+              doc["stripeCustomer"]["metadata"]["collection_method"]
+                .type() == bsoncxx::type::k_string &&
+              doc["stripeCustomer"]["metadata"]["collection_method"]
+                .get_string().value.data() == "send_invoice"
+            ))
+        )
+        && // not delinquent
+        !doc["stripeCustomer"]["delinquent"].get_bool().value
+      );
+      cout << " " << users[user].canPay;
+
+      // get current month's metered usage per capability
+      if (doc["cap_usage"]) {
+        for (auto &e : doc["cap_usage"].get_document().value) {
+          users[user].cap_usage[(std::string)e.key()] = e.get_int64().value;
+          cout << "\n " << e.key() << ": "
+          << users[user].cap_usage[(std::string)e.key()];
+        }
+      }
+
+      cout << endl;
+    }
     cout << endl;
+
+  } catch (const mongocxx::v_noabi::query_exception& e) {
+    std::cerr << "ERROR: MongoDB query_exception: " << e.what() << std::endl;
   }
-  cout << endl;
 }
 
 

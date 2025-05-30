@@ -1,14 +1,6 @@
 
-// #include <stdio.h>
-// #include <string.h>
-// #include <stdlib.h> // system calls
 #include <time.h> // for timing the reduction of counters
-
 #include <string>
-// #include <map>
-// #include <utility>
-
-// #include <sstream>
 #include <vector>
 #include <numeric> // std::accumulate
 
@@ -20,7 +12,6 @@
 #include <bsoncxx/json.hpp>
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
-#include <mongocxx/stdx.hpp>
 #include <mongocxx/uri.hpp>
 using bsoncxx::builder::basic::kvp;
 using bsoncxx::builder::basic::make_array;
@@ -57,7 +48,8 @@ bool arrayIncludesPrefix(const element& array, const std::string& s) {
   bsoncxx::array::view view{array.get_array().value};
 
   for (bsoncxx::array::element item : view){
-    std::string itemStr = item.get_string().value.to_string();
+    // std::string itemStr = item.get_string().value.to_string();
+    std::string itemStr{item.get_string().value};
     if (s.starts_with(itemStr)) {
       return true;
     }

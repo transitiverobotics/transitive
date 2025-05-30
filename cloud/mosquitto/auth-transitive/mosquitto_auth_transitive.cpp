@@ -145,8 +145,8 @@ void refetchUsers() {
               doc["stripeCustomer"]["metadata"]["collection_method"] &&
               doc["stripeCustomer"]["metadata"]["collection_method"]
                 .type() == bsoncxx::type::k_string &&
-              doc["stripeCustomer"]["metadata"]["collection_method"]
-                .get_string().value.data() == "send_invoice"
+              std::string_view(doc["stripeCustomer"]["metadata"]["collection_method"]
+                .get_string().value).starts_with("send_invoice")
             ))
         )
         && // not delinquent

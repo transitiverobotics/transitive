@@ -23,9 +23,9 @@ RUN wget https://mosquitto.org/files/source/mosquitto-${VERSION}.tar.gz -O /tmp/
 
 # Build Mongo driver
 WORKDIR /tmp
-RUN curl -OL https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.1/mongo-cxx-driver-r3.10.1.tar.gz && \
-    tar -xzf mongo-cxx-driver-r3.10.1.tar.gz
-RUN cd mongo-cxx-driver-r3.10.1/build && \
+RUN curl -OL https://github.com/mongodb/mongo-cxx-driver/releases/download/r4.1.0/mongo-cxx-driver-r4.1.0.tar.gz && \
+    tar -xzf mongo-cxx-driver-r4.1.0.tar.gz
+RUN cd mongo-cxx-driver-r4.1.0/build && \
     cmake ..                            \
     -DCMAKE_BUILD_TYPE=Release          \
     -DMONGOCXX_OVERRIDE_DEFAULT_INSTALL_PREFIX=OFF && \
@@ -48,12 +48,12 @@ ADD https://github.com/doctest/doctest/releases/download/v2.4.11/doctest.h \
 WORKDIR /build/mosq/plugins/auth-transitive
 COPY auth-transitive .
 
-RUN g++ -std=c++2a -Wfatal-errors -fPIC -shared -fmax-errors=1 \
+RUN g++ -std=c++20 -Wfatal-errors -fPIC -shared -fmax-errors=1 \
   -I../../include -I../.. -I/tmp/jwt-cpp-0.7.0/include/ \
   mosquitto_auth_transitive.cpp -o /mosquitto/mosquitto_auth_transitive.so \
   $(pkg-config --cflags --libs libmongocxx)
 
-RUN g++ -std=c++2a -Wfatal-errors -fPIC -fmax-errors=1 \
+RUN g++ -std=c++20 -Wfatal-errors -fPIC -fmax-errors=1 \
   -I../../include -I../.. -I/tmp/jwt-cpp-0.7.0/include/ -I/tmp/doctest \
   tests.cpp -o tests \
   $(pkg-config --cflags --libs libmongocxx)

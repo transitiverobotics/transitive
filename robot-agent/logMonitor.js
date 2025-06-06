@@ -4,7 +4,17 @@ const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('logMonitor.js');
 log.setLevel('debug');
 
+// Maintain a set of files being tailed
+const tailedFiles = new Set();
+
 const uploadLogsFromFile = (filePath, topicSuffix) => {
+  if (tailedFiles.has(filePath)) {
+    log.warn('File is already being tailed:', filePath);
+    return;
+  }
+
+  tailedFiles.add(filePath);
+
   const tail = new Tail(filePath);
 
   tail.on('line', async (line) => {
@@ -32,6 +42,12 @@ const uploadLogsFromFile = (filePath, topicSuffix) => {
 
   tail.on('error', (error) => {
     log.error('Error tailing log file:', filePath, error.message);
+    tailedFiles.delete(filePath); // Remove from set on error
+  });
+
+  tail.on('close', () => {
+    log.info('Stopped tailing log file:', filePath);
+    tailedFiles.delete(filePath); // Remove from set on close
   });
 
   log.info('Started tailing log file:', filePath);
@@ -51,6 +67,5 @@ const publishLogAsJson = async (logObject, topicSuffix) => {
     });
   });
 };
-
 
 module.exports = { uploadLogsFromFile };

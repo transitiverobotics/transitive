@@ -66,6 +66,7 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
   protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
+global.mqttClient = mqttClient;
 mqttClient.on('error', (...args) => log.warn('mqtt error', ...args));
 mqttClient.on('disconnect', (...args) => log.warn('mqtt disconnect', ...args));
 

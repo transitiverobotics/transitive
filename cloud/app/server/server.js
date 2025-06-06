@@ -521,6 +521,84 @@ class _robotAgent extends Capability {
         }], () => {
           log.debug('migrated fleet config');
         });
+      
+      // forward agent logs to HyperDX
+      this.forwardAgentLogsToHyperdx();
+    });
+  }
+
+  /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
+  forwardAgentLogsToHyperdx() {
+    log.debug('Subscribing to logs');
+    this.mqtt.subscribe(
+      '/+/+/@transitive-robotics/_robot-agent/+/logs/#');
+
+    this.mqtt.on('message', async (topic, message) => {
+      const { device, sub } = parseMQTTTopic(topic);
+      if (!device || !sub || sub.length < 2 || sub[0] !== 'logs') {
+        return;
+      }
+      let serviceName = 'robot-agent';
+      if (sub[1] === 'capabilities' && sub.length > 3) {
+        serviceName = `${sub[2]}/${sub[3]}`;
+      }
+      
+      const msgObj = JSON.parse(message.toString());
+
+      const body = {
+        "resourceLogs": [
+          {
+            "resource": {
+              "attributes": [
+                { "key": "service.name", "value": { "stringValue": serviceName } },
+                { "key": "device.id", "value": { "stringValue": device } },
+              ],
+            },
+            "scopeLogs": [
+              {
+                "scope": {
+                  "name": "logMonitor"
+                },
+                "logRecords": [
+                  {
+                    "timeUnixNano": new Date(msgObj.timestamp).getTime() * 1e6,
+                    "observedTimeUnixNano": new Date().getTime() * 1e6,
+                    "severityNumber": msgObj.logLevelValue,
+                    "severityText": msgObj.level,
+                    "body": {
+                      "stringValue": msgObj.message
+                    },
+                    "attributes": [
+                      { "key": "module", "value": { "stringValue": msgObj.module } },
+                    ],
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      try {
+        const response = await fetch('http://hyperdx:4318/v1/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'authorization': process.env.HYPERDX_API_KEY
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          const errorDetails = await response.text();
+          log.error(`Failed to send log to HyperDX for device: ${device}.
+            Response status: ${response.status}, Details: ${errorDetails}`
+          );
+        }
+      } catch (error) {
+        log.error(`Failed to send log to HyperDX for device: ${device}`, error);
+      }
+
     });
   }
 

@@ -140,6 +140,10 @@ services:
     <<: *shared_cloud
     profiles:
       - prod
+    networks:
+      - default
+      - caps
+      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
@@ -148,6 +152,10 @@ services:
     <<: *shared_cloud
     profiles:
       - dev
+    networks:
+      - default
+      - caps
+      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
@@ -200,3 +208,13 @@ services:
       driver: local
     profiles:
       - dev
+
+  hyperdx:
+    image: docker.hyperdx.io/hyperdx/hyperdx-all-in-one:2-nightly
+    ports:
+      - "8080:8080"
+      - "8123:8123"
+      - "4317:4317"
+      - "4318:4318"
+    privileged: true
+

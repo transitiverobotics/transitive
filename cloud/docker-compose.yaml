@@ -140,6 +140,10 @@ services:
     <<: *shared_cloud
     profiles:
       - prod
+    networks:
+      - default
+      - caps
+      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
@@ -148,6 +152,10 @@ services:
     <<: *shared_cloud
     profiles:
       - dev
+    networks:
+      - default
+      - caps
+      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs

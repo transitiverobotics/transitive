@@ -583,7 +583,7 @@ class _robotAgent extends Capability {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'authorization': '742b9902-a6e6-4605-93fd-f6c1eca8fcca'
+            'authorization': process.env.HYPERDX_API_KEY
           },
           body: JSON.stringify(body)
         });

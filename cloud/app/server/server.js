@@ -514,6 +514,84 @@ class _robotAgent extends Capability {
         }], () => {
           log.debug('migrated fleet config');
         });
+      
+      // forward agent logs to HyperDX
+      this.forwardAgentLogsToHyperdx();
+    });
+  }
+
+  /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
+  forwardAgentLogsToHyperdx() {
+    log.debug('Subscribing to logs');
+    this.mqtt.subscribe(
+      '/+/+/@transitive-robotics/_robot-agent/+/logs/#');
+
+    this.mqtt.on('message', async (topic, message) => {
+      const { device, sub } = parseMQTTTopic(topic);
+      if (!device || !sub || sub.length < 2 || sub[0] !== 'logs') {
+        return;
+      }
+      let serviceName = 'robot-agent';
+      if (sub[1] === 'capabilities' && sub.length > 3) {
+        serviceName = `${sub[2]}/${sub[3]}`;
+      }
+      
+      const msgObj = JSON.parse(message.toString());
+
+      const body = {
+        "resourceLogs": [
+          {
+            "resource": {
+              "attributes": [
+                { "key": "service.name", "value": { "stringValue": serviceName } },
+                { "key": "device.id", "value": { "stringValue": device } },
+              ],
+            },
+            "scopeLogs": [
+              {
+                "scope": {
+                  "name": "logMonitor"
+                },
+                "logRecords": [
+                  {
+                    "timeUnixNano": new Date(msgObj.timestamp).getTime() * 1e6,
+                    "observedTimeUnixNano": new Date().getTime() * 1e6,
+                    // "severityNumber": 0,
+                    "severityText": msgObj.level,
+                    "body": {
+                      "stringValue": msgObj.message
+                    },
+                    "attributes": [
+                      { "key": "module", "value": { "stringValue": msgObj.module } },
+                    ],
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      try {
+        const response = await fetch('http://hyperdx:4318/v1/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'authorization': '742b9902-a6e6-4605-93fd-f6c1eca8fcca'
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          const errorDetails = await response.text();
+          log.error(`Failed to send log to HyperDX for device: ${device}.
+            Response status: ${response.status}, Details: ${errorDetails}`
+          );
+        }
+      } catch (error) {
+        log.error(`Failed to send log to HyperDX for device: ${device}`, error);
+      }
+
     });
   }
 
@@ -667,7 +745,7 @@ class _robotAgent extends Capability {
   * billing service. */
   async updateAllSubscriptions() {
 
-    const running = this.data.filter(['+', '+', '@transitive-robotics',
+    const running = this.data.filter(['+','+', '@transitive-robotics',
       '_robot-agent', '+', 'status', 'runningPackages']);
     // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
@@ -686,7 +764,7 @@ class _robotAgent extends Capability {
         if (!this.isRunning(orgId, deviceId)) return;
 
         const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
-        const merged = mergeVersions(allVersions, 'status/runningPackages');
+        const merged = mergeVersions(allVersions, 'status');
         const pkgRunning = merged.status.runningPackages;
 
         log.debug(`running packages, ${orgId}/${deviceId}:`,
@@ -1327,7 +1405,7 @@ class _robotAgent extends Capability {
       const heartbeats = {};
       // get latest heartbeats for all devices
       this.data.forPathMatch(['+orgId', '+deviceId', '@transitive-robotics',
-          '_robot-agent', '+version', 'status', 'heartbeat'],
+          '_robot-agent', '+', 'status', 'heartbeat'],
         (value, topic, {orgId, deviceId, version}) => {
           heartbeats[orgId] ||= {};
           heartbeats[orgId][deviceId] = value;

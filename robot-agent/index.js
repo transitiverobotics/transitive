@@ -1,10 +1,10 @@
 
-
 const fs = require('fs');
-const constants = require('./constants');
-const { getConfig } = require('./config');
-const LogMonitor = require('./logMonitor');
 const path = require('path');
+
+const constants = require('./constants');
+const LogMonitor = require('./logMonitor');
+const { getConfig } = require('./config');
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
 

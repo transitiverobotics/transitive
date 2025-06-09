@@ -39,25 +39,23 @@ class LogMonitor {
     const tail = new Tail(filePath);
 
     tail.on('line', async (line) => {
-      const logRegex = /^\[(?<timestamp>[^\]]+)\s(?<module>[^\s]+)\s(?<level>[^\s]+)\] (?<message>.+)$/;
-      const match = line.match(logRegex);
+      if (!line.startsWith('[')) return;
+      // Remove the leading '[' and split by spaces
+      const endBracketIdx = line.indexOf(']');
+      if (endBracketIdx === -1) return;
+      const header = line.slice(1, endBracketIdx);
+      const message = line.slice(endBracketIdx + 2); // skip "] "
+      const [timestamp, module, level] = header.split(' ');
 
-      if (match && match.groups) {
-        const logObject = {
-          timestamp: match.groups.timestamp,
-          module: match.groups.module,
-          level: match.groups.level,
-          message: match.groups.message,
-        };
-        // Ignore logs produced by this module
-        if (logObject.module === 'logMonitor.js') {
-          return;
-        }
-        if (this.mqttClient && this.mqttClient.connected && this.AGENT_PREFIX) {
-          await this.publishLogAsJson(logObject, topicSuffix);
-        } else {
-          log.warn('MQTT client not initialized or AGENT_PREFIX not defined, skipping log publishing:', logObject);
-        }
+      // Ignore logs produced by this module
+      if (module === 'logMonitor.js') {
+        return;
+      }
+      if (this.mqttClient && this.mqttClient.connected && this.AGENT_PREFIX) {
+        const logObject = { timestamp, module, level, message };
+        await this.publishLogAsJson(logObject, topicSuffix);
+      } else {
+        log.warn('MQTT client not initialized or AGENT_PREFIX not defined, skipping log publishing:', logObject);
       }
     });
 

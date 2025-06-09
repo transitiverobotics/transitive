@@ -67,7 +67,6 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
   protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
-LogMonitor.init(mqttClient, AGENT_PREFIX);
 mqttClient.on('error', (...args) => log.warn('mqtt error', ...args));
 mqttClient.on('disconnect', (...args) => log.warn('mqtt disconnect', ...args));
 
@@ -139,6 +138,7 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
+      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
 
       staticInfo();
       heartbeat();

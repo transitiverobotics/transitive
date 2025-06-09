@@ -751,7 +751,7 @@ class _robotAgent extends Capability {
   * billing service. */
   async updateAllSubscriptions() {
 
-    const running = this.data.filter(['+','+', '@transitive-robotics',
+    const running = this.data.filter(['+', '+', '@transitive-robotics',
       '_robot-agent', '+', 'status', 'runningPackages']);
     // log.debug('updateSubscriptions, running', JSON.stringify(running, true, 2));
 
@@ -770,7 +770,7 @@ class _robotAgent extends Capability {
         if (!this.isRunning(orgId, deviceId)) return;
 
         const allVersions = deviceRunning['@transitive-robotics']['_robot-agent'];
-        const merged = mergeVersions(allVersions, 'status');
+        const merged = mergeVersions(allVersions, 'status/runningPackages');
         const pkgRunning = merged.status.runningPackages;
 
         log.debug(`running packages, ${orgId}/${deviceId}:`,
@@ -1411,7 +1411,7 @@ class _robotAgent extends Capability {
       const heartbeats = {};
       // get latest heartbeats for all devices
       this.data.forPathMatch(['+orgId', '+deviceId', '@transitive-robotics',
-          '_robot-agent', '+', 'status', 'heartbeat'],
+          '_robot-agent', '+version', 'status', 'heartbeat'],
         (value, topic, {orgId, deviceId, version}) => {
           heartbeats[orgId] ||= {};
           heartbeats[orgId][deviceId] = value;

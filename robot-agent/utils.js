@@ -235,6 +235,10 @@ const logRotate = (file, {count}) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
+  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
+  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
+    err && log.error('error rotating agent log file', err));
+
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;

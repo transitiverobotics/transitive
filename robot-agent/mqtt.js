@@ -34,6 +34,7 @@ const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -66,7 +67,7 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
   protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
 });
 
-global.mqttClient = mqttClient;
+LogMonitor.init(mqttClient, AGENT_PREFIX);
 mqttClient.on('error', (...args) => log.warn('mqtt error', ...args));
 mqttClient.on('disconnect', (...args) => log.warn('mqtt disconnect', ...args));
 

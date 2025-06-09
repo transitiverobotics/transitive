@@ -7,7 +7,7 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
-const { uploadLogsFromFile } = require('./logMonitor');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -132,7 +132,7 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-      uploadLogsFromFile(logFile, `/capabilities/${name}`);
+      LogMonitor.uploadLogsFromFile(logFile, `/capabilities/${name}`);
 
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,

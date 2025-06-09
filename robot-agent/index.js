@@ -3,7 +3,7 @@
 const fs = require('fs');
 const constants = require('./constants');
 const { getConfig } = require('./config');
-const { uploadLogsFromFile } = require('./logMonitor');
+const LogMonitor = require('./logMonitor');
 const path = require('path');
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
@@ -164,4 +164,4 @@ process.on('uncaughtException', (err) => {
 
 // Path to agent log file
 const logFilePath = path.join(process.env.HOME, '.transitive', 'agent.log');
-uploadLogsFromFile(logFilePath, '/agent');
+LogMonitor.uploadLogsFromFile(logFilePath, '/agent');

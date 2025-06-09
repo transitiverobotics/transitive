@@ -1,3 +1,4 @@
+const { Tail } = require('tail');
 
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('logMonitor.js');
@@ -35,7 +36,6 @@ class LogMonitor {
 
     this.tailedFiles.add(filePath);
 
-    const Tail = require('tail').Tail;
     const tail = new Tail(filePath);
 
     tail.on('line', async (line) => {

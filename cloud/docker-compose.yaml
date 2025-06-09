@@ -23,6 +23,10 @@ x-cloud: &shared_cloud
     - .env
   ports:
     - 9000:9000
+  networks:
+    - default
+    - caps
+    - shared
   logging:
     driver: local
   deploy:
@@ -70,6 +74,10 @@ x-registry: &shared_registry
     - .env
   ports:
     - 6000:6000
+  networks:
+    - default
+    - shared
+    - caps
   logging:
     driver: local
   deploy:
@@ -132,10 +140,6 @@ services:
     <<: *shared_cloud
     profiles:
       - prod
-    networks:
-      - default
-      - caps
-      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
@@ -144,10 +148,6 @@ services:
     <<: *shared_cloud
     profiles:
       - dev
-    networks:
-      - default
-      - caps
-      - shared
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs

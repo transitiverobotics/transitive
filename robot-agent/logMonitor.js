@@ -75,7 +75,6 @@ class LogMonitor {
     let filePath = '';
     let topicSuffix = '';
     let lastLogTimestampFilePath = '';
-
     if (packageName === 'robot-agent') {
       log.info('Watching logs for robot-agent package');
       filePath = `${process.env.HOME}/.transitive/agent.log`;
@@ -121,7 +120,6 @@ class LogMonitor {
       }
       this.pendingLogs.push({ logObject, packageName });
     }
-
     const tail = new Tail(filePath);
 
     tail.on('line', async (line) => {

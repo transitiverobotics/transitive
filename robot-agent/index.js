@@ -1,6 +1,5 @@
 
 const fs = require('fs');
-const path = require('path');
 
 const constants = require('./constants');
 const LogMonitor = require('./logMonitor');
@@ -162,6 +161,4 @@ process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
 
-// Path to agent log file
-const logFilePath = path.join(process.env.HOME, '.transitive', 'agent.log');
-LogMonitor.uploadLogsFromFile(logFilePath, '/agent');
+LogMonitor.watchLogs('robot-agent');

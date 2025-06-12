@@ -7,6 +7,7 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -131,6 +132,7 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
+      LogMonitor.watchLogs(name);
 
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
@@ -233,6 +235,10 @@ const logRotate = (file, {count}) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
+  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
+  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
+    err && log.error('error rotating agent log file', err));
+
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;

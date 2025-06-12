@@ -34,6 +34,7 @@ const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -137,6 +138,7 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
+      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
 
       staticInfo();
       heartbeat();

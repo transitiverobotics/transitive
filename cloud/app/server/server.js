@@ -443,6 +443,7 @@ class _robotAgent extends Capability {
   // store for each device which versions of which packages it is running (speaking)
   devicePackageVersions = {};
   router = express.Router();
+  hyperDXIngestionAPIKey = null;
 
   constructor() {
     super(() => {
@@ -520,11 +521,103 @@ class _robotAgent extends Capability {
         }], () => {
           log.debug('migrated fleet config');
         });
-      
+
       // forward agent logs to HyperDX
       this.forwardAgentLogsToHyperdx();
+
+      this.sendToHyperDX( {
+        timestamp: Date.now(),
+        module: 'portal',
+        logLevelValue: 20,
+        level: 'DEBUG',
+        message: 'Portal (re-)started'
+      });
     });
   }
+
+  /** Send log line to HyperDX
+   * msgObj: { timestamp, module, logLevelValue, level, message }
+   * TODO: don't send log level text with EACH message!
+   */
+  async sendToHyperDX(msgObj, attributes = {}) {
+
+    // get HyperDX ingestion key from mongo DB if we don't already have it
+    if (!this.hyperDXIngestionAPIKey) {
+      const db = Mongo.client.db('hyperdx');
+      const coll = db.collection('teams');
+      const team = await coll.findOne();
+      this.hyperDXIngestionAPIKey = team.apiKey;
+
+      if (!this.hyperDXIngestionAPIKey) {
+        log.warn('No HyperDX ingestion API key found (yet), not ingesting');
+        return;
+      }
+    }
+
+    const body = {
+      "resourceLogs": [
+        {
+          "resource": {
+            // "attributes": [
+            //   { "key": "service.name", "value": { "stringValue": serviceName } },
+            //   { "key": "device.id", "value": { "stringValue": device } },
+            // ],
+            "attributes": _.map(attributes, (value, key) => ({
+              key,
+              value: {"stringValue": value}
+            }))
+          },
+          "scopeLogs": [
+            {
+              "scope": {
+                "name": "logMonitor"
+              },
+              "logRecords": [
+                {
+                  "timeUnixNano": new Date(msgObj.timestamp).getTime() * 1e6,
+                  "observedTimeUnixNano": new Date().getTime() * 1e6,
+                  "severityNumber": msgObj.logLevelValue,
+                  "severityText": msgObj.level,
+                  "body": {
+                    "stringValue": msgObj.message
+                  },
+                  "attributes": [
+                    { "key": "module", "value": { "stringValue": msgObj.module } },
+                  ],
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    log.debug('sending log to hyperDX', body);
+
+    try {
+      const response = await fetch('http://otel-collector:4318/v1/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'authorization': this.hyperDXIngestionAPIKey
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        log.error(`Failed to send log to HyperDX.
+          Response status: ${response.status}, Details: ${errorDetails}`
+        );
+      } else {
+        log.debug('successfully sent log to hyperDX', body);
+      }
+    } catch (error) {
+      log.error('Failed to send log to HyperDX', error);
+    }
+
+  }
+
 
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
@@ -532,8 +625,9 @@ class _robotAgent extends Capability {
     this.mqtt.subscribe(
       '/+/+/@transitive-robotics/_robot-agent/+/logs/#');
 
-    this.mqtt.on('message', async (topic, message) => {
-      const { device, sub } = parseMQTTTopic(topic);
+    this.mqtt.on('message', (topic, message) => {
+
+      const { organization, device, sub } = parseMQTTTopic(topic);
       if (!device || !sub || sub.length < 2 || sub[0] !== 'logs') {
         return;
       }
@@ -541,63 +635,9 @@ class _robotAgent extends Capability {
       if (sub[1] === 'capabilities' && sub.length > 3) {
         serviceName = `${sub[2]}/${sub[3]}`;
       }
-      
-      const msgObj = JSON.parse(message.toString());
 
-      const body = {
-        "resourceLogs": [
-          {
-            "resource": {
-              "attributes": [
-                { "key": "service.name", "value": { "stringValue": serviceName } },
-                { "key": "device.id", "value": { "stringValue": device } },
-              ],
-            },
-            "scopeLogs": [
-              {
-                "scope": {
-                  "name": "logMonitor"
-                },
-                "logRecords": [
-                  {
-                    "timeUnixNano": new Date(msgObj.timestamp).getTime() * 1e6,
-                    "observedTimeUnixNano": new Date().getTime() * 1e6,
-                    "severityNumber": msgObj.logLevelValue,
-                    "severityText": msgObj.level,
-                    "body": {
-                      "stringValue": msgObj.message
-                    },
-                    "attributes": [
-                      { "key": "module", "value": { "stringValue": msgObj.module } },
-                    ],
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      };
-
-      try {
-        const response = await fetch('http://hyperdx:4318/v1/logs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'authorization': process.env.HYPERDX_API_KEY
-          },
-          body: JSON.stringify(body)
-        });
-
-        if (!response.ok) {
-          const errorDetails = await response.text();
-          log.error(`Failed to send log to HyperDX for device: ${device}.
-            Response status: ${response.status}, Details: ${errorDetails}`
-          );
-        }
-      } catch (error) {
-        log.error(`Failed to send log to HyperDX for device: ${device}`, error);
-      }
-
+      this.sendToHyperDX( JSON.parse(message.toString()),
+        {orgId: organization, deviceId: device, serviceName});
     });
   }
 

@@ -43,8 +43,9 @@ const routingTable = {
   install: 'cloud:9000/install',
   repo: 'cloud:9000/repo', // binaries we host for packages, may go away
   mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
+  hyperdx: `hyperdx:8080`,
   // parse env var that may list additional hosts to add
-...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
+  ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
 };
 
 console.log('using routes', routingTable);

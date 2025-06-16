@@ -221,16 +221,11 @@ services:
       # default settings
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
-      - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse
-      # - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server
+      - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse"
+      - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server"
     restart: on-failure
     networks:
       - default
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          # memory: 900M
 
   hyperdx:
     image: docker.hyperdx.io/hyperdx/hyperdx:2

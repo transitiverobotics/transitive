@@ -201,12 +201,89 @@ services:
     profiles:
       - dev
 
+  # hyperdx:
+  #   image: docker.hyperdx.io/hyperdx/hyperdx-all-in-one
+  #   volumes:
+  #     - ${TR_VAR_DIR:-.}/hyperdx/db:/data/db"
+  #     - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse"
+  #     - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server"
+  #   env_file:
+  #     - .env
+
+  # -----------------------------------------------------------------------
+  # HyperDX
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    env_file:
+      - .env
+    environment:
+      # default settings
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      # - ./docker/clickhouse/local/config.xml:/etc/clickhouse-server/config.xml
+      # - ./docker/clickhouse/local/users.xml:/etc/clickhouse-server/users.xml
+      - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse"
+      - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server"
+    restart: on-failure
+    networks:
+      - default
+
+  otel-collector:
+    image: docker.hyperdx.io/hyperdx/hyperdx-otel-collector:2
+    env_file:
+      - .env
+    environment:
+      CLICKHOUSE_ENDPOINT: 'tcp://clickhouse:9000?dial_timeout=10s'
+      HYPERDX_OTEL_EXPORTER_CLICKHOUSE_DATABASE: default
+      HYPERDX_LOG_LEVEL: ${HYPERDX_LOG_LEVEL:-default}
+      # OPAMP_SERVER_URL: 'http://hyperdx:${HYPERDX_OPAMP_PORT:-4320}'
+      OPAMP_SERVER_URL: 'http://hyperdx:4320'
+    # ports:
+    #   - '13133:13133' # health_check extension
+    #   - '24225:24225' # fluentd receiver
+    #   - '4317:4317' # OTLP gRPC receiver
+    #   - '4318:4318' # OTLP http receiver
+    #   - '8888:8888' # metrics extension
+    restart: always
+    networks:
+      - default
+    depends_on:
+      - clickhouse
+
   hyperdx:
-    image: docker.hyperdx.io/hyperdx/hyperdx-all-in-one:2-nightly
-    ports:
-      - "8080:8080"
-      - "8123:8123"
-      - "4317:4317"
-      - "4318:4318"
-    privileged: true
+    image: docker.hyperdx.io/hyperdx/hyperdx:2
+    # ports:
+    #   - ${HYPERDX_API_PORT:-8000}:${HYPERDX_API_PORT:-8000}
+    #   - ${HYPERDX_APP_PORT:-8080}:${HYPERDX_APP_PORT:-8080}
+    env_file:
+      - .env
+    environment:
+      FRONTEND_URL: ${HYPERDX_APP_URL:-http://localhost}:${HYPERDX_APP_PORT:-8000}
+      # HYPERDX_API_KEY: ${HYPERDX_API_KEY:-12345678901234567890}
+      # HYPERDX_API_PORT: ${HYPERDX_API_PORT:-8000}
+      # HYPERDX_APP_PORT: ${HYPERDX_APP_PORT:-8080}
+      # HYPERDX_APP_URL: ${HYPERDX_APP_URL:-http://localhost}
+      # HYPERDX_LOG_LEVEL: ${HYPERDX_LOG_LEVEL:-debug}
+      # MINER_API_URL: 'http://miner:5123'
+      MONGO_URI: 'mongodb://mongodb:27017/hyperdx'
+      NEXT_PUBLIC_SERVER_URL: http://127.0.0.1:${HYPERDX_API_PORT:-8000}
+      # OPAMP_PORT: ${HYPERDX_OPAMP_PORT:-4320}
+      OPAMP_PORT: 4320
+      OTEL_SERVICE_NAME: 'hdx-oss-api'
+      USAGE_STATS_ENABLED: ${USAGE_STATS_ENABLED:-true}
+      DEFAULT_CONNECTIONS:
+        '[{"name":"Local
+        ClickHouse","host":"http://clickhouse:8123","username":"default","password":""}]'
+      DEFAULT_SOURCES:
+        '[{"from":{"databaseName":"default","tableName":"otel_logs"},"kind":"log","timestampValueExpression":"TimestampTime","name":"Logs","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"Body","serviceNameExpression":"ServiceName","bodyExpression":"Body","eventAttributesExpression":"LogAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,SeverityText,Body","severityTextExpression":"SeverityText","traceIdExpression":"TraceId","spanIdExpression":"SpanId","connection":"Local
+        ClickHouse","traceSourceId":"Traces","sessionSourceId":"Sessions","metricSourceId":"Metrics"},{"from":{"databaseName":"default","tableName":"otel_traces"},"kind":"trace","timestampValueExpression":"Timestamp","name":"Traces","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"SpanName","serviceNameExpression":"ServiceName","bodyExpression":"SpanName","eventAttributesExpression":"SpanAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,StatusCode,round(Duration/1e6),SpanName","traceIdExpression":"TraceId","spanIdExpression":"SpanId","durationExpression":"Duration","durationPrecision":9,"parentSpanIdExpression":"ParentSpanId","spanNameExpression":"SpanName","spanKindExpression":"SpanKind","statusCodeExpression":"StatusCode","statusMessageExpression":"StatusMessage","connection":"Local
+        ClickHouse","logSourceId":"Logs","sessionSourceId":"Sessions","metricSourceId":"Metrics"},{"from":{"databaseName":"default","tableName":""},"kind":"metric","timestampValueExpression":"TimeUnix","name":"Metrics","resourceAttributesExpression":"ResourceAttributes","metricTables":{"gauge":"otel_metrics_gauge","histogram":"otel_metrics_histogram","sum":"otel_metrics_sum","_id":"682586a8b1f81924e628e808","id":"682586a8b1f81924e628e808"},"connection":"Local
+        ClickHouse","logSourceId":"Logs","traceSourceId":"Traces","sessionSourceId":"Sessions"},{"from":{"databaseName":"default","tableName":"hyperdx_sessions"},"kind":"session","timestampValueExpression":"TimestampTime","name":"Sessions","displayedTimestampValueExpression":"Timestamp","implicitColumnExpression":"Body","serviceNameExpression":"ServiceName","bodyExpression":"Body","eventAttributesExpression":"LogAttributes","resourceAttributesExpression":"ResourceAttributes","defaultTableSelectExpression":"Timestamp,ServiceName,SeverityText,Body","severityTextExpression":"SeverityText","traceIdExpression":"TraceId","spanIdExpression":"SpanId","connection":"Local
+        ClickHouse","logSourceId":"Logs","traceSourceId":"Traces","metricSourceId":"Metrics"}]'
+    networks:
+      - default
+    depends_on:
+      - clickhouse
+      - mongodb
 

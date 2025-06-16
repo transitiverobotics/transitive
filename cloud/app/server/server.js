@@ -526,12 +526,14 @@ class _robotAgent extends Capability {
       this.forwardAgentLogsToHyperdx();
 
       this.sendToHyperDX( {
-        timestamp: Date.now(),
-        module: 'portal',
-        logLevelValue: 20,
-        level: 'DEBUG',
-        message: 'Portal (re-)started'
-      });
+          timestamp: Date.now(),
+          module: log.name,
+          logLevelValue: 20,
+          level: 'DEBUG',
+          message: 'Portal (re-)started'
+        }, {
+          'service.name': 'portal',
+        });
     });
   }
 
@@ -592,8 +594,6 @@ class _robotAgent extends Capability {
       ]
     };
 
-    log.debug('sending log to hyperDX', body);
-
     try {
       const response = await fetch('http://otel-collector:4318/v1/logs', {
         method: 'POST',
@@ -609,8 +609,6 @@ class _robotAgent extends Capability {
         log.error(`Failed to send log to HyperDX.
           Response status: ${response.status}, Details: ${errorDetails}`
         );
-      } else {
-        log.debug('successfully sent log to hyperDX', body);
       }
     } catch (error) {
       log.error('Failed to send log to HyperDX', error);
@@ -622,22 +620,21 @@ class _robotAgent extends Capability {
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
     log.debug('Subscribing to logs');
-    this.mqtt.subscribe(
-      '/+/+/@transitive-robotics/_robot-agent/+/logs/#');
+    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs/#');
 
     this.mqtt.on('message', (topic, message) => {
-
       const { organization, device, sub } = parseMQTTTopic(topic);
       if (!device || !sub || sub.length < 2 || sub[0] !== 'logs') {
         return;
       }
+
       let serviceName = 'robot-agent';
       if (sub[1] === 'capabilities' && sub.length > 3) {
         serviceName = `${sub[2]}/${sub[3]}`;
       }
 
       this.sendToHyperDX( JSON.parse(message.toString()),
-        {orgId: organization, deviceId: device, serviceName});
+        {orgId: organization, deviceId: device, 'service.name': serviceName});
     });
   }
 

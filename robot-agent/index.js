@@ -2,7 +2,6 @@
 const fs = require('fs');
 
 const constants = require('./constants');
-const LogMonitor = require('./logMonitor');
 const { getConfig } = require('./config');
 
 process.env.TR_DEVMODE && console.log('*** DEV MODE');
@@ -160,5 +159,3 @@ localApi.startServer();
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
-
-LogMonitor.watchLogs('robot-agent');

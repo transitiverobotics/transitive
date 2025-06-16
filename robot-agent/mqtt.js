@@ -138,7 +138,6 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
-      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
 
       staticInfo();
       heartbeat();
@@ -178,6 +177,9 @@ mqttClient.on('connect', function(connackPacket) {
 
       getGeoIP();
       executeSelfChecks(data);
+
+      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
+      LogMonitor.watchLogs('robot-agent');
 
       initialized = true;
     });

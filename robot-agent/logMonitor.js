@@ -2,9 +2,12 @@ const { Tail } = require('tail');
 const fs = require('fs');
 const _ = require('lodash');
 
-const { getLogger, topicToPath} = require('@transitive-sdk/utils');
+const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('logMonitor.js');
 log.setLevel('info');
+
+const WAIT_TIME_IN_CASE_OF_ERROR = 5000; // 5 seconds
+const MAX_LOGS_PER_BATCH = 5; // Maximum number of logs to upload in one go
 
 /** Translate log level into a numeric value. */
 const getLogLevelValue = (levelName) => {
@@ -19,8 +22,8 @@ const getLogLevelValue = (levelName) => {
   return levels[levelName.toUpperCase()] || 20; // default to INFO if not found
 };
 
-/** Get the currently configured level of logging we want to forward from the
- * named package (or robot-agent) */
+/** Get the currently configured level of logging for the given package name
+ * or the global one if not specified. Defaults to 'ERROR' if not set. */
 const getMinLogLevel = (packageName) => {
   const globalMinLogLevel = _.get(global.config, 'global.minLogLevel', 'ERROR');
   return (packageName === 'robot-agent' ? globalMinLogLevel
@@ -28,11 +31,12 @@ const getMinLogLevel = (packageName) => {
   );
 };
 
-/** The log monitor accepts packages to monitor, watches their logs and
-* publishes them (filtered) to the cloud via MQTT (not sync). ALso does this
-* for the agent log. */
+/** LogMonitor handles log monitoring and uploading.
+  * Watches log files for specific packages, processes new log entries,
+  * uploads logs to the cloud via MQTT. Keeps track of pending logs
+  * and ensures logs are uploaded at regular intervals.
+**/
 class LogMonitor {
-
   constructor() {
     this.mqttClient = null;
     this.mqttSync = null;
@@ -40,9 +44,16 @@ class LogMonitor {
     this.watchedPackages = {}; // Store watched packages and data
     this.pendingLogs = []; // Array to store pending logs
     this.initialized = false;
+    this.uploadNextLogsTimer = null;
+    this.lastLogTimestamp = 0; // Timestamp of the last log sent
   }
 
-
+  /**
+   * Initializes the LogMonitor instance.
+   * @param {Object} mqttClient - MQTT client instance for publishing logs.
+   * @param {Object} mqttSync - MQTT sync object to listen for log level changes.
+   * @param {string} agentPrefix - Topic prefix for logs publishing.
+   */
   init(mqttClient, mqttSync, agentPrefix){
     this.mqttClient = mqttClient;
     this.mqttSync = mqttSync;
@@ -62,47 +73,68 @@ class LogMonitor {
         this.watchedPackages[packageName].minLogLevelValue = getLogLevelValue(minLogLevel);
       });
     });
-    this.initialized = true; // Set initialized state
-    this.processNextPendingLog(); // Start processing pending logs
+    this.mqttSync.subscribe(`${this.AGENT_PREFIX}/lastLogTimestamp`);
+    this.mqttSync.publish(`${this.AGENT_PREFIX}/lastLogTimestamp`);
+    this.mqttSync.waitForHeartbeatOnce(() => {
+      log.info('LogMonitor heartbeat received, initializing...');
+      this.lastLogTimestamp = this.mqttSync.data.getByTopic(
+        `${this.AGENT_PREFIX}/lastLogTimestamp`
+      ) || 0; // Get last log timestamp or default to 0
+      this.initialized = true; // Set initialized state
+      log.info('Starting watching logs for packages registered before initialization');
+      _.forEach(this.watchedPackages, (packageData, packageName) => {
+        if( !packageData.initialized) {
+          this.watchLogs(packageName); // Start watching logs for the package
+        }
+      });
+      this.startUploadingLogs(); // Start the log uploading process
+    });
   }
 
-
+  /**
+   * Watches logs for a specific package and starts processing them.
+   * Reads existing logs and tails the log file for new entries.
+   * @param {string} packageName - Name of the package to watch logs for.
+   */
   watchLogs(packageName) {
-    if (_.get(this.watchedPackages, packageName)) {
-      log.warn('Package is already being watched:', packageName);
-      return;
-    }
-    let filePath = '';
-    let topicSuffix = '';
-    let lastLogTimestampFilePath = '';
-
-    if (packageName === 'robot-agent') {
-      log.info('Watching logs for robot-agent package');
-      filePath = `${process.env.HOME}/.transitive/agent.log`;
-      lastLogTimestampFilePath = `${process.env.HOME}/.transitive/lastTimestamp`;
-      topicSuffix = '/agent';
+    const watchedPackage = this.watchedPackages[packageName];
+    if (watchedPackage) {
+      if (watchedPackage.initialized) {
+        log.info('Package is already being watched:', packageName);
+        return; // Already watching this package
+      }      
     } else {
-      log.info('Watching logs for package:', packageName);
-      filePath = `${process.env.HOME}/.transitive/packages/${packageName}/log`;
-      lastLogTimestampFilePath =
-        `${process.env.HOME}/.transitive/packages/${packageName}/lastTimestamp`;
-      topicSuffix = `/capabilities/${packageName}`;
+      log.info('Adding package to watch list:', packageName);
+      this.watchedPackages[packageName] = {
+        initialized: false,
+      }
+    }
+    if (!this.initialized) {
+      log.warn('LogMonitor not initialized yet, will wait for initialization before watching logs for', packageName);
+      return; // Wait until initialized
     }
 
-    let minLogLevel = getMinLogLevel(packageName);
-    let minLogLevelValue = getLogLevelValue(minLogLevel);
-    this.watchedPackages[packageName] = {
-      filePath,
-      lastLogTimestampFilePath,
-      topicSuffix,
-      minLogLevel,
-      minLogLevelValue,
-    };
-    log.debug('WatchingLogs with', { filePath, topicSuffix, minLogLevel,
-      minLogLevelValue });
+    const filePath = (packageName === 'robot-agent') ?
+      `${process.env.HOME}/.transitive/agent.log` :
+      `${process.env.HOME}/.transitive/packages/${packageName}/log`;
+    
+    if (!fs.existsSync(filePath)) {
+      log.warn('Log file does not exist yet for package:', packageName, 'at path:', filePath);
+      setTimeout(() => {
+        this.watchLogs(packageName); // Retry watching logs after a delay
+      }, 5000); // Retry after 5 seconds
+      log.debug('Waiting for log file to be created:', filePath);
+      return; // Log file does not exist yet, wait for it to be created
+    }
 
-    // first upload all log lines newer than the last log sent
-    const lastLogTimestamp = this.getLastLogTimestamp(packageName);
+    const minLogLevel = getMinLogLevel(packageName);
+    const minLogLevelValue = getLogLevelValue(minLogLevel);
+    this.watchedPackages[packageName].minLogLevel = minLogLevel;
+    this.watchedPackages[packageName].minLogLevelValue = minLogLevelValue;
+    
+    log.debug('Watching logs for package:', packageName, 'at path:', filePath,
+      ' with: ', { filePath, minLogLevel, minLogLevelValue }
+    );
 
     const fileContent = fs.readFileSync(filePath, { encoding: 'utf8' });
     const lines = fileContent.split('\n');
@@ -115,56 +147,65 @@ class LogMonitor {
         continue; // skip lines without a timestamp
       }
       // Convert timestamp to milliseconds
-      const logTimestamp = new Date(timestamp).getTime();
-      if (logTimestamp < lastLogTimestamp) {
+      if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }
-      this.pendingLogs.push({ logObject, packageName });
+      this.pendingLogs.push(logObject);
     }
 
+    this.watchedPackages[packageName].initialized = true; // Mark as initialized
+  
+    this.startUploadingLogs(); // Start the log uploading process
     const tail = new Tail(filePath);
-
+    this.watchedPackages[packageName].tail = tail; // Store the tail instance for later use
+  
     tail.on('line', async (line) => {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
-      this.pendingLogs.push({ logObject, packageName });
+      this.pendingLogs.push(logObject);
+      this.startUploadingLogs(); // Start uploading process if it's not already running
     });
 
     tail.on('error', (error) => {
       log.error('Error tailing log file:', filePath, error.message);
-      // Remove from watched packages on error
-      this.watchedPackages[packageName] = null;
     });
 
     tail.on('close', () => {
       log.info('Stopped tailing log file:', filePath);
       // Remove from watched packages on close
-      this.watchedPackages[packageName] = null;
+      this.stopWatchingLogs(packageName);
     });
 
     log.info('Started tailing log file:', filePath);
   }
 
-
-  getLastLogTimestamp(packageName) {
-    const filePath = this.watchedPackages[packageName].lastLogTimestampFilePath;
-    let lastLogTimestamp = 0;
-    let lastLogContent = '';
-    if (fs.existsSync(filePath)) {
-      lastLogContent = fs.readFileSync(filePath, { encoding: 'utf8' });
-      lastLogTimestamp = new Date(lastLogContent).getTime();
-      if (isNaN(lastLogTimestamp)) {
-        log.warn('Invalid last log timestamp in file:', filePath);
-        lastLogTimestamp = 0; // reset to 0 if invalid
-      }
-    } else {
-      log.info('No last log timestamp file found, starting fresh:', filePath);
+  /**
+   * Stops watching logs for a specific package.
+   * Unwatches the log file and removes the package from the watched list.
+   * @param {string} packageName - Name of the package to stop watching logs for.
+   */
+  stopWatchingLogs(packageName) {
+    const watchedPackage = this.watchedPackages[packageName];
+    if (!watchedPackage) {
+      log.warn('Package is not being watched:', packageName);
+      return; // Not watching this package
     }
-    log.info('Last log timestamp for', packageName, 'is', lastLogContent);
-    return lastLogTimestamp;
+    if (watchedPackage.tail) {
+      watchedPackage.tail.unwatch(); // Stop tailing the log file
+      log.info('Stopped watching logs for package:', packageName);
+    } else {
+      log.warn('No tail instance found for package:', packageName);
+    }
+    delete this.watchedPackages[packageName]; // Remove from watched packages
   }
 
-
+  /**
+   * Parses a log line into a structured log object.
+   * Filters logs based on minimum log level.
+   * @param {string} line - Log line to parse.
+   * @param {string} packageName - Name of the package.
+   * @returns {Object|null} - Parsed log object or null if invalid.
+   */
   parseLogLine(line, packageName) {
     if (!line.startsWith('[')) return;
 
@@ -182,89 +223,103 @@ class LogMonitor {
     // Ensure there are at least 3 parts (timestamp, module, level)
     if (parts.length < 3) return null;
 
-    const [timestamp, moduleName, level] = parts;
+    const [dateTime, moduleName, level] = parts;
     // Ignore logs produced by this module
 
     if (moduleName === log.name) return null;
 
     // Ensure all parts are present
-    if (!timestamp || !moduleName || !level) return null;
+    if (!dateTime || !moduleName || !level) return null;
+
+    const timestamp = new Date(dateTime).getTime();
+    if (isNaN(timestamp)) {
+      log.warn('Invalid timestamp in log line:', dateTime, 'in line:', line);
+      return null; // Skip invalid timestamps
+    }
 
     const logLevelValue = getLogLevelValue(level);
     const minLogLevelValue = this.watchedPackages[packageName].minLogLevelValue;
 
     // Skip logs below the minimum log level
     if (logLevelValue < minLogLevelValue) return null;
-    const logObject = { timestamp, module: moduleName,
-      level, logLevelValue, message };
+    const logObject = { 
+      timestamp,
+      module: moduleName,
+      level,
+      logLevelValue,
+      message,
+      package: packageName
+    };
     return logObject;
   }
 
-
-  processNextPendingLog() {
-
-    if (this.pendingLogs.length === 0) {
-      log.debug('No pending logs to process');
-      setTimeout(() => this.processNextPendingLog(), 1000);
-      return;
-    }
-
-    if (!this.initialized) {
-      log.debug('LogMonitor not initialized yet, waiting...');
-      setTimeout(() => this.processNextPendingLog(), 1000);
-      return;
-    }
-
-    const pendingLog = this.pendingLogs.shift(); // Get the first pending log
-    const {logObject, packageName} = pendingLog;
-
-    if (_.get(this.watchedPackages, packageName) === null) {
-      log.warn('Package is no longer being watched:', packageName,
-        'Log will not be processed:', logObject);
-      setTimeout(() => this.processNextPendingLog(), 100);
-      return;
-    }
-
-    try {
-      this.publishLogAsJson(logObject, packageName).then(() => {
-        // store last log sent timestamp in a file next to the log file
-        const lastLogTimestampFilePath =
-          this.watchedPackages[packageName].lastLogTimestampFilePath;
-        try {
-          fs.writeFileSync(lastLogTimestampFilePath, logObject.timestamp,
-            { encoding: 'utf8' });
-        } catch (writeErr) {
-          log.error('Failed to write last log timestamp file:',
-            lastLogTimestampFilePath, 'Error:', writeErr.message);
-        }
-        // Process the next pending log after a short delay
-        setTimeout(() => this.processNextPendingLog(), 100);
-      }).catch((e) => {
-          log.error('Failed to publish log:', logObject, 'Error:', e.message);
-          // If an error occurs, we want to retry processing this log after a delay
-          // Re-add the log to the front of the queue:
-          this.pendingLogs.unshift(pendingLog);
-          setTimeout(() => this.processNextPendingLog(), 1000);
-        });
-    } catch (err) {
-      log.error('Failed to publish log:', logObject, 'Error:', err.message);
-      // If an error occurs, we want to retry processing this log after a delay
-      // Re-add the log to the front of the queue:
-      this.pendingLogs.unshift(pendingLog);
-      setTimeout(() => this.processNextPendingLog(), 1000);
+  /**
+   * Starts the log uploading process if not already running.
+   */
+  startUploadingLogs(delay = 0) {
+    if (!this.uploadNextLogsTimer) {
+      log.debug('Starting log upload process in', delay, 'ms');
+      this.uploadNextLogsTimer = setTimeout(async () => {
+        await this.uploadPendingLogs();
+      }, delay);
     }
   }
 
+  /**
+   * Clears the log upload timer if it exists.
+   */
+  clearUploadLogsTimer() {
+    if (this.uploadNextLogsTimer) {
+      clearTimeout(this.uploadNextLogsTimer);
+      this.uploadNextLogsTimer = null; // Reset the timer
+      log.debug('Cleared log upload timer');
+    }
+  }
 
-  async publishLogAsJson(logObject, packageName){
-    const topicSuffix = this.watchedPackages[packageName].topicSuffix;
-    const logTopic = `${this.AGENT_PREFIX}/logs${topicSuffix}`;
-    const logJson = JSON.stringify(logObject);
+  /**
+   * Uploads the next pending logs to the cloud.
+   * Retries failed uploads and updates the last log timestamp.
+   */
+  async uploadPendingLogs() {
+    if (!this.initialized) {
+      log.debug('LogMonitor not initialized yet, waiting...');
+    } else {
+      let logCount = 0;
+      log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);      
+      while (this.pendingLogs.length > 0) {
+        const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
+        this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);
+        try {
+          await this.publishLogsAsJson(logsToUpload);
+          this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logsToUpload[logsToUpload.length - 1].timestamp);
+          log.debug('Published logs:', logsToUpload);
+          logCount += logsToUpload.length;
+        } catch (err) {
+          log.debug('Failed to publish ', logsToUpload.length, 'logs:', err.message);
+          log.debug('Will retry uploading this logs in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
+          // If an error occurs, we want to retry processing this log after a delay
+          // Re-add the log to the front of the queue:
+          this.pendingLogs = logsToUpload.concat(this.pendingLogs);
+          this.clearUploadLogsTimer(); // Clear the timer before scheduling a retry
+          this.startUploadingLogs(WAIT_TIME_IN_CASE_OF_ERROR); // Retry the log uploading process
+          return; // Exit the function to wait for the retry
+        }
+      }
+      log.debug('Uploaded', logCount, 'logs successfully.');
+    }
+    this.clearUploadLogsTimer(); // Clear the timer after processing all logs
+  }
+
+  /**
+   * Publishes logs as JSON to the MQTT broker.
+   * @param {Array} logs - Array of log objects to publish.
+   * @returns {Promise} - Resolves when the log is published.
+   */
+  async publishLogsAsJson(logs){
+    const strMsg = JSON.stringify(logs);
     return new Promise((resolve, reject) => {
-      this.mqttClient.publish(logTopic, logJson, { qos: 2 }, (err) => {
+      this.mqttClient.publish(`${this.AGENT_PREFIX}/logs` , strMsg, { qos: 2 }, (err) => {
         if (err) {
-          log.error('Failed to publish log to MQTT on topic', logTopic, ':',
-            err.message);
           reject(err);
         } else {
           resolve();
@@ -274,7 +329,6 @@ class LogMonitor {
   }
 }
 
-// Create singleton instance and export it
 const logMonitor = new LogMonitor();
 
 module.exports = logMonitor;

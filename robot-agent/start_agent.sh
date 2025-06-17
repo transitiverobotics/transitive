@@ -24,7 +24,7 @@ while (true); do
   ./generate_certs.sh
 
   cd $DIR/node_modules/@transitive-robotics/robot-agent
-  $NPM start | tee -a $DIR/agent.log;
+  $NPM start 2>&1 | tee -a $DIR/agent.log;
   sleep 2;
   echo "Restarting the agent"
 done

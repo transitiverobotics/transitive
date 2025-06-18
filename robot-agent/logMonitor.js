@@ -45,6 +45,7 @@ class LogMonitor {
     this.initialized = false;
     this.logUploadingInterval = null;
     this.uploadingNextLog = false; // Flag to prevent concurrent uploads
+    this.lastLogTimestamp = 0; // Timestamp of the last log sent
   }
 
   /**
@@ -72,8 +73,29 @@ class LogMonitor {
         this.watchedPackages[packageName].minLogLevelValue = getLogLevelValue(minLogLevel);
       });
     });
-    this.initialized = true; // Set initialized state
-    this.startUploadingLogs(); // Start the log uploading process
+    this.mqttSync.subscribe(`${this.AGENT_PREFIX}/lastLogTimestamp`);
+    this.mqttSync.publish(`${this.AGENT_PREFIX}/lastLogTimestamp`);
+    this.mqttSync.waitForHeartbeatOnce(() => {
+      log.info('LogMonitor heartbeat received, initializing...');
+      const lastLogTimestampString = this.mqttSync.data.getByTopic(
+        `${this.AGENT_PREFIX}/lastLogTimestamp`
+      );
+      if (lastLogTimestampString) {
+        log.info('Last log timestamp found:', lastLogTimestampString);
+        this.lastLogTimestamp = new Date(lastLogTimestampString).getTime();
+      } else {
+        log.info('No last log timestamp found, defaulting to 0');
+        this.lastLogTimestamp = 0; // Default to 0 if not found
+      }    
+      this.initialized = true; // Set initialized state
+      log.info('Starting watching logs for packages registered before initialization');
+      _.forEach(this.watchedPackages, (packageData, packageName) => {
+        if( !packageData.initialized) {
+          this.watchLogs(packageName); // Start watching logs for the package
+        }
+      });
+      this.startUploadingLogs(); // Start the log uploading process
+    });
   }
 
   /**
@@ -82,41 +104,45 @@ class LogMonitor {
    * @param {string} packageName - Name of the package to watch logs for.
    */
   watchLogs(packageName) {
-    if (_.get(this.watchedPackages, packageName)) {
-      log.warn('Package is already being watched:', packageName);
-      return;
+    const watchedPackage = this.watchedPackages[packageName];
+    if (watchedPackage) {
+      if (watchedPackage.initialized) {
+        log.info('Package is already being watched:', packageName);
+        return; // Already watching this package
+      }      
+    } else {
+      log.info('Adding package to watch list:', packageName);
+      this.watchedPackages[packageName] = {
+        initialized: false,
+      }
     }
+    if (!this.initialized) {
+      log.warn('LogMonitor not initialized yet, will wait for initialization before watching logs for', packageName);
+      return; // Wait until initialized
+    }
+
     let filePath = '';
     let topicSuffix = '';
-    let lastLogTimestampFilePath = '';
 
     if (packageName === 'robot-agent') {
       log.info('Watching logs for robot-agent package');
       filePath = `${process.env.HOME}/.transitive/agent.log`;
-      lastLogTimestampFilePath = `${process.env.HOME}/.transitive/lastTimestamp`;
       topicSuffix = '/agent';
     } else {
       log.info('Watching logs for package:', packageName);
       filePath = `${process.env.HOME}/.transitive/packages/${packageName}/log`;
-      lastLogTimestampFilePath =
-        `${process.env.HOME}/.transitive/packages/${packageName}/lastTimestamp`;
       topicSuffix = `/capabilities/${packageName}`;
     }
 
     let minLogLevel = getMinLogLevel(packageName);
     let minLogLevelValue = getLogLevelValue(minLogLevel);
-    this.watchedPackages[packageName] = {
-      filePath,
-      lastLogTimestampFilePath,
-      topicSuffix,
-      minLogLevel,
-      minLogLevelValue,
-    };
+    this.watchedPackages[packageName].filePath = filePath;
+    this.watchedPackages[packageName].topicSuffix = topicSuffix;
+    this.watchedPackages[packageName].minLogLevel = minLogLevel;
+    this.watchedPackages[packageName].minLogLevelValue = minLogLevelValue;
+
     log.debug('WatchingLogs with', { filePath, topicSuffix, minLogLevel,
       minLogLevelValue });
-
-    // first upload all log lines newer than the last log sent
-    const lastLogTimestamp = this.getLastLogTimestamp(packageName);
 
     const fileContent = fs.readFileSync(filePath, { encoding: 'utf8' });
     const lines = fileContent.split('\n');
@@ -130,12 +156,14 @@ class LogMonitor {
       }
       // Convert timestamp to milliseconds
       const logTimestamp = new Date(timestamp).getTime();
-      if (logTimestamp < lastLogTimestamp) {
+      if (logTimestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }
       this.pendingLogs.push({ logObject, packageName });
     }
 
+    this.watchedPackages[packageName].initialized = true; // Mark as initialized
+  
     this.startUploadingLogs(); // Start the log uploading process
     const tail = new Tail(filePath);
 
@@ -157,29 +185,6 @@ class LogMonitor {
     });
 
     log.info('Started tailing log file:', filePath);
-  }
-
-  /**
-   * Retrieves the timestamp of the last log sent for a specific package.
-   * @param {string} packageName - Name of the package.
-   * @returns {number} - Timestamp of the last log sent.
-   */
-  getLastLogTimestamp(packageName) {
-    const filePath = this.watchedPackages[packageName].lastLogTimestampFilePath;
-    let lastLogTimestamp = 0;
-    let lastLogContent = '';
-    if (fs.existsSync(filePath)) {
-      lastLogContent = fs.readFileSync(filePath, { encoding: 'utf8' });
-      lastLogTimestamp = new Date(lastLogContent).getTime();
-      if (isNaN(lastLogTimestamp)) {
-        log.warn('Invalid last log timestamp in file:', filePath);
-        lastLogTimestamp = 0; // reset to 0 if invalid
-      }
-      log.info('Last log timestamp for', packageName, 'is', lastLogContent);
-    } else {
-      log.info('No last log timestamp file found for', packageName);
-    }
-    return lastLogTimestamp;
   }
 
   /**
@@ -285,16 +290,7 @@ class LogMonitor {
 
     try {
       await this.publishLogAsJson(logObject, packageName);
-      // store last log sent timestamp in a file next to the log file
-      const lastLogTimestampFilePath =
-        this.watchedPackages[packageName].lastLogTimestampFilePath;
-      try {
-        fs.writeFileSync(lastLogTimestampFilePath, logObject.timestamp,
-          { encoding: 'utf8' });
-      } catch (writeErr) {
-        log.error('Failed to write last log timestamp file:',
-          lastLogTimestampFilePath, 'Error:', writeErr.message);
-      }
+      this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logObject.timestamp);
     } catch (err) {
       log.error('Failed to publish log:', logObject, 'Error:', err.message);
       // If an error occurs, we want to retry processing this log after a delay

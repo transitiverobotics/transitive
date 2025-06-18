@@ -144,7 +144,7 @@ const update = () => {
 
 setInterval(update, UPDATE_INTERVAL);
 // rotate all log files at 1am
-rotateAllLogs();
+// rotateAllLogs(); // uncomment to rotate logs on startup
 new CronJob('0 0 1 * * *', rotateAllLogs, null, true);
 
 update();

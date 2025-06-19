@@ -7,7 +7,7 @@
     "test": "mocha -w *.test.js",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
-    "dev": "DIR=$PWD; (cd ~/.transitive && env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js)",
+    "dev": "DIR=$PWD; (cd ~/.transitive && env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js | tee -a $HOME/.transitive/agent.log)",
     "start": "DIR=$PWD; (cd ~/.transitive && ~/.transitive/usr/bin/node $DIR/index.js)"
   },
   "keywords": [],
@@ -19,7 +19,8 @@
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",
     "lodash": "^4.17.21",
-    "mqtt": "^4.3.7"
+    "mqtt": "^4.3.7",
+    "tail": "^2.2.6"
   },
   "devDependencies": {
     "mocha": "^9.1.4"

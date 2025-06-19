@@ -325,18 +325,24 @@ const addCapsRoutes = () => {
     log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
 
+    /** Check for the three authorization mechanisms we support: cookie,
+    * authorization header, or jwt query parameter. */
     const getAuthPayload = async (req) => {
-      if (req.headers.authorization &&
-        req.headers.authorization.startsWith('Bearer ')) {
-        const token = req.headers.authorization.slice('Bearer '.length);
+      if (req.cookies[TOKEN_COOKIE]) {
+        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
+      }
+
+      const token = (req.headers.authorization?.startsWith('Bearer ') &&
+        req.headers.authorization.slice('Bearer '.length))
+        || req.query.jwt;
+
+      if (token) {
         const {valid, error, payload} = await verifyJWT(token);
         if (valid) {
           return payload;
         } else {
-          log.debug('getAuthPayload, error:', error);
+          log.debug('getAuthPayload, error verifying JWT:', error);
         }
-      } else if (req.cookies[TOKEN_COOKIE]) {
-        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
       }
     };
 

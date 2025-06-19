@@ -77,16 +77,9 @@ class LogMonitor {
     this.mqttSync.publish(`${this.AGENT_PREFIX}/lastLogTimestamp`);
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('LogMonitor heartbeat received, initializing...');
-      const lastLogTimestampString = this.mqttSync.data.getByTopic(
+      this.lastLogTimestamp = this.mqttSync.data.getByTopic(
         `${this.AGENT_PREFIX}/lastLogTimestamp`
-      );
-      if (lastLogTimestampString) {
-        log.info('Last log timestamp found:', lastLogTimestampString);
-        this.lastLogTimestamp = new Date(lastLogTimestampString).getTime();
-      } else {
-        log.info('No last log timestamp found, defaulting to 0');
-        this.lastLogTimestamp = 0; // Default to 0 if not found
-      }    
+      ) || 0; // Get last log timestamp or default to 0
       this.initialized = true; // Set initialized state
       log.info('Starting watching logs for packages registered before initialization');
       _.forEach(this.watchedPackages, (packageData, packageName) => {
@@ -154,8 +147,7 @@ class LogMonitor {
         continue; // skip lines without a timestamp
       }
       // Convert timestamp to milliseconds
-      const logTimestamp = new Date(timestamp).getTime();
-      if (logTimestamp < this.lastLogTimestamp) {
+      if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }
       this.pendingLogs.push({ logObject, packageName });
@@ -210,21 +202,26 @@ class LogMonitor {
     // Ensure there are at least 3 parts (timestamp, module, level)
     if (parts.length < 3) return null;
 
-    const [timestamp, moduleName, level] = parts;
+    const [dateTime, moduleName, level] = parts;
     // Ignore logs produced by this module
 
     if (moduleName === log.name) return null;
 
     // Ensure all parts are present
-    if (!timestamp || !moduleName || !level) return null;
+    if (!dateTime || !moduleName || !level) return null;
+
+    const timestamp = new Date(dateTime).getTime();
+    if (isNaN(timestamp)) {
+      log.warn('Invalid timestamp in log line:', dateTime, 'in line:', line);
+      return null; // Skip invalid timestamps
+    }
 
     const logLevelValue = getLogLevelValue(level);
     const minLogLevelValue = this.watchedPackages[packageName].minLogLevelValue;
 
     // Skip logs below the minimum log level
     if (logLevelValue < minLogLevelValue) return null;
-    const logObject = { timestamp, module: moduleName,
-      level, logLevelValue, message };
+    const logObject = { timestamp, module: moduleName, level, logLevelValue, message };
     return logObject;
   }
 

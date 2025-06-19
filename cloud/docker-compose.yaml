@@ -230,7 +230,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 600M
+          # memory: 900M
 
   hyperdx:
     image: docker.hyperdx.io/hyperdx/hyperdx:2

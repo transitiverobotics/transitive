@@ -328,10 +328,6 @@ const addCapsRoutes = () => {
     /** Check for the three authorization mechanisms we support: cookie,
     * authorization header, or jwt query parameter. */
     const getAuthPayload = async (req) => {
-      if (req.cookies[TOKEN_COOKIE]) {
-        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
-      }
-
       const token = (req.headers.authorization?.startsWith('Bearer ') &&
         req.headers.authorization.slice('Bearer '.length))
         || req.query.jwt;
@@ -343,6 +339,10 @@ const addCapsRoutes = () => {
         } else {
           log.debug('getAuthPayload, error verifying JWT:', error);
         }
+      }
+
+      if (req.cookies[TOKEN_COOKIE]) {
+        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
       }
     };
 

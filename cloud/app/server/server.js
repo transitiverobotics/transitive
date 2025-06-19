@@ -576,7 +576,7 @@ class _robotAgent extends Capability {
               },
               "logRecords": [
                 {
-                  "timeUnixNano": new Date(msgObj.timestamp).getTime() * 1e6,
+                  "timeUnixNano": msgObj.timestamp * 1e6,
                   "observedTimeUnixNano": new Date().getTime() * 1e6,
                   "severityNumber": msgObj.logLevelValue,
                   "severityText": msgObj.level,

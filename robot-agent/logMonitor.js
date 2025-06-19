@@ -21,8 +21,8 @@ const getLogLevelValue = (levelName) => {
   return levels[levelName.toUpperCase()] || 20; // default to INFO if not found
 };
 
-/** Get the currently configured level of logging for the given package name
- * or the global one if not specified. Defaults to 'ERROR' if not set. */
+/** Get the currently configured level of logging we want to forward from the
+ * named package (or robot-agent) */
 const getMinLogLevel = (packageName) => {
   const globalMinLogLevel = _.get(global.config, 'global.minLogLevel', 'ERROR');
   return (packageName === 'robot-agent' ? globalMinLogLevel
@@ -30,11 +30,9 @@ const getMinLogLevel = (packageName) => {
   );
 };
 
-/** LogMonitor handles log monitoring and uploading.
-  * Watches log files for specific packages, processes new log entries,
-  * uploads logs to the cloud via MQTT. Keeps track of pending logs
-  * and ensures logs are uploaded at regular intervals.
-**/
+/** The log monitor accepts packages to monitor, watches their logs and
+* publishes them (filtered) to the cloud via MQTT (not sync). ALso does this
+* for the agent log. */
 class LogMonitor {
   constructor() {
     this.mqttClient = null;
@@ -145,7 +143,6 @@ class LogMonitor {
         log.warn('Skipping log line without timestamp:', line);
         continue; // skip lines without a timestamp
       }
-      // Convert timestamp to milliseconds
       if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }

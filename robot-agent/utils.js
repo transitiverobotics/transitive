@@ -133,7 +133,6 @@ const startPackage = (name) => {
       const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
-
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],

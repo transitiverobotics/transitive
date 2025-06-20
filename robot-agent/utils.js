@@ -65,6 +65,7 @@ const removePackage = (pkg) => {
       log.debug('package stopped, removing files');
     }
     exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
+    LogMonitor.stopWatchingLogs(pkg);
   });
 };
 
@@ -119,6 +120,7 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
 
+  LogMonitor.watchLogs(name);
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
@@ -131,8 +133,6 @@ const startPackage = (name) => {
       const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
-
-      LogMonitor.watchLogs(name);
 
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,

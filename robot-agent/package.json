@@ -7,7 +7,7 @@
     "test": "mocha -w *.test.js",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
-    "dev": "DIR=$PWD; (cd ~/.transitive && env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js | tee -a $HOME/.transitive/agent.log)",
+    "dev": "DIR=$PWD; (cd ~/.transitive && env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin node $DIR/index.js 2>&1 | tee -a $HOME/.transitive/agent.log)",
     "start": "DIR=$PWD; (cd ~/.transitive && ~/.transitive/usr/bin/node $DIR/index.js)"
   },
   "keywords": [],

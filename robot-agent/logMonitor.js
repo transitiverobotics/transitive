@@ -172,7 +172,7 @@ class LogMonitor {
     tail.on('close', () => {
       log.info('Stopped tailing log file:', filePath);
       // Remove from watched packages on close
-      this.watchedPackages[packageName] = null;
+      this.stopWatchingLogs(packageName);
     });
 
     log.info('Started tailing log file:', filePath);

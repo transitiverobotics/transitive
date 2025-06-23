@@ -86,7 +86,7 @@ class LogMonitor {
           this.watchLogs(packageName); // Start watching logs for the package
         }
       });
-      this.restartUploadingLogs(); // Start the log uploading process
+      this.startUploadingLogs(); // Start the log uploading process
     });
   }
 
@@ -154,7 +154,7 @@ class LogMonitor {
 
     this.watchedPackages[packageName].initialized = true; // Mark as initialized
   
-    this.restartUploadingLogs(); // Start the log uploading process
+    this.startUploadingLogs(); // Start the log uploading process
     const tail = new Tail(filePath);
     this.watchedPackages[packageName].tail = tail; // Store the tail instance for later use
   
@@ -162,7 +162,7 @@ class LogMonitor {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
       this.pendingLogs.push({ logObject, packageName });
-      this.restartUploadingLogs(); // Start uploading process if it's not already running
+      this.startUploadingLogs(); // Start uploading process if it's not already running
     });
 
     tail.on('error', (error) => {
@@ -250,54 +250,61 @@ class LogMonitor {
     return logObject;
   }
 
-  restartUploadingLogs(nextTimeOut = 0) {
+  /**
+   * Starts the log uploading process if not already running.
+   */
+  startUploadingLogs(delay = 0) {
     if (!this.uploadNextLogsTimer) {
-      log.debug('Restarting log upload process in', nextTimeOut, 'ms');
-      this.uploadNextLogsTimer = setTimeout(() => {
-        this.uploadNextPendingLogs(); // Start processing the next log
-      }, nextTimeOut); // Start immediately
+      log.debug('Starting log upload process in', delay, 'ms');
+      this.uploadNextLogsTimer = setTimeout(async () => {
+        await this.uploadNextPendingLogs();
+      }, delay);
     }
   }
 
   /**
-   * Uploads the next pending log to the cloud.
+   * Clears the log upload timer if it exists.
+   */
+  clearUploadLogsTimer() {
+    if (this.uploadNextLogsTimer) {
+      clearTimeout(this.uploadNextLogsTimer);
+      this.uploadNextLogsTimer = null; // Reset the timer
+      log.debug('Cleared log upload timer');
+    }
+  }
+
+  /**
+   * Uploads the next pending logs to the cloud.
    * Retries failed uploads and updates the last log timestamp.
    */
   async uploadNextPendingLogs() {
-    if (this.pendingLogs.length === 0) {
-      log.debug('No pending logs to process');
-      this.uploadNextLogsTimer = null;
-      return;
-    }
-
     if (!this.initialized) {
       log.debug('LogMonitor not initialized yet, waiting...');
-      return; // Wait until initialized
-    }
+    } else {
+      let logCount = 0;
+      while (this.pendingLogs.length > 0) {
+        const pendingLog = this.pendingLogs.shift(); // Get the first pending log
+        const {logObject, packageName} = pendingLog;
 
-    let nextTimeOut = 0;
-    const pendingLog = this.pendingLogs.shift(); // Get the first pending log
-    const {logObject, packageName} = pendingLog;
-
-    try {
-      await this.publishLogAsJson(logObject, packageName);
-      this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logObject.timestamp);
-      log.debug('Published log:', logObject, 'for package:', packageName);
-    } catch (err) {
-      log.debug('Failed to publish log:', logObject, 'Error:', err.message);
-      log.debug('Will retry uploading this log in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
-      // If an error occurs, we want to retry processing this log after a delay
-      // Re-add the log to the front of the queue:
-      this.pendingLogs.unshift(pendingLog);
-      nextTimeOut = WAIT_TIME_IN_CASE_OF_ERROR; // Retry after the defined interval
+        try {
+          await this.publishLogAsJson(logObject, packageName);
+          this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logObject.timestamp);
+          log.debug('Published log:', logObject, 'for package:', packageName);
+          logCount++;
+        } catch (err) {
+          log.debug('Failed to publish log:', logObject, 'Error:', err.message);
+          log.debug('Will retry uploading this log in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
+          // If an error occurs, we want to retry processing this log after a delay
+          // Re-add the log to the front of the queue:
+          this.pendingLogs.unshift(pendingLog);
+          this.clearUploadLogsTimer(); // Clear the timer before scheduling a retry
+          this.startUploadingLogs(WAIT_TIME_IN_CASE_OF_ERROR); // Retry the log uploading process
+          return; // Exit the function to wait for the retry
+        }
+      }
+      log.debug('Uploaded', logCount, 'logs successfully.');
     }
-    this.uploadNextLogsTimer = null;
-    if (this.pendingLogs.length === 0) {
-      log.debug('No pending logs to process');
-      return;
-    }
-    this.restartUploadingLogs(nextTimeOut); // Restart the log uploading process
-    log.debug('Scheduled next log upload in', nextTimeOut, 'ms');
+    this.clearUploadLogsTimer(); // Clear the timer after processing all logs
   }
 
   /**

@@ -7,6 +7,7 @@ const log = getLogger('logMonitor.js');
 log.setLevel('info');
 
 const WAIT_TIME_IN_CASE_OF_ERROR = 5000; // 5 seconds
+const MAX_LOGS_PER_BATCH = 5; // Maximum number of logs to upload in one go
 
 /** Translate log level into a numeric value. */
 const getLogLevelValue = (levelName) => {
@@ -149,7 +150,7 @@ class LogMonitor {
       if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }
-      this.pendingLogs.push({ logObject, packageName });
+      this.pendingLogs.push(logObject);
     }
 
     this.watchedPackages[packageName].initialized = true; // Mark as initialized
@@ -161,7 +162,7 @@ class LogMonitor {
     tail.on('line', async (line) => {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
-      this.pendingLogs.push({ logObject, packageName });
+      this.pendingLogs.push(logObject);
       this.startUploadingLogs(); // Start uploading process if it's not already running
     });
 
@@ -241,7 +242,14 @@ class LogMonitor {
 
     // Skip logs below the minimum log level
     if (logLevelValue < minLogLevelValue) return null;
-    const logObject = { timestamp, module: moduleName, level, logLevelValue, message };
+    const logObject = { 
+      timestamp,
+      module: moduleName,
+      level,
+      logLevelValue,
+      message,
+      package: packageName
+    };
     return logObject;
   }
 
@@ -252,7 +260,7 @@ class LogMonitor {
     if (!this.uploadNextLogsTimer) {
       log.debug('Starting log upload process in', delay, 'ms');
       this.uploadNextLogsTimer = setTimeout(async () => {
-        await this.uploadNextPendingLogs();
+        await this.uploadPendingLogs();
       }, delay);
     }
   }
@@ -272,26 +280,26 @@ class LogMonitor {
    * Uploads the next pending logs to the cloud.
    * Retries failed uploads and updates the last log timestamp.
    */
-  async uploadNextPendingLogs() {
+  async uploadPendingLogs() {
     if (!this.initialized) {
       log.debug('LogMonitor not initialized yet, waiting...');
     } else {
       let logCount = 0;
+      log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);      
       while (this.pendingLogs.length > 0) {
-        const pendingLog = this.pendingLogs.shift(); // Get the first pending log
-        const {logObject, packageName} = pendingLog;
-
+        const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
+        this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);
         try {
-          await this.publishLogAsJson(logObject, packageName);
-          this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logObject.timestamp);
-          log.debug('Published log:', logObject, 'for package:', packageName);
-          logCount++;
+          await this.publishLogsAsJson(logsToUpload);
+          this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logsToUpload[logsToUpload.length - 1].timestamp);
+          log.debug('Published logs:', logsToUpload);
+          logCount += logsToUpload.length;
         } catch (err) {
-          log.debug('Failed to publish log:', logObject, 'Error:', err.message);
-          log.debug('Will retry uploading this log in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
+          log.debug('Failed to publish ', logsToUpload.length, 'logs:', err.message);
+          log.debug('Will retry uploading this logs in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
           // If an error occurs, we want to retry processing this log after a delay
           // Re-add the log to the front of the queue:
-          this.pendingLogs.unshift(pendingLog);
+          this.pendingLogs = logsToUpload.concat(this.pendingLogs);
           this.clearUploadLogsTimer(); // Clear the timer before scheduling a retry
           this.startUploadingLogs(WAIT_TIME_IN_CASE_OF_ERROR); // Retry the log uploading process
           return; // Exit the function to wait for the retry
@@ -303,19 +311,14 @@ class LogMonitor {
   }
 
   /**
-   * Publishes a log object as JSON to the MQTT topic.
-   * @param {Object} logObject - Log object to publish.
-   * @param {string} packageName - Name of the package.
+   * Publishes logs as JSON to the MQTT broker.
+   * @param {Array} logs - Array of log objects to publish.
    * @returns {Promise} - Resolves when the log is published.
    */
-  async publishLogAsJson(logObject, packageName){
-    const logTopic = (packageName === 'robot-agent') ?
-      `${this.AGENT_PREFIX}/logs/agent` :
-      `${this.AGENT_PREFIX}/logs/capabilities/${packageName}`;
-
-    const logJson = JSON.stringify(logObject);
+  async publishLogsAsJson(logs){
+    const strMsg = JSON.stringify(logs);
     return new Promise((resolve, reject) => {
-      this.mqttClient.publish(logTopic, logJson, { qos: 2 }, (err) => {
+      this.mqttClient.publish(`${this.AGENT_PREFIX}/logs` , strMsg, { qos: 2 }, (err) => {
         if (err) {
           reject(err);
         } else {

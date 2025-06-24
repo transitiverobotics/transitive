@@ -541,8 +541,11 @@ class _robotAgent extends Capability {
    * msgObj: { timestamp, module, logLevelValue, level, message }
    * TODO: don't send log level text with EACH message!
    */
-  async sendToHyperDX(msgObj, attributes = {}) {
+  async sendToHyperDX(logs, attributes = {}) {
 
+    if (!Array.isArray(logs)) {
+      logs = [logs];
+    }
     // get HyperDX ingestion key from mongo DB if we don't already have it
     if (!this.hyperDXIngestionAPIKey) {
       const db = Mongo.client.db('hyperdx');
@@ -560,10 +563,6 @@ class _robotAgent extends Capability {
       "resourceLogs": [
         {
           "resource": {
-            // "attributes": [
-            //   { "key": "service.name", "value": { "stringValue": serviceName } },
-            //   { "key": "device.id", "value": { "stringValue": device } },
-            // ],
             "attributes": _.map(attributes, (value, key) => ({
               key,
               value: {"stringValue": value}
@@ -574,20 +573,19 @@ class _robotAgent extends Capability {
               "scope": {
                 "name": "logMonitor"
               },
-              "logRecords": [
-                {
-                  "timeUnixNano": msgObj.timestamp * 1e6,
-                  "observedTimeUnixNano": new Date().getTime() * 1e6,
-                  "severityNumber": msgObj.logLevelValue,
-                  "severityText": msgObj.level,
+              "logRecords": logs.map(logObj => ({
+                "timeUnixNano": logObj.timestamp * 1e6,
+                "observedTimeUnixNano": new Date().getTime() * 1e6,
+                "severityNumber": logObj.logLevelValue,
+                "severityText": logObj.level,
                   "body": {
-                    "stringValue": msgObj.message
+                    "stringValue": logObj.message
                   },
                   "attributes": [
-                    { "key": "module", "value": { "stringValue": msgObj.module } },
+                    { "key": "module", "value": { "stringValue": logObj.module } },
                   ],
                 }
-              ]
+              )),
             }
           ]
         }
@@ -620,21 +618,33 @@ class _robotAgent extends Capability {
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
     log.debug('Subscribing to logs');
-    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs/#');
+    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs');
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, sub } = parseMQTTTopic(topic);
-      if (!device || !sub || sub.length < 2 || sub[0] !== 'logs') {
+      if (!device || !sub || sub.length !== 1 || sub[0] !== 'logs') {
         return;
       }
 
-      let serviceName = 'robot-agent';
-      if (sub[1] === 'capabilities' && sub.length > 3) {
-        serviceName = `${sub[2]}/${sub[3]}`;
+      const logLines = message && tryJSONParse(message.toString());
+      if (!Array.isArray(logLines)) {
+        log.warn(`Received logs message that is not an array: ${message}`);
+        return;
       }
 
-      this.sendToHyperDX( JSON.parse(message.toString()),
-        {orgId: organization, deviceId: device, 'service.name': serviceName});
+      if (logLines.length === 0) {
+        log.warn(`Received empty logs message for ${organization}/${device}`);
+        return;
+      }
+      
+      const packageLogs = _.groupBy(logLines, (line) => {
+        return line.package;
+      });
+
+      _.forEach(packageLogs, (logs, packageName) => {
+        log.debug(`Forwarding logs for ${organization}/${device}/${packageName}:`, logs);
+        this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+      });
     });
   }
 

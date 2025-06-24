@@ -207,11 +207,6 @@ class LogMonitor {
    */
   parseLogLine(line, packageName) {
     if (!line.startsWith('[')) return;
-    if (!_.get(this.watchedPackages, packageName)) {
-      log.warn('Package is not being watched:', packageName,
-        'Log line will not be parsed:', line);
-      return null; // Skip if package is not being watched
-    }
 
     // Remove the leading '[' and split by spaces
     const endBracketIdx = line.indexOf(']');

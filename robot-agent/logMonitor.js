@@ -73,12 +73,14 @@ class LogMonitor {
         this.watchedPackages[packageName].minLogLevelValue = getLogLevelValue(minLogLevel);
       });
     });
-    this.mqttSync.subscribe(`${this.AGENT_PREFIX}/lastLogTimestamp`);
-    this.mqttSync.publish(`${this.AGENT_PREFIX}/lastLogTimestamp`);
+    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`);
+    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/errorCount/#`);
+    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/lastError/#`);
+
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('LogMonitor heartbeat received, initializing...');
       this.lastLogTimestamp = this.mqttSync.data.getByTopic(
-        `${this.AGENT_PREFIX}/lastLogTimestamp`
+        `${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`
       ) || 0; // Get last log timestamp or default to 0
       this.initialized = true; // Set initialized state
       log.info('Starting watching logs for packages registered before initialization');
@@ -114,6 +116,8 @@ class LogMonitor {
       return; // Wait until initialized
     }
 
+    this.clearErrorCount(packageName); // Clear any existing upload timer for this package
+    
     const filePath = (packageName === 'robot-agent') ?
       `${process.env.HOME}/.transitive/agent.log` :
       `${process.env.HOME}/.transitive/packages/${packageName}/log`;
@@ -141,11 +145,8 @@ class LogMonitor {
     for (const line of lines) {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) continue; // skip lines that are not valid log lines
-      const { timestamp } = logObject;
-      if (!timestamp) {
-        log.warn('Skipping log line without timestamp:', line);
-        continue; // skip lines without a timestamp
-      }
+      const { timestamp, level } = logObject;
+      this.updateErrorCount(packageName, logObject); // Increment error logs count
       // Convert timestamp to milliseconds
       if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
@@ -162,6 +163,7 @@ class LogMonitor {
     tail.on('line', async (line) => {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
+      this.updateErrorCount(packageName, logObject); // Increment error logs count
       this.pendingLogs.push(logObject);
       this.startUploadingLogs(); // Start uploading process if it's not already running
     });
@@ -224,12 +226,11 @@ class LogMonitor {
     if (parts.length < 3) return null;
 
     const [dateTime, moduleName, level] = parts;
-    // Ignore logs produced by this module
-
-    if (moduleName === log.name) return null;
-
     // Ensure all parts are present
     if (!dateTime || !moduleName || !level) return null;
+  
+    // Ignore logs produced by this module
+    if (moduleName === log.name) return null;
 
     const timestamp = new Date(dateTime).getTime();
     if (isNaN(timestamp)) {
@@ -245,7 +246,7 @@ class LogMonitor {
     const logObject = { 
       timestamp,
       module: moduleName,
-      level,
+      level: level.toUpperCase(),
       logLevelValue,
       message,
       package: packageName
@@ -291,7 +292,7 @@ class LogMonitor {
         this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);
         try {
           await this.publishLogsAsJson(logsToUpload);
-          this.mqttSync.data.update(`${this.AGENT_PREFIX}/lastLogTimestamp`, logsToUpload[logsToUpload.length - 1].timestamp);
+          this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`, logsToUpload[logsToUpload.length - 1].timestamp);
           log.debug('Published logs:', logsToUpload);
           logCount += logsToUpload.length;
         } catch (err) {
@@ -318,7 +319,7 @@ class LogMonitor {
   async publishLogsAsJson(logs){
     const strMsg = JSON.stringify(logs);
     return new Promise((resolve, reject) => {
-      this.mqttClient.publish(`${this.AGENT_PREFIX}/logs` , strMsg, { qos: 2 }, (err) => {
+      this.mqttClient.publish(`${this.AGENT_PREFIX}/status/logs/live` , strMsg, { qos: 2 }, (err) => {
         if (err) {
           reject(err);
         } else {
@@ -326,6 +327,40 @@ class LogMonitor {
         }
       });
     });
+  }
+
+  /** Clears the error logs count for a specific package.
+   * Also resets the last error log object for that package.
+   * @param {string} packageName - Name of the package to clear error logs count for.
+   */
+  clearErrorCount(packageName) {
+    if (!this.initialized) {
+      log.warn('LogMonitor not initialized, cannot clear error logs count for', packageName);
+      return;
+    }
+    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
+    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
+    log.info('Cleared error logs count for package:', packageName);
+  }
+
+  /** Increments the error logs count for a specific package.
+   * Also updates the last error log object for that package.
+   * @param {Object} errorLogObject - The error log object to store as the last error.
+   * @param {string} packageName - Name of the package to increment error logs count for.
+   */
+  updateErrorCount(packageName, errorLogObject) {
+    if (!this.initialized) {
+      log.warn('LogMonitor not initialized, cannot increment error logs count for', packageName);
+      return;
+    }
+    if (!errorLogObject || errorLogObject.level !== 'ERROR') {
+      return; // Only increment for error logs
+    }
+    const countTopic = `${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`;
+    const currentCount = this.mqttSync.data.getByTopic(countTopic) || 0;
+    this.mqttSync.data.update(countTopic, currentCount + 1);
+    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, errorLogObject);
+    log.debug('Incremented error logs count for package:', packageName, 'to', currentCount + 1);
   }
 }
 

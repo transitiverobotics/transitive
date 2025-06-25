@@ -27,7 +27,6 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
-const {isAuthorized} = require('./utils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -619,7 +618,7 @@ class _robotAgent extends Capability {
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
     log.debug('Subscribing to logs');
-    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs');
+    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/logs/live');
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, sub } = parseMQTTTopic(topic);
@@ -643,7 +642,6 @@ class _robotAgent extends Capability {
       });
 
       _.forEach(packageLogs, (logs, packageName) => {
-        log.debug(`Forwarding logs for ${organization}/${device}/${packageName}:`, logs);
         this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
       });
     });

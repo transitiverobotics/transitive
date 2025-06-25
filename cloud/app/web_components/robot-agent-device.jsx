@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Accordion, Alert, Toast } from 'react-bootstrap';
+    Accordion, Alert, Toast, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
 const _ = {
@@ -9,6 +9,7 @@ const _ = {
   forEach: require('lodash/forEach'),
   keyBy: require('lodash/keyBy'),
   filter: require('lodash/filter'),
+  get: require('lodash/get'),
 };
 
 import { MdAdd } from 'react-icons/md';
@@ -20,7 +21,7 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps, PkgLog } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, GetLogButtonWithCounter } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -138,7 +139,7 @@ const OSInfo = ({info}) => !info ? <div></div> :
     <h3>{info.os.hostname}</h3>
     <div>
       {info.labels?.map(label =>
-          <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
+        <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
       }
     </div>
     <Form.Text>
@@ -198,8 +199,7 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, preInstalled, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
-    canPay } = props;
+    inactive, device, versionPrefix, desiredPackagesTopic, canPay } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -213,9 +213,10 @@ const Capability = (props) => {
   };
 
   const runPkgCommand = (command, cb = log.debug) => {
-    log.debug('running package command', command);
-    mqttSync.call(`${versionPrefix}/rpc/${command}`, {pkg: name}, cb);
-    };
+    const topic = `${versionPrefix}/rpc/${command}`;
+    log.debug('running package command', {command, topic, pkg: name});
+    mqttSync.call(topic, {pkg: name}, cb);
+  };
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
@@ -281,13 +282,12 @@ const Capability = (props) => {
                 </Button>
               </span>
             } {
-              <Button variant='link'
-                onClick={() => runPkgCommand('getPkgLog', (response) => {
-                  const [scope, capName] = name.split('/');
-                  setPkgLog({[scope]: {[capName]: response}});
-                })}>
-                get log
-              </Button>
+              <GetLogButtonWithCounter
+                text="get log"
+                mqttSync={mqttSync}
+                versionPrefix={versionPrefix}
+                packageName={name}
+              />
             }
           </div>}
         </Col>
@@ -327,8 +327,8 @@ const Device = (props) => {
   const {device} = decodeJWT(jwt);
   const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
 
+
   const [showAdd, setShowAdd] = useState(false);
-  const [pkgLog, setPkgLog] = useState();
   const [toast, setToast] = useState(null);
 
   const [availablePackages, setAvailablePackages] = useState([]);
@@ -382,8 +382,9 @@ const Device = (props) => {
 
   /* Run a command on the device, via RPC */
   const runCommand = (command, args, cb) => {
-    log.debug('running command', command, args);
-    mqttSync.call(`${versionPrefix}/rpc/${command}`, args, cb);
+    const topic = `${versionPrefix}/rpc/${command}`;
+    log.debug('running command', {command, topic, args});
+    mqttSync.call(topic, args, cb);
   };
 
   const restartAgent = () => {
@@ -464,7 +465,12 @@ const Device = (props) => {
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
         Remove device
-      </ConfirmedButton>
+      </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
+          text="Get log"
+          mqttSync={mqttSync}
+          versionPrefix={versionPrefix}
+          packageName="robot-agent"
+        />
 
       <Fold title="Configuration">
         <div style={styles.row}>
@@ -496,7 +502,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 preInstalled, running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                setPkgLog, canPay
+                canPay
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>
@@ -530,8 +536,6 @@ const Device = (props) => {
         }
       </Accordion>
     </div>
-
-    {pkgLog && <PkgLog response={pkgLog} hide={() => setPkgLog()}/>}
   </div>
 };
 

@@ -619,9 +619,11 @@ class _robotAgent extends Capability {
   forwardAgentLogsToHyperdx() {
     log.debug('Subscribing to logs');
     this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs');
+    this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/errorLogs/#');
+    this.mqttSync.publish('/+/+/@transitive-robotics/_robot-agent/+/errorLogs/#');
 
     this.mqtt.on('message', (topic, message) => {
-      const { organization, device, sub } = parseMQTTTopic(topic);
+      const { organization, device, version, sub } = parseMQTTTopic(topic);
       if (!device || !sub || sub.length !== 1 || sub[0] !== 'logs') {
         return;
       }
@@ -644,6 +646,12 @@ class _robotAgent extends Capability {
       _.forEach(packageLogs, (logs, packageName) => {
         log.debug(`Forwarding logs for ${organization}/${device}/${packageName}:`, logs);
         this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+        const errorLogsTopic = `${organization}/${device}/@transitive-robotics/_robot-agent/${version}/errorLogs/${packageName}`;
+        _.forEach(logs, (logLine) => {
+          if (logLine.level === 'ERROR') {
+            this.data.update(`${errorLogsTopic}/${logLine.timestamp}`, logLine);            
+          }
+        });
       });
     });
   }

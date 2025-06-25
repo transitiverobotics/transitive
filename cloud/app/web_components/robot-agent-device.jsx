@@ -199,9 +199,9 @@ const Package = ({pkg, install, issues}) => {
 
 const Capability = (props) => {
 
-  const { mqttSync, preInstalled, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic,
-    canPay, deviceData } = props;
+  const { mqttSync, running, desired, status, disabled, name, title,
+    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
+    canPay } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -520,7 +520,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 preInstalled, running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                canPay, deviceData: latestVersionData
+                setPkgLog, canPay
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

@@ -115,7 +115,6 @@ class LogMonitor {
     }
 
     this.clearErrorCount(packageName); // Clear any existing upload timer for this package
-
     const filePath = (packageName === 'robot-agent') ?
       `${process.env.HOME}/.transitive/agent.log` :
       `${process.env.HOME}/.transitive/packages/${packageName}/log`;
@@ -228,6 +227,9 @@ class LogMonitor {
     const [dateTime, moduleName, level] = parts;
     // Ensure all parts are present
     if (!dateTime || !moduleName || !level) return null;
+  
+    // Ignore logs produced by this module
+    if (moduleName === log.name) return null;
 
     // Ignore logs produced by this module
     if (moduleName === log.name) return null;

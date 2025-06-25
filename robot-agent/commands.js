@@ -46,11 +46,14 @@ const commands = {
 
   getPkgLog: ({pkg}) => {
     return new Promise((resolve, reject) => {
-      exec(`cat ~/.transitive/packages/${pkg}/log | tail -n 100000`,
+      const logPath = (pkg === 'robot-agent') ?
+        '~/.transitive/agent.log' :
+        `~/.transitive/packages/${pkg}/log`;
+
+      exec(`cat ${logPath} | tail -n 100000`,
         (err, stdout, stderr) => resolve({
           err,
           stdout: zlib.gzipSync(stdout).toString('base64'),
-          stderr: zlib.gzipSync(stderr).toString('base64')
         }));
     });
   },

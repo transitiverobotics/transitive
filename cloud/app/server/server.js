@@ -26,7 +26,6 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
-const crypto = require('crypto');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -648,7 +647,7 @@ class _robotAgent extends Capability {
         const errorLogsTopic = `${organization}/${device}/@transitive-robotics/_robot-agent/${version}/errorLogs/${packageName}`;
         _.forEach(logs, (logLine) => {
           if (logLine.level === 'ERROR') {
-            const uuid = crypto.randomUUID();
+            const uuid = 'l_' + getRandomId(10);
             this.data.update(`${errorLogsTopic}/${uuid}`, logLine);
           }
         });

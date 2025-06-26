@@ -245,7 +245,7 @@ class LogMonitor {
     const logObject = { 
       timestamp,
       module: moduleName,
-      level,
+      level: level.toUpperCase(),
       logLevelValue,
       message,
       package: packageName

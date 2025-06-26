@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
     Accordion, Alert, Toast, Modal } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
@@ -132,11 +132,13 @@ const OSInfo = ({info, errorLogs, onLogsDismiss}) => !info ? <div></div> :
     Device
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
       <h3 style={{ margin: 0 }}>{info.os.hostname}</h3>
-      <ErrorLogs errorLogs={errorLogs} packageName='robot-agent' onLogsDismiss={onLogsDismiss} />
+      <ErrorLogs errorLogs={errorLogs} packageName='robot-agent'
+        onLogsDismiss={onLogsDismiss}
+      />
     </div>
     <div>
       {info.labels?.map(label =>
-          <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
+        <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
       }
     </div>
     <Form.Text>
@@ -146,12 +148,22 @@ const OSInfo = ({info, errorLogs, onLogsDismiss}) => !info ? <div></div> :
   </div>;
 
 const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss }) => {
-  const handleDismiss = () => {
+  const [dismissing, setDismissing] = useState(false);
+
+  const handleDismiss = async () => {
     // Mock logic for dismissing error logs
+    setDismissing(true);
     log.debug('Dismissing error logs for', packageName);
-    onLogsDismiss();
+    await onLogsDismiss();
+    setDismissing(false);
+    log.debug('Error logs dismissed for', packageName);
     onHide();
   };
+  const sortedErrorLogs = useMemo(()=>{
+    return Object.entries(errorLogs)
+    .map(([key, logObject]) => ({...logObject, key}))
+    .sort((a, b) => b.timestamp - a.timestamp);
+  }, [errorLogs]);
 
   return (
     <Modal show={show} onHide={onHide} size="lg">
@@ -159,13 +171,13 @@ const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss })
         <Modal.Title>Error Logs for {packageName}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {Object.entries(errorLogs).length === 0 ? (
+        {sortedErrorLogs.length === 0 ? (
           <p>No error logs available.</p>
         ) : (
           <ul>
-            {Object.entries(errorLogs).map(([key, logObject]) => (
-              <li key={key}>
-                <strong>{new Date(Number(key)).toLocaleString()}</strong>
+            {sortedErrorLogs.map((logObject) => (
+              <li key={logObject.key}>
+                <strong>{new Date(Number(logObject.timestamp)).toLocaleString()}</strong>
                 <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {logObject.message}
                 </pre>
@@ -175,19 +187,20 @@ const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss })
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
-        <Button variant="danger" onClick={handleDismiss}>Dismiss Logs</Button>
+        {dismissing && <Spinner animation="border" size="sm" />}
+        {dismissing && <span>Dismissing all error logs for {packageName}...</span>}
+        {!dismissing && <>
+          <Button variant="secondary" onClick={onHide}>Close</Button>
+          <Button variant="danger" onClick={handleDismiss}>Dismiss Logs</Button>
+        </>}
       </Modal.Footer>
-    </Modal>
-  );
+    </Modal> );
 };
 
 const ErrorLogs = ({errorLogs, packageName, onLogsDismiss}) => {
   const [showModal, setShowModal] = useState(false);
+
   const errorsCount = Object.keys(errorLogs).length;
-
-  log.debug('ErrorLogs for package', {packageName, errorLogs, errorsCount});
-
   if (errorsCount === 0) return null;
 
   return (
@@ -195,13 +208,15 @@ const ErrorLogs = ({errorLogs, packageName, onLogsDismiss}) => {
       <Badge pill bg="danger" onClick={() => setShowModal(true)} style={{ cursor: 'pointer' }}>
         {errorsCount}
       </Badge>
-      <ErrorLogsModal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        errorLogs={errorLogs}
-        packageName={packageName}
-        onLogsDismiss={onLogsDismiss}
-      />
+      {showModal && (
+        <ErrorLogsModal
+          show={showModal}
+          onHide={() => setShowModal(false)}
+          errorLogs={errorLogs}
+          packageName={packageName}
+          onLogsDismiss={onLogsDismiss}
+        />
+      )}
     </>
   );
 };
@@ -278,7 +293,6 @@ const Capability = (props) => {
 
   const packageErrorLogsTopic = `${versionPrefix}/errorLogs/${name}`;
   const errorLogs = mqttSync.data.getByTopic(packageErrorLogsTopic) || {};
-  log.debug('package errorLogs', {name, errorLogs});
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
@@ -352,10 +366,16 @@ const Capability = (props) => {
                 get log
               </Button>
             } {
-              <ErrorLogs errorLogs={errorLogs} packageName={name} onLogsDismiss={() => 
-                mqttSync.clear([packageErrorLogsTopic],
-                  () => log.debug('cleared package error logs')
-                )} />
+              <ErrorLogs errorLogs={errorLogs} packageName={name}
+                onLogsDismiss={async () => {
+                  await new Promise(resolve =>
+                    mqttSync.clear([packageErrorLogsTopic], () => {
+                      log.debug('cleared package error logs for', name);
+                      resolve();
+                    })
+                  );
+                }}               
+              />
             }
           </div>}
         </Col>
@@ -508,7 +528,6 @@ const Device = (props) => {
 
   const agentErrorLogsTopic = `${versionPrefix}/errorLogs/robot-agent`;
   const agentErrorLogs = mqttSync.data.getByTopic(agentErrorLogsTopic) || {};
-  log.debug('agent errorLogs', agentErrorLogs);
 
   // latestVersionData?.$response?.commands &&
   //   _.map(latestVersionData.$response.commands, (response, command) =>
@@ -519,8 +538,17 @@ const Device = (props) => {
 
   return <div>
     <div style={styles.row}>
-      <OSInfo info={latestVersionData?.info} errorLogs={agentErrorLogs} onLogsDismiss={() =>
-        mqttSync.clear([agentErrorLogsTopic], () => log.debug('cleared agent error logs'))}
+      <OSInfo
+        info={latestVersionData?.info}
+        errorLogs={agentErrorLogs}
+        onLogsDismiss={async () => {
+          await new Promise(resolve =>
+            mqttSync.clear([agentErrorLogsTopic], () => {
+              log.debug('cleared agent error logs');
+              resolve();
+            })
+          );
+        }}
       />
       {latestVersionData.status?.heartbeat &&
           <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>

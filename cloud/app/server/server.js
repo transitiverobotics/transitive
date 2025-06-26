@@ -26,7 +26,7 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
-const {isAuthorized} = require('./utils');
+const crypto = require('crypto');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -644,12 +644,12 @@ class _robotAgent extends Capability {
       });
 
       _.forEach(packageLogs, (logs, packageName) => {
-        log.debug(`Forwarding logs for ${organization}/${device}/${packageName}:`, logs);
         this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
         const errorLogsTopic = `${organization}/${device}/@transitive-robotics/_robot-agent/${version}/errorLogs/${packageName}`;
         _.forEach(logs, (logLine) => {
           if (logLine.level === 'ERROR') {
-            this.data.update(`${errorLogsTopic}/${logLine.timestamp}`, logLine);            
+            const uuid = crypto.randomUUID();
+            this.data.update(`${errorLogsTopic}/${uuid}`, logLine);
           }
         });
       });

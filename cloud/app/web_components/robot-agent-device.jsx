@@ -148,15 +148,8 @@ const OSInfo = ({info, errorLogs, onLogsDismiss}) => !info ? <div></div> :
   </div>;
 
 const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss }) => {
-  const [dismissing, setDismissing] = useState(false);
-
-  const handleDismiss = async () => {
-    // Mock logic for dismissing error logs
-    setDismissing(true);
-    log.debug('Dismissing error logs for', packageName);
-    await onLogsDismiss();
-    setDismissing(false);
-    log.debug('Error logs dismissed for', packageName);
+  const handleDismiss = () => {
+    onLogsDismiss();
     onHide();
   };
   const sortedErrorLogs = useMemo(()=>{
@@ -174,27 +167,37 @@ const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss })
         {sortedErrorLogs.length === 0 ? (
           <p>No error logs available.</p>
         ) : (
-          <ul>
+          <div>
             {sortedErrorLogs.map((logObject) => (
-              <li key={logObject.key}>
-                <strong>{new Date(Number(logObject.timestamp)).toLocaleString()}</strong>
-                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              <div
+                key={logObject.key}
+                style={{
+                  marginBottom: '1em',
+                  borderBottom: '1px solid #eee',
+                  paddingBottom: '0.5em',
+                  display: 'flex',
+                  gap: '1em',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <span style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                  {new Date(Number(logObject.timestamp)).toLocaleString()}
+                </span>
+                <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                   {logObject.message}
-                </pre>
-              </li>
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </Modal.Body>
       <Modal.Footer>
-        {dismissing && <Spinner animation="border" size="sm" />}
-        {dismissing && <span>Dismissing all error logs for {packageName}...</span>}
-        {!dismissing && <>
-          <Button variant="secondary" onClick={onHide}>Close</Button>
-          <Button variant="danger" onClick={handleDismiss}>Dismiss Logs</Button>
-        </>}
+        <Button variant="secondary" onClick={onHide}>Close</Button>
+        <Button variant="danger" onClick={handleDismiss}>Dismiss Logs</Button>
       </Modal.Footer>
-    </Modal> );
+    </Modal>
+  );
 };
 
 const ErrorLogs = ({errorLogs, packageName, onLogsDismiss}) => {
@@ -367,14 +370,12 @@ const Capability = (props) => {
               </Button>
             } {
               <ErrorLogs errorLogs={errorLogs} packageName={name}
-                onLogsDismiss={async () => {
-                  await new Promise(resolve =>
-                    mqttSync.clear([packageErrorLogsTopic], () => {
-                      log.debug('cleared package error logs for', name);
-                      resolve();
-                    })
-                  );
-                }}               
+                onLogsDismiss={() => {
+                  _.forEach(errorLogs, (log, key) => {
+                    mqttSync.data.update(`${packageErrorLogsTopic}/${key}`, null);
+                  });
+                  log.debug('dismissed error logs for package', name);
+                }}
               />
             }
           </div>}
@@ -541,13 +542,11 @@ const Device = (props) => {
       <OSInfo
         info={latestVersionData?.info}
         errorLogs={agentErrorLogs}
-        onLogsDismiss={async () => {
-          await new Promise(resolve =>
-            mqttSync.clear([agentErrorLogsTopic], () => {
-              log.debug('cleared agent error logs');
-              resolve();
-            })
-          );
+        onLogsDismiss={() => {        
+          _.forEach(agentErrorLogs, (log, key) => {
+            mqttSync.data.update(`${agentErrorLogsTopic}/${key}`, null);
+          });
+          log.debug('dismissed agent error logs');
         }}
       />
       {latestVersionData.status?.heartbeat &&

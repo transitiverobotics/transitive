@@ -358,7 +358,7 @@ class LogMonitor {
     const topic = `${this.AGENT_PREFIX}/errorLogsCount/${packageName}`;
     const currentCount = this.mqttSync.data.getByTopic(topic) || 0;
     this.mqttSync.data.update(topic, currentCount + 1);
-    log.info('Incremented error logs count for package:', packageName, 'to', currentCount + 1);
+    log.debug('Incremented error logs count for package:', packageName, 'to', currentCount + 1);
   }
 }
 

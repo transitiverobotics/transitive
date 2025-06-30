@@ -618,8 +618,6 @@ class _robotAgent extends Capability {
   forwardAgentLogsToHyperdx() {
     log.debug('Subscribing to logs');
     this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/logs');
-    this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/errorLogs/#');
-    this.mqttSync.publish('/+/+/@transitive-robotics/_robot-agent/+/errorLogs/#');
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, version, sub } = parseMQTTTopic(topic);

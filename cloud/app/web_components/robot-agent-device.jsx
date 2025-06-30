@@ -127,14 +127,11 @@ const failsRequirements = (info, pkg) => {
 };
 
 /** display info from OS */
-const OSInfo = ({info, errorLogs, onLogsDismiss}) => !info ? <div></div> :
+const OSInfo = ({info}) => !info ? <div></div> :
   <div>
     Device
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
       <h3 style={{ margin: 0 }}>{info.os.hostname}</h3>
-      <ErrorLogs errorLogs={errorLogs} packageName='robot-agent'
-        onLogsDismiss={onLogsDismiss}
-      />
     </div>
     <div>
       {info.labels?.map(label =>
@@ -147,80 +144,13 @@ const OSInfo = ({info, errorLogs, onLogsDismiss}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
-const ErrorLogsModal = ({ show, onHide, errorLogs, packageName, onLogsDismiss }) => {
-  const handleDismiss = () => {
-    onLogsDismiss();
-    onHide();
-  };
-  const sortedErrorLogs = useMemo(()=>{
-    return Object.entries(errorLogs)
-    .map(([key, logObject]) => ({...logObject, key}))
-    .sort((a, b) => b.timestamp - a.timestamp);
-  }, [errorLogs]);
+const ErrorLogsCounter = ({errorLogsCount}) => {
+  if (errorLogsCount === 0) return null;
 
   return (
-    <Modal show={show} onHide={onHide} size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>Error Logs for {packageName}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {sortedErrorLogs.length === 0 ? (
-          <p>No error logs available.</p>
-        ) : (
-          <div>
-            {sortedErrorLogs.map((logObject) => (
-              <div
-                key={logObject.key}
-                style={{
-                  marginBottom: '1em',
-                  borderBottom: '1px solid #eee',
-                  paddingBottom: '0.5em',
-                  display: 'flex',
-                  gap: '1em',
-                  alignItems: 'flex-start',
-                  flexWrap: 'wrap'
-                }}
-              >
-                <span style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                  {new Date(Number(logObject.timestamp)).toLocaleString()}
-                </span>
-                <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                  {logObject.message}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
-        <Button variant="danger" onClick={handleDismiss}>Dismiss Logs</Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-const ErrorLogs = ({errorLogs, packageName, onLogsDismiss}) => {
-  const [showModal, setShowModal] = useState(false);
-
-  const errorsCount = Object.keys(errorLogs).length;
-  if (errorsCount === 0) return null;
-
-  return (
-    <>
-      <Badge pill bg="danger" onClick={() => setShowModal(true)} style={{ cursor: 'pointer' }}>
-        {errorsCount}
-      </Badge>
-      {showModal && (
-        <ErrorLogsModal
-          show={showModal}
-          onHide={() => setShowModal(false)}
-          errorLogs={errorLogs}
-          packageName={packageName}
-          onLogsDismiss={onLogsDismiss}
-        />
-      )}
-    </>
+    <Badge pill bg="danger">
+      {errorLogsCount}
+    </Badge>
   );
 };
 
@@ -294,8 +224,8 @@ const Capability = (props) => {
     mqttSync.call(`${versionPrefix}/rpc/${command}`, {pkg: name}, cb);
   };
 
-  const packageErrorLogsTopic = `${versionPrefix}/errorLogs/${name}`;
-  const errorLogs = mqttSync.data.getByTopic(packageErrorLogsTopic) || {};
+  const packageErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/${name}`;
+  const errorLogsCount = mqttSync.data.getByTopic(packageErrorLogsCountTopic) || 0;
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
@@ -361,21 +291,12 @@ const Capability = (props) => {
                 </Button>
               </span>
             } {
-              <Button variant='link'
+              <LogButtonWithCounter 
                 onClick={() => runPkgCommand('getPkgLog', (response) => {
                   const [scope, capName] = name.split('/');
                   setPkgLog({[scope]: {[capName]: response}});
-                })}>
-                get log
-              </Button>
-            } {
-              <ErrorLogs errorLogs={errorLogs} packageName={name}
-                onLogsDismiss={() => {
-                  _.forEach(errorLogs, (log, key) => {
-                    mqttSync.data.update(`${packageErrorLogsTopic}/${key}`, null);
-                  });
-                  log.debug('dismissed error logs for package', name);
-                }}
+                })} 
+                errorLogsCount={errorLogsCount} 
               />
             }
           </div>}
@@ -436,9 +357,7 @@ const Device = (props) => {
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
-        mqttSync.subscribe(`${prefix}/+/errorLogs/#`); // for error logs
-        mqttSync.publish(`${prefix}/+/errorLogs/#`); // for dismissing of error logs
-
+        mqttSync.subscribe(`${prefix}/+/errorLogsCount/#`); // for error logs
 
         mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
           // received pong back from server for our ping:
@@ -527,8 +446,8 @@ const Device = (props) => {
   const canPay = session.has_payment_method || session.free
     || (session.balance < 0 && new Date(session.balanceExpires) > new Date());
 
-  const agentErrorLogsTopic = `${versionPrefix}/errorLogs/robot-agent`;
-  const agentErrorLogs = mqttSync.data.getByTopic(agentErrorLogsTopic) || {};
+  const agentErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/robot-agent`;
+  const agentErrorLogsCount = mqttSync.data.getByTopic(agentErrorLogsCountTopic) || 0;
 
   // latestVersionData?.$response?.commands &&
   //   _.map(latestVersionData.$response.commands, (response, command) =>
@@ -541,13 +460,6 @@ const Device = (props) => {
     <div style={styles.row}>
       <OSInfo
         info={latestVersionData?.info}
-        errorLogs={agentErrorLogs}
-        onLogsDismiss={() => {        
-          _.forEach(agentErrorLogs, (log, key) => {
-            mqttSync.data.update(`${agentErrorLogsTopic}/${key}`, null);
-          });
-          log.debug('dismissed agent error logs');
-        }}
       />
       {latestVersionData.status?.heartbeat &&
           <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
@@ -569,7 +481,12 @@ const Device = (props) => {
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
         Remove device
-      </ConfirmedButton>
+      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter 
+          onClick={() => runCommand('getPkgLog', {pkg: 'robot-agent'}, (response) => {
+            setPkgLog({['@transitive-robotics']: {['robot-agent']: response}});
+          })} 
+          errorLogsCount={agentErrorLogsCount} 
+        />
 
       <Fold title="Configuration">
         <div style={styles.row}>
@@ -642,3 +559,16 @@ const Device = (props) => {
 
 
 createWebComponent(Device, 'robot-agent-device');
+
+const LogButtonWithCounter = ({ onClick, errorLogsCount }) => (
+  <div style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
+    <ActionLink onClick={onClick}>
+      Get log
+    </ActionLink>
+    {errorLogsCount > 0 && (
+      <Badge pill bg="danger" style={{ position: 'absolute', top: '-1.2em', right: '-1.5em' }}>
+        {errorLogsCount}
+      </Badge>
+    )}
+  </div>
+);

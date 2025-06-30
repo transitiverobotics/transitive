@@ -644,13 +644,6 @@ class _robotAgent extends Capability {
 
       _.forEach(packageLogs, (logs, packageName) => {
         this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
-        const errorLogsTopic = `${organization}/${device}/@transitive-robotics/_robot-agent/${version}/errorLogs/${packageName}`;
-        _.forEach(logs, (logLine) => {
-          if (logLine.level === 'ERROR') {
-            const uuid = 'l_' + getRandomId(10);
-            this.data.update(`${errorLogsTopic}/${uuid}`, logLine);
-          }
-        });
       });
     });
   }

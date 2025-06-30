@@ -3,7 +3,17 @@ import pako from 'pako';
 
 import { Modal } from 'react-bootstrap';
 
-import { FaCircle, FaRegCircle, FaRegQuestionCircle } from 'react-icons/fa';
+import { FaCircle, FaRegCircle } from 'react-icons/fa';
+
+import { getLogger } from '@transitive-sdk/utils-web';
+
+const log = getLogger('shared.jsx');
+log.setLevel('info');
+
+const _ = {
+  map: require('lodash/map'),
+  filter: require('lodash/filter'),
+};
 
 const STALE_THRESHOLD = 3 * 24 * 60 * 60 * 1e3;
 const WARNING_THRESHOLD = 1.15 * 60 * 1e3;
@@ -74,13 +84,51 @@ const decompress = (zippedBase64) => {
   }
 }
 */
-export const PkgLog = ({response, hide}) => {
+export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const scope = Object.keys(response)[0];
   const cap = Object.values(response)[0];
   const capName = Object.keys(cap)[0];
   const result = Object.values(cap)[0];
   const stdout = decompress(result.stdout);
   const stderr = decompress(result.stderr);
+
+  const packageName = (capName === 'robot-agent') ?
+    'robot-agent' : `${scope}/${capName}`;
+  
+  const [liveLogs, setLiveLogs] = useState([]);
+
+  useEffect(() => {
+    if (mqttClient) {
+      const topic = `${agentPrefix}/logs`;
+      mqttClient.subscribe(topic, (err) => {
+        if (err) {
+          console.error('Failed to subscribe to live logs:', err);
+        } else {
+          console.log('Subscribed to live logs:', topic);
+        }
+      });
+      mqttClient.on('message', (msgTopic, message) => {
+        if (msgTopic === topic) {
+          const logLines = message && JSON.parse(message.toString());
+          if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
+            return;
+          }  
+          const packageLogObjects = _.filter(logLines, (line) => {
+            return line.package === packageName;
+          });
+          const newLog = _.map(packageLogObjects, (log) => {
+            return `[${new Date(log.timestamp).toISOString()} ${log.module} ${log.level.toLowerCase()}] ${log.message}`;
+          }).join('\n');
+  
+          if (newLog) {
+            setLiveLogs((prevLogs) => {
+              return prevLogs + '\n' + newLog;
+            });
+          }
+        }
+      });
+    }
+  }, [mqttClient, scope, capName]);
 
   const style = {
     whiteSpace: 'pre-wrap',
@@ -90,12 +138,21 @@ export const PkgLog = ({response, hide}) => {
   // fullscreen={true}
   return <Modal show={true} size='xl' onHide={hide} >
     <Modal.Header closeButton>
-      <Modal.Title>Package Log for {scope}/{capName}</Modal.Title>
+      {packageName === 'robot-agent' &&
+        <Modal.Title> Robot Agent Log </Modal.Title>
+      }
+      {packageName !== 'robot-agent' &&
+        <Modal.Title>Package Log for {packageName}</Modal.Title>
+      }
     </Modal.Header>
     <Modal.Body>
       {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>}
       {stderr ? <pre style={{... style, color: 'red'}}>{stderr}</pre>
         : <div>stderr is empty</div>}
+      <h5>Live Log:</h5>
+      <pre style={style}>
+        {liveLogs}
+      </pre>
     </Modal.Body>
   </Modal>;
 }

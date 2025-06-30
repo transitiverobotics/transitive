@@ -144,15 +144,18 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
-const ErrorLogsCounter = ({errorLogsCount}) => {
-  if (errorLogsCount === 0) return null;
-
-  return (
-    <Badge pill bg="danger">
-      {errorLogsCount}
-    </Badge>
-  );
-};
+const LogButtonWithCounter = ({ onClick, errorLogsCount }) => (
+  <div style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
+    <ActionLink onClick={onClick}>
+      Get log
+    </ActionLink>
+    {errorLogsCount > 0 && (
+      <Badge pill bg="danger" style={{ position: 'absolute', top: '-1.2em', right: '-1.5em' }}>
+        {errorLogsCount}
+      </Badge>
+    )}
+  </div>
+);
 
 /** given a package name, get it's human-readable title, e.g.,
 @transitive-robotics/remote-teleop => Remote Teleop
@@ -481,11 +484,11 @@ const Device = (props) => {
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
         Remove device
-      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter 
+      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter
           onClick={() => runCommand('getPkgLog', {pkg: 'robot-agent'}, (response) => {
             setPkgLog({['@transitive-robotics']: {['robot-agent']: response}});
-          })} 
-          errorLogsCount={agentErrorLogsCount} 
+          })}
+          errorLogsCount={agentErrorLogsCount}
         />
 
       <Fold title="Configuration">
@@ -553,22 +556,12 @@ const Device = (props) => {
       </Accordion>
     </div>
 
-    {pkgLog && <PkgLog response={pkgLog} hide={() => setPkgLog()}/>}
+    {pkgLog && <PkgLog response={pkgLog} mqttClient={mqttSync.mqtt}
+      agentPrefix={versionPrefix}
+      hide={() => setPkgLog()}/>
+    }
   </div>
 };
 
 
 createWebComponent(Device, 'robot-agent-device');
-
-const LogButtonWithCounter = ({ onClick, errorLogsCount }) => (
-  <div style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
-    <ActionLink onClick={onClick}>
-      Get log
-    </ActionLink>
-    {errorLogsCount > 0 && (
-      <Badge pill bg="danger" style={{ position: 'absolute', top: '-1.2em', right: '-1.5em' }}>
-        {errorLogsCount}
-      </Badge>
-    )}
-  </div>
-);

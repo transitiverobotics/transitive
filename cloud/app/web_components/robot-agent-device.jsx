@@ -150,9 +150,7 @@ const failsRequirements = (info, pkg) => {
 const OSInfo = ({info}) => !info ? <div></div> :
   <div>
     Device
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
-      <h3 style={{ margin: 0 }}>{info.os.hostname}</h3>
-    </div>
+    <h3>{info.os.hostname}</h3>
     <div>
       {info.labels?.map(label =>
         <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)

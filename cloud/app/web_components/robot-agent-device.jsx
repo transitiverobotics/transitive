@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
-    Accordion, Alert, Toast, Modal } from 'react-bootstrap';
+    Accordion, Alert, Toast, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
 const _ = {
@@ -61,6 +61,26 @@ const styles = {
     margin: '1em',
     width: 'fit-content',
     backgroundColor: '#def'
+  },
+  logButtonContainer: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    position: 'relative',
+    marginRight: '2em'
+  },
+  errorBadge: {
+    cursor: 'default',
+    fontSize: '0.75em',
+    lineHeight: 1,
+    minWidth: '1.4em',
+    height: '1.4em',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: '-0.6em',
+    left: '100%',
+    marginLeft: '0.1em'
   }
 };
 
@@ -144,18 +164,43 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
-const LogButtonWithCounter = ({ onClick, errorLogsCount }) => (
-  <div style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
-    <ActionLink onClick={onClick}>
-      Get log
-    </ActionLink>
-    {errorLogsCount > 0 && (
-      <Badge pill bg="danger" style={{ position: 'absolute', top: '-1.2em', right: '-1.5em' }}>
-        {errorLogsCount}
-      </Badge>
-    )}
-  </div>
-);
+const LogButtonWithCounter = ({ onClick, errorLogsCount, lastError }) => {
+  const formatLastError = (errorObj) => {
+    if (!errorObj) return 'No error details available';
+    
+    const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
+    const module = errorObj.module || 'Unknown module';
+    const message = errorObj.message || 'No message';
+    
+    return `${timestamp} - ${module}: ${message}`;
+  };
+
+  return (
+    <div style={styles.logButtonContainer}>
+      <ActionLink onClick={onClick}>
+        Get log
+      </ActionLink>
+      {errorLogsCount > 0 && lastError && (
+        <OverlayTrigger
+          placement="top"
+          overlay={
+            <Tooltip id={`error-tooltip-${Math.random()}`}>
+              Last error: {formatLastError(lastError)}
+            </Tooltip>
+          }
+        >
+          <Badge 
+            pill 
+            bg="danger" 
+            style={styles.errorBadge}
+          >
+            {errorLogsCount}
+          </Badge>
+        </OverlayTrigger>
+      )}
+    </div>
+  );
+};
 
 /** given a package name, get it's human-readable title, e.g.,
 @transitive-robotics/remote-teleop => Remote Teleop
@@ -229,6 +274,9 @@ const Capability = (props) => {
 
   const packageErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/${name}`;
   const errorLogsCount = mqttSync.data.getByTopic(packageErrorLogsCountTopic) || 0;
+  
+  const packageLastErrorTopic = `${versionPrefix}/lastError/${name}`;
+  const lastError = mqttSync.data.getByTopic(packageLastErrorTopic);
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
@@ -300,6 +348,7 @@ const Capability = (props) => {
                   setPkgLog({[scope]: {[capName]: response}});
                 })} 
                 errorLogsCount={errorLogsCount} 
+                lastError={lastError}
               />
             }
           </div>}
@@ -361,6 +410,7 @@ const Device = (props) => {
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
         mqttSync.subscribe(`${prefix}/+/errorLogsCount/#`); // for error logs
+        mqttSync.subscribe(`${prefix}/+/lastError/#`); // for last error details
 
         mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
           // received pong back from server for our ping:
@@ -451,6 +501,9 @@ const Device = (props) => {
 
   const agentErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/robot-agent`;
   const agentErrorLogsCount = mqttSync.data.getByTopic(agentErrorLogsCountTopic) || 0;
+  
+  const agentLastErrorTopic = `${versionPrefix}/lastError/robot-agent`;
+  const agentLastError = mqttSync.data.getByTopic(agentLastErrorTopic);
 
   // latestVersionData?.$response?.commands &&
   //   _.map(latestVersionData.$response.commands, (response, command) =>
@@ -489,6 +542,7 @@ const Device = (props) => {
             setPkgLog({['@transitive-robotics']: {['robot-agent']: response}});
           })}
           errorLogsCount={agentErrorLogsCount}
+          lastError={agentLastError}
         />
 
       <Fold title="Configuration">

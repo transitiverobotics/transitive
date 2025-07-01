@@ -235,11 +235,19 @@ const staticInfo = () => {
 const getGeoIP = async () => {
   // get geolocation and add to info
   try {
-    const response = await fetch('https://ipconfig.io/json');
-    if (response.ok) {
-      const geo = await response.json();
-      log.debug('got geo info:', geo);
-      data.update(`${AGENT_PREFIX}/info/geo`, geo);
+    const ipResponse = await fetch('https://api.ipify.org?format=json');
+    if (ipResponse.ok) {
+      const ipData = await ipResponse.json();
+      log.debug('got IP info:', ipData);
+      if (ipData.ip) {
+      // use the IP address to get geo info
+        const geoResponse = await fetch(`https://api.hackertarget.com/geoip/?q=${ipData.ip}&output=json`);
+        if (geoResponse.ok) {
+          const geo = await geoResponse.json();
+          log.debug('got geo info:', geo);
+          data.update(`${AGENT_PREFIX}/info/geo`, geo);
+        }
+      }
     }
   } catch (error) {
     log.warn('Error getting geoIP:', error);

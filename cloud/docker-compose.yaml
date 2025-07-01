@@ -221,7 +221,7 @@ services:
     volumes:
       - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse
       # - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server
-    restart: on-failure
+    restart: always
     networks:
       - default
     deploy:
@@ -253,6 +253,7 @@ services:
         ClickHouse","logSourceId":"Logs","traceSourceId":"Traces","metricSourceId":"Metrics"}]'
     networks:
       - default
+    restart: always
     depends_on:
       - clickhouse
       - mongodb

@@ -34,6 +34,7 @@ const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -176,6 +177,9 @@ mqttClient.on('connect', function(connackPacket) {
 
       getGeoIP();
       executeSelfChecks(data);
+
+      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
+      LogMonitor.watchLogs('robot-agent');
 
       initialized = true;
     });

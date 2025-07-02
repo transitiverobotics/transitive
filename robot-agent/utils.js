@@ -7,6 +7,7 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
+const LogMonitor = require('./logMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -64,6 +65,7 @@ const removePackage = (pkg) => {
       log.debug('package stopped, removing files');
     }
     exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
+    LogMonitor.stopWatchingLogs(pkg);
   });
 };
 
@@ -118,6 +120,7 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
 
+  LogMonitor.watchLogs(name);
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
@@ -130,7 +133,6 @@ const startPackage = (name) => {
       const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
-
 
       // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
@@ -233,12 +235,17 @@ const logRotate = (file, {count}) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
+  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
+  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
+    err && log.error('error rotating agent log file', err));
+  LogMonitor.clearErrorCount('robot-agent')
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
     logRotate(logFile, {count: LOG_COUNT}, (err) =>
       err && log.error(`error rotating log file for ${dir}`, err)
     );
+    LogMonitor.clearErrorCount(dir);
   });
 };
 

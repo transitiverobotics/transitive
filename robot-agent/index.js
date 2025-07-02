@@ -1,6 +1,6 @@
 
-
 const fs = require('fs');
+
 const constants = require('./constants');
 const { getConfig } = require('./config');
 

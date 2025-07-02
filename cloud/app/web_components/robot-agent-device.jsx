@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
     Accordion, Alert, Toast, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
@@ -439,9 +439,7 @@ const Device = (props) => {
 
   return <div>
     <div style={styles.row}>
-      <OSInfo
-        info={latestVersionData?.info}
-      />
+      <OSInfo info={latestVersionData?.info}/>
       {latestVersionData.status?.heartbeat &&
           <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
       } <span style={styles.agentVersion} title='Transitive agent version'>

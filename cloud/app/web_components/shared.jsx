@@ -99,7 +99,7 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
 
   useEffect(() => {
     if (mqttClient) {
-      const topic = `${agentPrefix}/logs`;
+      const topic = `${agentPrefix}/status/logs/live`;
       mqttClient.subscribe(topic, (err) => {
         if (err) {
           console.error('Failed to subscribe to live logs:', err);
@@ -195,11 +195,11 @@ export const GetLogButtonWithCounter = ({
   useEffect(() => {
     if (mqttSync && versionPrefix && packageName) {
       // Subscribe to error logs count and last error topics
-      const errorLogsCountTopic = `${versionPrefix}/errorLogsCount/${packageName}`;
-      const lastErrorTopic = `${versionPrefix}/lastError/${packageName}`;
+      const errorLogsCountTopic = `${versionPrefix}/status/logs/errorCount/${packageName}`;
+      const lastErrorTopic = `${versionPrefix}/status/logs/lastError/${packageName}`;
       
-      mqttSync.subscribe(`${versionPrefix}/errorLogsCount/#`);
-      mqttSync.subscribe(`${versionPrefix}/lastError/#`);
+      mqttSync.subscribe(errorLogsCountTopic);
+      mqttSync.subscribe(lastErrorTopic);
       
       // Get current values and set up listeners
       const updateErrorLogsCount = () => {

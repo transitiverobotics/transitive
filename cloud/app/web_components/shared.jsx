@@ -182,7 +182,6 @@ const logButtonStyles = {
 /** Component that shows a log button with an error counter badge */
 export const GetLogButtonWithCounter = ({ 
   text, 
-  onClick, 
   mqttSync, 
   versionPrefix, 
   packageName, 
@@ -190,6 +189,7 @@ export const GetLogButtonWithCounter = ({
 }) => {
   const [errorLogsCount, setErrorLogsCount] = useState(0);
   const [lastError, setLastError] = useState(null);
+  const [pkgLog, setPkgLog] = useState(null);
 
   // Subscribe to error logs and get data
   useEffect(() => {
@@ -227,6 +227,23 @@ export const GetLogButtonWithCounter = ({
       };
     }
   }, [mqttSync, versionPrefix, packageName]);
+
+  // Handle get log button click
+  const handleGetLog = () => {
+    const topic = `${versionPrefix}/rpc/getPkgLog`;
+    console.log('running getPkgLog command', {topic, pkg: packageName});
+    mqttSync.call(topic, {pkg: packageName}, (response) => {
+      console.log('got package log response', response);
+      
+      // Format response for PkgLog component
+      if (packageName === 'robot-agent') {
+        setPkgLog({'@transitive-robotics': {'robot-agent': response}});
+      } else {
+        const [scope, capName] = packageName.split('/');
+        setPkgLog({[scope]: {[capName]: response}});
+      }
+    });
+  };
   
   const formatLastError = (errorObj) => {
     if (!errorObj) return 'No error details available';
@@ -239,28 +256,37 @@ export const GetLogButtonWithCounter = ({
   };
 
   return (
-    <div style={logButtonStyles.container}>
-      <ActionLink onClick={onClick}>
-        {text}
-      </ActionLink>
-      {errorLogsCount > 0 && lastError && (
-        <OverlayTrigger
-          placement={toolTipPlacement}
-          overlay={
-            <Tooltip id={`error-tooltip-${Math.random()}`}>
-              Last error: {formatLastError(lastError)}
-            </Tooltip>
-          }
-        >
-          <Badge 
-            pill 
-            bg='danger'
-            style={logButtonStyles.errorCountBadge}
+    <>
+      <div style={logButtonStyles.container}>
+        <ActionLink onClick={handleGetLog}>
+          {text}
+        </ActionLink>
+        {errorLogsCount > 0 && lastError && (
+          <OverlayTrigger
+            placement={toolTipPlacement}
+            overlay={
+              <Tooltip id={`error-tooltip-${Math.random()}`}>
+                Last error: {formatLastError(lastError)}
+              </Tooltip>
+            }
           >
-            {errorLogsCount}
-          </Badge>
-        </OverlayTrigger>
-      )}
-    </div>
+            <Badge 
+              pill 
+              bg='danger'
+              style={logButtonStyles.errorCountBadge}
+            >
+              {errorLogsCount}
+            </Badge>
+          </OverlayTrigger>
+        )}
+      </div>
+      
+      {pkgLog && <PkgLog 
+        response={pkgLog} 
+        mqttClient={mqttSync.mqtt}
+        agentPrefix={versionPrefix}
+        hide={() => setPkgLog(null)}
+      />}
+    </>
   );
 };

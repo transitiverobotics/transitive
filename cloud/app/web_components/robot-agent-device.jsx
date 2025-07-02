@@ -21,7 +21,7 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps, PkgLog, GetLogButtonWithCounter } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, GetLogButtonWithCounter } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -193,7 +193,7 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
+    inactive, device, versionPrefix, desiredPackagesTopic,
     canPay } = props;
 
   const uninstall = (pkgName) => {
@@ -279,10 +279,6 @@ const Capability = (props) => {
             } {
               <GetLogButtonWithCounter
                 text="get log"
-                onClick={() => runPkgCommand('getPkgLog', (response) => {
-                  const [scope, capName] = name.split('/');
-                  setPkgLog({[scope]: {[capName]: response}});
-                })} 
                 mqttSync={mqttSync}
                 versionPrefix={versionPrefix}
                 packageName={name}
@@ -328,7 +324,6 @@ const Device = (props) => {
 
 
   const [showAdd, setShowAdd] = useState(false);
-  const [pkgLog, setPkgLog] = useState();
   const [toast, setToast] = useState(null);
 
   const [availablePackages, setAvailablePackages] = useState([]);
@@ -469,9 +464,6 @@ const Device = (props) => {
         Remove device
       </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
           text="Get log"
-          onClick={() => runCommand('getPkgLog', {pkg: 'robot-agent'}, (response) => {
-            setPkgLog({['@transitive-robotics']: {['robot-agent']: response}});
-          })}
           mqttSync={mqttSync}
           versionPrefix={versionPrefix}
           packageName="robot-agent"
@@ -507,7 +499,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                setPkgLog, canPay
+                canPay
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>
@@ -541,11 +533,6 @@ const Device = (props) => {
         }
       </Accordion>
     </div>
-
-    {pkgLog && <PkgLog response={pkgLog} mqttClient={mqttSync.mqtt}
-      agentPrefix={versionPrefix}
-      hide={() => setPkgLog()}/>
-    }
   </div>
 };
 

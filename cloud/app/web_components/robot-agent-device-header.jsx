@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Badge, Button } from 'react-bootstrap';
 
 // const _ = {
@@ -10,7 +10,7 @@ import { Badge, Button } from 'react-bootstrap';
 import { useMqttSync, createWebComponent, decodeJWT, mergeVersions, getLogger, versionCompare}
 from '@transitive-sdk/utils-web';
 
-import { Heartbeat, ensureProps, PkgLog, GetLogButtonWithCounter } from './shared';
+import { Heartbeat, ensureProps, GetLogButtonWithCounter } from './shared';
 
 const log = getLogger('robot-agent-device-header');
 log.setLevel('debug');
@@ -30,8 +30,6 @@ const styles = {
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
-
-  const [pkgLog, setPkgLog] = useState();
 
   if (!ensureProps(props, ['jwt', 'id', 'host'])) {
     log.debug({props})
@@ -56,11 +54,6 @@ const Device = (props) => {
 
   const latestVersion = ourData && Object.keys(ourData).sort(versionCompare).at(-1);
   const versionPrefix = `${prefix}/${latestVersion}`;
-  const runPkgCommand = (command, cb = log.debug) => {
-    const topic =  `${versionPrefix}/rpc/${command}`;
-    log.debug('running package command', {command, topic, pkg});
-    mqttSync.call(topic, {pkg: pkg}, cb);
-  };
 
   return <div style={styles.wrapper}>
     <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
@@ -72,19 +65,11 @@ const Device = (props) => {
     }
     <GetLogButtonWithCounter
       text="show capability log"
-      onClick={() => runPkgCommand('getPkgLog', (response) => {
-        log.debug('got package log response', response);
-        setPkgLog({[scope]: {[capName]: response}});
-      })} 
       mqttSync={mqttSync}
       versionPrefix={versionPrefix}
       packageName={pkg}
       toolTipPlacement='bottom'
     />
-
-    {pkgLog && <PkgLog response={pkgLog} mqttClient={mqttSync.mqtt}
-      agentPrefix={versionPrefix}
-      hide={() => setPkgLog()}/>}
   </div>;
 };
 

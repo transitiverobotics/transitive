@@ -90,7 +90,6 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const capName = Object.keys(cap)[0];
   const result = Object.values(cap)[0];
   const stdout = decompress(result.stdout);
-  const stderr = decompress(result.stderr);
 
   const packageName = (capName === 'robot-agent') ?
     'robot-agent' : `${scope}/${capName}`;
@@ -147,8 +146,6 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
     </Modal.Header>
     <Modal.Body>
       {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>}
-      {stderr ? <pre style={{... style, color: 'red'}}>{stderr}</pre>
-        : <div>stderr is empty</div>}
       <h5>Live Log:</h5>
       <pre style={style}>
         {liveLogs}

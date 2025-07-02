@@ -54,7 +54,6 @@ const commands = {
         (err, stdout, stderr) => resolve({
           err,
           stdout: zlib.gzipSync(stdout).toString('base64'),
-          stderr: zlib.gzipSync(stderr).toString('base64')
         }));
     });
   },

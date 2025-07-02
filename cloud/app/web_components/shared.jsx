@@ -1,11 +1,12 @@
 import React, { useEffect, useReducer, useState } from 'react';
 import pako from 'pako';
 
-import { Modal } from 'react-bootstrap';
+import { Modal, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 
 import { FaCircle, FaRegCircle } from 'react-icons/fa';
 
 import { getLogger } from '@transitive-sdk/utils-web';
+import { ActionLink } from '../src/utils/index';
 
 const log = getLogger('shared.jsx');
 log.setLevel('info');
@@ -153,3 +154,113 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
     </Modal.Body>
   </Modal>;
 }
+
+// Styles for LogButtonWithCounter component
+const logButtonStyles = {
+  container: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    position: 'relative',
+    marginRight: '2em'
+  },
+  errorCountBadge: {
+    cursor: 'default',
+    fontSize: '0.75em',
+    lineHeight: 1,
+    minWidth: '1.4em',
+    height: '1.4em',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: '-0.6em',
+    left: '100%',
+    marginLeft: '0.1em'
+  }
+};
+
+/** Component that shows a log button with an error counter badge */
+export const GetLogButtonWithCounter = ({ 
+  text, 
+  onClick, 
+  mqttSync, 
+  versionPrefix, 
+  packageName, 
+  toolTipPlacement = 'top',
+}) => {
+  const [errorLogsCount, setErrorLogsCount] = useState(0);
+  const [lastError, setLastError] = useState(null);
+
+  // Subscribe to error logs and get data
+  useEffect(() => {
+    if (mqttSync && versionPrefix && packageName) {
+      // Subscribe to error logs count and last error topics
+      const errorLogsCountTopic = `${versionPrefix}/errorLogsCount/${packageName}`;
+      const lastErrorTopic = `${versionPrefix}/lastError/${packageName}`;
+      
+      mqttSync.subscribe(`${versionPrefix}/errorLogsCount/#`);
+      mqttSync.subscribe(`${versionPrefix}/lastError/#`);
+      
+      // Get current values and set up listeners
+      const updateErrorLogsCount = () => {
+        const count = mqttSync.data.getByTopic(errorLogsCountTopic) || 0;
+        setErrorLogsCount(count);
+      };
+      
+      const updateLastError = () => {
+        const error = mqttSync.data.getByTopic(lastErrorTopic);
+        setLastError(error);
+      };
+      
+      // Initial load
+      updateErrorLogsCount();
+      updateLastError();
+      
+      // Set up data listeners
+      const unsubscribeCount = mqttSync.data.subscribePath(errorLogsCountTopic, updateErrorLogsCount);
+      const unsubscribeError = mqttSync.data.subscribePath(lastErrorTopic, updateLastError);
+      
+      // Cleanup
+      return () => {
+        if (unsubscribeCount) unsubscribeCount();
+        if (unsubscribeError) unsubscribeError();
+      };
+    }
+  }, [mqttSync, versionPrefix, packageName]);
+  
+  const formatLastError = (errorObj) => {
+    if (!errorObj) return 'No error details available';
+    
+    const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
+    const module = errorObj.module || 'Unknown module';
+    const message = errorObj.message || 'No message';
+    
+    return `${timestamp} - ${module}: ${message}`;
+  };
+
+  return (
+    <div style={logButtonStyles.container}>
+      <ActionLink onClick={onClick}>
+        {text}
+      </ActionLink>
+      {errorLogsCount > 0 && lastError && (
+        <OverlayTrigger
+          placement={toolTipPlacement}
+          overlay={
+            <Tooltip id={`error-tooltip-${Math.random()}`}>
+              Last error: {formatLastError(lastError)}
+            </Tooltip>
+          }
+        >
+          <Badge 
+            pill 
+            bg='danger'
+            style={logButtonStyles.errorCountBadge}
+          >
+            {errorLogsCount}
+          </Badge>
+        </OverlayTrigger>
+      )}
+    </div>
+  );
+};

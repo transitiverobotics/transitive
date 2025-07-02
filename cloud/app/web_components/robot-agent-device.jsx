@@ -21,7 +21,7 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps, PkgLog } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, PkgLog, GetLogButtonWithCounter } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -61,26 +61,6 @@ const styles = {
     margin: '1em',
     width: 'fit-content',
     backgroundColor: '#def'
-  },
-  logButtonContainer: {
-    display: 'inline-flex',
-    alignItems: 'baseline',
-    position: 'relative',
-    marginRight: '2em'
-  },
-  errorBadge: {
-    cursor: 'default',
-    fontSize: '0.75em',
-    lineHeight: 1,
-    minWidth: '1.4em',
-    height: '1.4em',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    top: '-0.6em',
-    left: '100%',
-    marginLeft: '0.1em'
   }
 };
 
@@ -162,44 +142,6 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </Form.Text>
   </div>;
 
-const LogButtonWithCounter = ({ onClick, errorLogsCount, lastError }) => {
-  const formatLastError = (errorObj) => {
-    if (!errorObj) return 'No error details available';
-    
-    const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
-    const module = errorObj.module || 'Unknown module';
-    const message = errorObj.message || 'No message';
-    
-    return `${timestamp} - ${module}: ${message}`;
-  };
-
-  return (
-    <div style={styles.logButtonContainer}>
-      <ActionLink onClick={onClick}>
-        Get log
-      </ActionLink>
-      {errorLogsCount > 0 && lastError && (
-        <OverlayTrigger
-          placement="top"
-          overlay={
-            <Tooltip id={`error-tooltip-${Math.random()}`}>
-              Last error: {formatLastError(lastError)}
-            </Tooltip>
-          }
-        >
-          <Badge 
-            pill 
-            bg="danger" 
-            style={styles.errorBadge}
-          >
-            {errorLogsCount}
-          </Badge>
-        </OverlayTrigger>
-      )}
-    </div>
-  );
-};
-
 /** given a package name, get it's human-readable title, e.g.,
 @transitive-robotics/remote-teleop => Remote Teleop
 */
@@ -266,15 +208,10 @@ const Capability = (props) => {
   };
 
   const runPkgCommand = (command, cb = log.debug) => {
-    log.debug('running package command', command);
-    mqttSync.call(`${versionPrefix}/rpc/${command}`, {pkg: name}, cb);
+    const topic = `${versionPrefix}/rpc/${command}`;
+    log.debug('running package command', {command, topic, pkg: name});
+    mqttSync.call(topic, {pkg: name}, cb);
   };
-
-  const packageErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/${name}`;
-  const errorLogsCount = mqttSync.data.getByTopic(packageErrorLogsCountTopic) || 0;
-  
-  const packageLastErrorTopic = `${versionPrefix}/lastError/${name}`;
-  const lastError = mqttSync.data.getByTopic(packageLastErrorTopic);
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
@@ -340,13 +277,15 @@ const Capability = (props) => {
                 </Button>
               </span>
             } {
-              <LogButtonWithCounter 
+              <GetLogButtonWithCounter
+                text="get log"
                 onClick={() => runPkgCommand('getPkgLog', (response) => {
                   const [scope, capName] = name.split('/');
                   setPkgLog({[scope]: {[capName]: response}});
                 })} 
-                errorLogsCount={errorLogsCount} 
-                lastError={lastError}
+                mqttSync={mqttSync}
+                versionPrefix={versionPrefix}
+                packageName={name}
               />
             }
           </div>}
@@ -407,8 +346,6 @@ const Device = (props) => {
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
-        mqttSync.subscribe(`${prefix}/+/errorLogsCount/#`); // for error logs
-        mqttSync.subscribe(`${prefix}/+/lastError/#`); // for last error details
 
         mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
           // received pong back from server for our ping:
@@ -445,8 +382,9 @@ const Device = (props) => {
 
   /* Run a command on the device, via RPC */
   const runCommand = (command, args, cb) => {
-    log.debug('running command', command, args);
-    mqttSync.call(`${versionPrefix}/rpc/${command}`, args, cb);
+    const topic = `${versionPrefix}/rpc/${command}`;
+    log.debug('running command', {command, topic, args});
+    mqttSync.call(topic, args, cb);
   };
 
   const restartAgent = () => {
@@ -497,12 +435,6 @@ const Device = (props) => {
   const canPay = session.has_payment_method || session.free
     || (session.balance < 0 && new Date(session.balanceExpires) > new Date());
 
-  const agentErrorLogsCountTopic = `${versionPrefix}/errorLogsCount/robot-agent`;
-  const agentErrorLogsCount = mqttSync.data.getByTopic(agentErrorLogsCountTopic) || 0;
-  
-  const agentLastErrorTopic = `${versionPrefix}/lastError/robot-agent`;
-  const agentLastError = mqttSync.data.getByTopic(agentLastErrorTopic);
-
   // latestVersionData?.$response?.commands &&
   //   _.map(latestVersionData.$response.commands, (response, command) =>
   //     // using console.log to get colors from escape sequences in output:
@@ -535,12 +467,14 @@ const Device = (props) => {
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
         Remove device
-      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter
+      </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
+          text="Get log"
           onClick={() => runCommand('getPkgLog', {pkg: 'robot-agent'}, (response) => {
             setPkgLog({['@transitive-robotics']: {['robot-agent']: response}});
           })}
-          errorLogsCount={agentErrorLogsCount}
-          lastError={agentLastError}
+          mqttSync={mqttSync}
+          versionPrefix={versionPrefix}
+          packageName="robot-agent"
         />
 
       <Fold title="Configuration">

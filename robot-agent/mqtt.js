@@ -183,7 +183,7 @@ mqttClient.on('connect', function(connackPacket) {
       LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
       LogMonitor.watchLogs('robot-agent');
       
-      ResourceMonitor.init(mqttClient, AGENT_PREFIX);
+      ResourceMonitor.init(mqttSync, AGENT_PREFIX);
 
       initialized = true;
     });

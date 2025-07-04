@@ -1,68 +1,101 @@
 const pidusage = require('pidusage');
-const { getLogger } = require('@transitive-sdk/utils');
+const _ = require('lodash');
 
+const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('resourceMonitor');
 log.setLevel('debug');
+
+const SAMPLE_RATE = 5000; // Sample every 5 seconds
+const SAMPLES_PER_BATCH = 10; // Number of samples to collect before publishing
+
 
 /** CPU and Memory monitoring class */
 class ResourceMonitor {
   constructor() {
     this.monitoredPackages = {};
-    this.mqttClient = null;
-    this.AGENT_PREFIX = null;
+    this.mqttSync = null;
+    this.agentPrefix = null;
     this.initialized = false;
     log.debug('++++++++++++++++++++++++++++++++++++ResourceMonitor instance created');
   }
 
-  init(mqttClient, agentPrefix) {
-    this.mqttClient = mqttClient;
-    this.AGENT_PREFIX = agentPrefix;
-    this.initialized = true; // Set initialized state
-    log.debug('-------------------------------------ResourceMonitor initialized');
+  init(mqttSync, agentPrefix) {
+    this.mqttSync = mqttSync;
+    this.agentPrefix = agentPrefix;
+    log.debug('Starting resource monitoring for all monitored packages');
+    this.mqttSync.waitForHeartbeatOnce(() => {
+      log.info('ResourceMonitor heartbeat received, initializing...');
+      
+      this.initialized = true; // Set initialized state
+      log.info('Starting watching logs for packages registered before initialization');
+      // Publish on MQTT for all packages monitored before initialization
+      _.forEach(this.monitoredPackages, (pkgData, pkgName) => {
+        log.debug(`Setting up publication for package ${pkgName} on topic ${this.agentPrefix}/status/metrics/${pkgName}`);
+        this.mqttSync.publish(
+          `${this.agentPrefix}/status/metrics/${pkgName}`,        
+          { atomic: true }
+        );
+      });
+    });
   }
 
   startMonitoring(packageName, pid) {
-    if (this.monitoredPackages[packageName]) {
-      log.debug(`Resource monitoring already active for ${packageName}`);
+    if (!this.monitoredPackages[packageName]) {
+      this.monitoredPackages[packageName] = {
+        pid: pid,
+        samples: [],
+        interval: null,
+      }
+    } else {
+      log.warn(`Already monitoring package ${packageName}, skipping startMonitoring`);
       return;
     }
-
+    if (this.initialized) {
+      log.debug(`Setting up publication for package ${packageName} on topic ${this.agentPrefix}/status/metrics/${packageName}`);
+      this.mqttSync.publish(
+        `${this.agentPrefix}/status/metrics/${packageName}`,
+        { atomic: true }
+      );
+    }
     log.debug(`Starting resource monitoring for ${packageName} (PID: ${pid})`);
-    this.monitoredPackages[packageName] = setInterval(async () => {
+    this.monitoredPackages[packageName].interval = setInterval(async () => {
+      let stats = null;
       try {
-        const stats = await pidusage(pid);
-        const cpuUsage = stats.cpu; // CPU usage percentage
-        const memoryUsage = stats.memory; // Memory usage in bytes
-
-        log.debug(`Published CPU usage for ${packageName}: ${cpuUsage}%`);
-        log.debug(`Published Memory usage for ${packageName}: ${memoryUsage} bytes`);
-
-        if (this.initialized) {
-          this.mqttClient.publish(
-            `${this.AGENT_PREFIX}/metrics/${packageName}`,
-            JSON.stringify({
-              cpu: cpuUsage,
-              memory: memoryUsage,
-            }),
-            { qos: 2 },
-            (err) => {
-              if (err) {
-                log.error(`Failed to publish resource usage for ${packageName}:`, err);
-              }
-              log.debug(`Published resource usage for ${packageName} to MQTT on topic ${this.AGENT_PREFIX}/metrics/${packageName}`);
-            }
-          );
-          log.debug(`Published resource usage for ${packageName} to MQTT`);
-        }
+        stats = await pidusage(pid);
       } catch (err) {
         log.error(`Failed to get resource usage for ${packageName} (PID: ${pid}):`, err);
+        return;
       }
-    }, 5000); // Monitor every 5 seconds
+      const cpuUsage = stats.cpu; // CPU usage percentage
+      const memoryUsage = stats.memory; // Memory usage in bytes
+
+      this.monitoredPackages[packageName].samples.push({
+        timestamp: Date.now(),
+        cpu: cpuUsage,
+        memory: memoryUsage,
+      });
+      log.debug(`CPU usage for ${packageName}: ${cpuUsage}%`);
+      log.debug(`Memory usage for ${packageName}: ${memoryUsage} bytes`);
+      
+      if (this.monitoredPackages[packageName].samples.length >= SAMPLES_PER_BATCH) {
+        if (this.initialized) {
+          log.debug(`Publishing resource usage for ${packageName} on MqttSync`);
+          log.debug(`Topic : ${this.agentPrefix}/status/metrics/${packageName}`);
+          this.monitoredPackages[packageName].samples = this.monitoredPackages[packageName].samples.slice(-SAMPLES_PER_BATCH);
+          this.mqttSync.data.update(
+            `${this.agentPrefix}/status/metrics/${packageName}`,
+            this.monitoredPackages[packageName].samples
+          );
+          this.monitoredPackages[packageName].samples = [];
+          log.debug(`Published resource usage for ${packageName} on MqttSync`);
+        }
+      }
+    }, SAMPLE_RATE);
   }
 
   stopMonitoring(packageName) {
     if (this.monitoredPackages[packageName]) {
-      clearInterval(this.monitoredPackages[packageName]);
+      clearInterval(this.monitoredPackages[packageName].interval);
       delete this.monitoredPackages[packageName];
       log.debug(`Stopped resource monitoring for ${packageName}`);
     }

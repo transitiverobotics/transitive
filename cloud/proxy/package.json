@@ -13,8 +13,6 @@
   "license": "Apache-2.0",
   "dependencies": {
     "greenlock-express": "^4.0.3",
-    "http-proxy-node16": "^1.0.3",
-    "jsonwebtoken": "^8.5.1",
-    "mongodb": "^3.6.5"
+    "http-proxy-node16": "^1.0.3"
   }
 }

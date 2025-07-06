@@ -1,5 +1,6 @@
 const { Tail } = require('tail');
 const fs = require('fs');
+const util = require('util');
 const _ = require('lodash');
 
 const { getLogger } = require('@transitive-sdk/utils');
@@ -104,7 +105,7 @@ class LogMonitor {
       if (watchedPackage.initialized) {
         log.info('Package is already being watched:', packageName);
         return; // Already watching this package
-      }      
+      }
     } else {
       log.info('Adding package to watch list:', packageName);
       this.watchedPackages[packageName] = {
@@ -117,11 +118,11 @@ class LogMonitor {
     }
 
     this.clearErrorCount(packageName); // Clear any existing upload timer for this package
-    
+
     const filePath = (packageName === 'robot-agent') ?
       `${process.env.HOME}/.transitive/agent.log` :
       `${process.env.HOME}/.transitive/packages/${packageName}/log`;
-    
+
     if (!fs.existsSync(filePath)) {
       log.warn('Log file does not exist yet for package:', packageName, 'at path:', filePath);
       setTimeout(() => {
@@ -135,7 +136,7 @@ class LogMonitor {
     const minLogLevelValue = getLogLevelValue(minLogLevel);
     this.watchedPackages[packageName].minLogLevel = minLogLevel;
     this.watchedPackages[packageName].minLogLevelValue = minLogLevelValue;
-    
+
     log.debug('Watching logs for package:', packageName, 'at path:', filePath,
       ' with: ', { filePath, minLogLevel, minLogLevelValue }
     );
@@ -155,11 +156,11 @@ class LogMonitor {
     }
 
     this.watchedPackages[packageName].initialized = true; // Mark as initialized
-  
+
     this.startUploadingLogs(); // Start the log uploading process
     const tail = new Tail(filePath);
     this.watchedPackages[packageName].tail = tail; // Store the tail instance for later use
-  
+
     tail.on('line', async (line) => {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
@@ -209,6 +210,8 @@ class LogMonitor {
    * @returns {Object|null} - Parsed log object or null if invalid.
    */
   parseLogLine(line, packageName) {
+    line = util.stripVTControlCharacters(line);
+
     if (!line.startsWith('[')) return;
 
     // Remove the leading '[' and split by spaces
@@ -228,7 +231,7 @@ class LogMonitor {
     const [dateTime, moduleName, level] = parts;
     // Ensure all parts are present
     if (!dateTime || !moduleName || !level) return null;
-  
+
     // Ignore logs produced by this module
     if (moduleName === log.name) return null;
 
@@ -243,7 +246,7 @@ class LogMonitor {
 
     // Skip logs below the minimum log level
     if (logLevelValue < minLogLevelValue) return null;
-    const logObject = { 
+    const logObject = {
       timestamp,
       module: moduleName,
       level: level.toUpperCase(),
@@ -286,7 +289,7 @@ class LogMonitor {
       log.debug('LogMonitor not initialized yet, waiting...');
     } else {
       let logCount = 0;
-      log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);      
+      log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);
       while (this.pendingLogs.length > 0) {
         const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
         this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);

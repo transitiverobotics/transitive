@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
-const {randomId, getLogger, Mongo} = require('@transitive-sdk/utils');
+const {randomId, getLogger} = require('@transitive-sdk/utils');
+const Mongo = require('@transitive-sdk/mongo');
 
 const {sendEmail} = require('./email');
 

@@ -12,7 +12,7 @@ const {URL} = require('url');
 
 const { Readable } = require('stream');
 
-const Mongo = require('@transitive-sdk/utils/mongo');
+const Mongo = require('@transitive-sdk/mongo');
 // const { versionCompare } = require('@transitive-robotics/utils/server');
 // const { MQTTHandler } = require('@transitive-robotics/utils/cloud');
 const {randomId, tryJSONParse} = require('@transitive-sdk/utils');

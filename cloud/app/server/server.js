@@ -6,7 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const assert = require('assert');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch'); // TODO: use native
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
@@ -16,8 +16,9 @@ const _ = require('lodash');
 const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
-mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, Mongo,
-getRandomId, getPackageVersionNamespace } = require('@transitive-sdk/utils');
+  mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
+  getPackageVersionNamespace } = require('@transitive-sdk/utils');
+const Mongo = require('@transitive-sdk/mongo');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');

@@ -4,8 +4,6 @@
 # The two rows of that table, dev and prod, are distinguished via compose
 # profiles of the same names.
 
-version: "3.9"
-
 # --------------------------------------------------------------------------
 # "Extensions": service definitions shared between dev and prod
 

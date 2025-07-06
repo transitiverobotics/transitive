@@ -4,7 +4,8 @@
   "private": true,
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",
-    "@transitive-sdk/utils": "^0.12.17",
+    "@transitive-sdk/mongo": "^0.14.0",
+    "@transitive-sdk/utils": "^0.14.2",
     "@transitive-sdk/utils-web": "^0.12.17",
     "bcrypt": "^5.0.1",
     "bootstrap": "^5.1.3",

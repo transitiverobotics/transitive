@@ -1,8 +1,6 @@
 # This file defines the overrides applied for the "source" deplyment mode in
 # https://github.com/transitiverobotics/transitive/wiki#deployment-modes
 
-version: "3.9"
-
 services:
   # a minimal container that ensures certificates are present in the shared,
   # mounted volume

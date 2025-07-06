@@ -8,7 +8,9 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { getLogger, tryJSONParse, Mongo } = require('@transitive-sdk/utils');
+const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
+const Mongo = require('@transitive-sdk/mongo');
+
 const log = getLogger(module.id);
 log.setLevel('debug');
 

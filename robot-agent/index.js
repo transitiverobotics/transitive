@@ -1,6 +1,6 @@
 
-
 const fs = require('fs');
+
 const constants = require('./constants');
 const { getConfig } = require('./config');
 
@@ -37,6 +37,8 @@ const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs,
   upgradeNodejs, killAllPackages } = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
+
+require('chalk').level = 1; // force color
 
 const log = getLogger('index.js');
 log.setLevel('debug');
@@ -154,6 +156,11 @@ update();
 require('./mqtt');
 
 localApi.startServer();
+
+// let i = 0;
+// setInterval(() => {
+//   log.error('test', i++);
+// }, 100);
 
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {

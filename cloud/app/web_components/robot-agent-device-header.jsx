@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Badge, Button } from 'react-bootstrap';
 
 // const _ = {
@@ -7,34 +7,29 @@ import { Badge, Button } from 'react-bootstrap';
 //   forEach: require('lodash/forEach'),
 // };
 
-import { useMqttSync, createWebComponent, decodeJWT, mergeVersions, getLogger }
+import { useMqttSync, createWebComponent, decodeJWT, mergeVersions, getLogger, versionCompare}
 from '@transitive-sdk/utils-web';
 
-import { Heartbeat, ensureProps, PkgLog } from './shared';
+import { Heartbeat, ensureProps, GetLogButtonWithCounter } from './shared';
 
 const log = getLogger('robot-agent-device-header');
 log.setLevel('debug');
 
 const styles = {
   name: {
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    flexGrow: 1,
   },
   wrapper: {
-    padding: '0.25em'
+    padding: '0.75em',
+    display: 'flex',
+    alignItems: 'center',
   },
-  buttons: {
-    float: 'right',
-  },
-  button: {
-    marginLeft: '1em',
-  }
 };
 
 
 /** Component showing the device from the robot-agent perspective */
 const Device = (props) => {
-
-  const [pkgLog, setPkgLog] = useState();
 
   if (!ensureProps(props, ['jwt', 'id', 'host'])) {
     log.debug({props})
@@ -56,11 +51,9 @@ const Device = (props) => {
 
   const ourData = data?.[id]?.[device]?.['@transitive-robotics']['_robot-agent'];
   const mergedData = mergeVersions(ourData);
-  const version = ourData && Object.keys(ourData)[0];
-  const runPkgCommand = (command, cb = log.debug) => {
-    log.debug('running package command', command);
-    mqttSync.call(`${prefix}/${version}/rpc/${command}`, {pkg}, cb);
-  };
+
+  const latestVersion = ourData && Object.keys(ourData).sort(versionCompare).at(-1);
+  const versionPrefix = `${prefix}/${latestVersion}`;
 
   return <div style={styles.wrapper}>
     <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
@@ -70,16 +63,13 @@ const Device = (props) => {
     {mergedData?.info?.labels?.map(label =>
         <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
     }
-    <span style={styles.buttons}>
-      <a href='#' style={styles.button}
-        onClick={() => runPkgCommand('getPkgLog', (response) => {
-          setPkgLog({[scope]: {[capName]: response}});
-        })}>
-        show capability log
-      </a>
-    </span>
-
-    {pkgLog && <PkgLog response={pkgLog} hide={() => setPkgLog()}/>}
+    <GetLogButtonWithCounter
+      text="show capability log"
+      mqttSync={mqttSync}
+      versionPrefix={versionPrefix}
+      packageName={pkg}
+      toolTipPlacement='bottom'
+    />
   </div>;
 };
 

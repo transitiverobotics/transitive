@@ -16,7 +16,6 @@ class ResourceMonitor {
     this.mqttSync = null;
     this.agentPrefix = null;
     this.initialized = false;
-    log.debug('++++++++++++++++++++++++++++++++++++ResourceMonitor instance created');
   }
 
   init(mqttSync, agentPrefix) {
@@ -74,13 +73,10 @@ class ResourceMonitor {
         cpu: cpuUsage,
         memory: memoryUsage,
       });
-      log.debug(`CPU usage for ${packageName}: ${cpuUsage}%`);
-      log.debug(`Memory usage for ${packageName}: ${memoryUsage} bytes`);
       
       if (this.monitoredPackages[packageName].samples.length >= SAMPLES_PER_BATCH) {
         if (this.initialized) {
           log.debug(`Publishing resource usage for ${packageName} on MqttSync`);
-          log.debug(`Topic : ${this.agentPrefix}/status/metrics/${packageName}`);
           this.monitoredPackages[packageName].samples = this.monitoredPackages[packageName].samples.slice(-SAMPLES_PER_BATCH);
           this.mqttSync.data.update(
             `${this.agentPrefix}/status/metrics/${packageName}`,

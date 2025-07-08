@@ -7,8 +7,10 @@ const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('logMonitor.js');
 log.setLevel('info');
 
-const WAIT_TIME_IN_CASE_OF_ERROR = 5000; // 5 seconds
-const MAX_LOGS_PER_BATCH = 5; // Maximum number of logs to upload in one go
+const WAIT_TIME_IN_CASE_OF_ERROR = 30000; // 30 seconds to wait before retrying failed uploads
+const REGULAR_UPLOAD_INTERVAL = 10000; // 10 seconds to upload logs regularly
+const MAX_LOGS_PER_BATCH = 50; // Maximum number of logs to upload in one go
+const MAX_PENDING_LOGS = 100; // Maximum number of logs to keep pending
 
 /** Translate log level into a numeric value. */
 const getLogLevelValue = (levelName) => {
@@ -152,7 +154,7 @@ class LogMonitor {
       if (timestamp < this.lastLogTimestamp) {
         continue; // skip logs older than the last sent log
       }
-      this.pendingLogs.push(logObject);
+      this.storePendingLog(logObject); // Store the log object in pending logs
     }
 
     this.watchedPackages[packageName].initialized = true; // Mark as initialized
@@ -165,7 +167,7 @@ class LogMonitor {
       const logObject = this.parseLogLine(line, packageName);
       if (!logObject) return; // skip lines that are not valid log lines
       this.updateErrorCount(packageName, logObject); // Increment error logs count
-      this.pendingLogs.push(logObject);
+      this.storePendingLog(logObject); // Store the log object in pending logs
       this.startUploadingLogs(); // Start uploading process if it's not already running
     });
 
@@ -180,6 +182,19 @@ class LogMonitor {
     });
 
     log.info('Started tailing log file:', filePath);
+  }
+
+  /**
+   * Stores a log object in the pending logs array.
+   * If the pending logs limit is reached, it drops the oldest log.
+   * @param {Object} logObject - Log object to store.
+   */
+  storePendingLog(logObject) {
+    if (this.pendingLogs.length >= MAX_PENDING_LOGS) {
+      log.warn('Pending logs limit reached, dropping oldest log:', this.pendingLogs[0]);
+      this.pendingLogs.shift(); // Remove the oldest log if limit is reached
+    }
+    this.pendingLogs.push(logObject);
   }
 
   /**
@@ -260,7 +275,7 @@ class LogMonitor {
   /**
    * Starts the log uploading process if not already running.
    */
-  startUploadingLogs(delay = 0) {
+  startUploadingLogs(delay = REGULAR_UPLOAD_INTERVAL) {
     if (!this.uploadNextLogsTimer) {
       log.debug('Starting log upload process in', delay, 'ms');
       this.uploadNextLogsTimer = setTimeout(async () => {
@@ -288,28 +303,27 @@ class LogMonitor {
     if (!this.initialized) {
       log.debug('LogMonitor not initialized yet, waiting...');
     } else {
-      let logCount = 0;
-      log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);
-      while (this.pendingLogs.length > 0) {
-        const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
+      const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
+      if (logsToUpload.length > 0) {
         this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);
+        log.debug(`Preparing to upload ${logsToUpload.length} logs...`);
         try {
           await this.publishLogsAsJson(logsToUpload);
           this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`, logsToUpload[logsToUpload.length - 1].timestamp);
-          log.debug('Published logs:', logsToUpload);
-          logCount += logsToUpload.length;
+          log.debug(`Uploaded ${logsToUpload.length} logs successfully.`);
+          log.debug(`Remaining pending logs: ${this.pendingLogs.length}`);
         } catch (err) {
-          log.debug('Failed to publish ', logsToUpload.length, 'logs:', err.message);
-          log.debug('Will retry uploading this logs in ', WAIT_TIME_IN_CASE_OF_ERROR, 'ms');
+          log.debug(`Failed to upload ${logsToUpload.length} logs:`, err);
           // If an error occurs, we want to retry processing this log after a delay
           // Re-add the log to the front of the queue:
           this.pendingLogs = logsToUpload.concat(this.pendingLogs);
           this.clearUploadLogsTimer(); // Clear the timer before scheduling a retry
+          log.debug(`Will retry uploading these logs after ${WAIT_TIME_IN_CASE_OF_ERROR} ms.`);
           this.startUploadingLogs(WAIT_TIME_IN_CASE_OF_ERROR); // Retry the log uploading process
           return; // Exit the function to wait for the retry
         }
       }
-      log.debug('Uploaded', logCount, 'logs successfully.');
+      this.publishErrorCounts(); // Publish error counts for all watched packages
     }
     this.clearUploadLogsTimer(); // Clear the timer after processing all logs
   }
@@ -337,13 +351,13 @@ class LogMonitor {
    * @param {string} packageName - Name of the package to clear error logs count for.
    */
   clearErrorCount(packageName) {
-    if (!this.initialized) {
-      log.warn('LogMonitor not initialized, cannot clear error logs count for', packageName);
-      return;
+    if (!this.watchedPackages[packageName]) {
+      log.warn('Package not being watched:', packageName, 'Cannot clear error logs count.');
+      return; // Package is not being watched
     }
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
-    log.info('Cleared error logs count for package:', packageName);
+    log.info('Clearing error logs count for package:', packageName);
+    this.watchedPackages[packageName].errorCount = 0; // Reset error count in watched packages
+    this.watchedPackages[packageName].lastError = null; // Reset last error log object
   }
 
   /** Increments the error logs count for a specific package.
@@ -352,18 +366,42 @@ class LogMonitor {
    * @param {string} packageName - Name of the package to increment error logs count for.
    */
   updateErrorCount(packageName, errorLogObject) {
-    if (!this.initialized) {
-      log.warn('LogMonitor not initialized, cannot increment error logs count for', packageName);
-      return;
-    }
     if (!errorLogObject || errorLogObject.level !== 'ERROR') {
       return; // Only increment for error logs
     }
-    const countTopic = `${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`;
-    const currentCount = this.mqttSync.data.getByTopic(countTopic) || 0;
-    this.mqttSync.data.update(countTopic, currentCount + 1);
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, errorLogObject);
-    log.debug('Incremented error logs count for package:', packageName, 'to', currentCount + 1);
+    if (!this.watchedPackages[packageName]) {
+      log.warn('Package not being watched:', packageName, 'Cannot increment error logs count.');
+      return; // Package is not being watched
+    }
+    if (!this.watchedPackages[packageName].errorCount) {
+      this.watchedPackages[packageName].errorCount = 0; // Initialize error count
+    }
+    this.watchedPackages[packageName].errorCount += 1; // Increment error count
+    this.watchedPackages[packageName].lastError = errorLogObject; // Update last error log object 
+  }
+
+  /** Publishes the error counts and last error logs for all watched packages.
+   * If a package has no errors, it sets the error count to 0 and last error to null.
+   * This method is called periodically to update the error counts.
+   */
+  publishErrorCounts() {
+    if (!this.initialized) {
+      log.debug('LogMonitor not initialized yet, waiting...');
+      return; // Wait until initialized
+    }
+    Object.keys(this.watchedPackages).forEach(packageName => {
+      const packageData = this.watchedPackages[packageName];
+      if (packageData.errorCount > 0 && packageData.lastError) {
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, packageData.errorCount);
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, packageData.lastError);
+        log.info(`Published error count for package ${packageName}:`, packageData.errorCount);
+      } else {
+        // If no errors, ensure the count is set to 0
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
+        log.info(`No errors for package ${packageName}, setting error count to 0.`);
+      }
+    });
   }
 }
 

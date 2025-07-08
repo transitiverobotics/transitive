@@ -323,6 +323,7 @@ class LogMonitor {
           return; // Exit the function to wait for the retry
         }
       }
+      this.publishErrorCounts(); // Publish error counts for all watched packages
     }
     this.clearUploadLogsTimer(); // Clear the timer after processing all logs
   }
@@ -350,13 +351,13 @@ class LogMonitor {
    * @param {string} packageName - Name of the package to clear error logs count for.
    */
   clearErrorCount(packageName) {
-    if (!this.initialized) {
-      log.warn('LogMonitor not initialized, cannot clear error logs count for', packageName);
-      return;
+    if (!this.watchedPackages[packageName]) {
+      log.warn('Package not being watched:', packageName, 'Cannot clear error logs count.');
+      return; // Package is not being watched
     }
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
-    log.info('Cleared error logs count for package:', packageName);
+    log.info('Clearing error logs count for package:', packageName);
+    this.watchedPackages[packageName].errorCount = 0; // Reset error count in watched packages
+    this.watchedPackages[packageName].lastError = null; // Reset last error log object
   }
 
   /** Increments the error logs count for a specific package.
@@ -365,18 +366,42 @@ class LogMonitor {
    * @param {string} packageName - Name of the package to increment error logs count for.
    */
   updateErrorCount(packageName, errorLogObject) {
-    if (!this.initialized) {
-      log.warn('LogMonitor not initialized, cannot increment error logs count for', packageName);
-      return;
-    }
     if (!errorLogObject || errorLogObject.level !== 'ERROR') {
       return; // Only increment for error logs
     }
-    const countTopic = `${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`;
-    const currentCount = this.mqttSync.data.getByTopic(countTopic) || 0;
-    this.mqttSync.data.update(countTopic, currentCount + 1);
-    this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, errorLogObject);
-    log.debug('Incremented error logs count for package:', packageName, 'to', currentCount + 1);
+    if (!this.watchedPackages[packageName]) {
+      log.warn('Package not being watched:', packageName, 'Cannot increment error logs count.');
+      return; // Package is not being watched
+    }
+    if (!this.watchedPackages[packageName].errorCount) {
+      this.watchedPackages[packageName].errorCount = 0; // Initialize error count
+    }
+    this.watchedPackages[packageName].errorCount += 1; // Increment error count
+    this.watchedPackages[packageName].lastError = errorLogObject; // Update last error log object 
+  }
+
+  /** Publishes the error counts and last error logs for all watched packages.
+   * If a package has no errors, it sets the error count to 0 and last error to null.
+   * This method is called periodically to update the error counts.
+   */
+  publishErrorCounts() {
+    if (!this.initialized) {
+      log.debug('LogMonitor not initialized yet, waiting...');
+      return; // Wait until initialized
+    }
+    Object.keys(this.watchedPackages).forEach(packageName => {
+      const packageData = this.watchedPackages[packageName];
+      if (packageData.errorCount > 0 && packageData.lastError) {
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, packageData.errorCount);
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, packageData.lastError);
+        log.info(`Published error count for package ${packageName}:`, packageData.errorCount);
+      } else {
+        // If no errors, ensure the count is set to 0
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
+        this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
+        log.info(`No errors for package ${packageName}, setting error count to 0.`);
+      }
+    });
   }
 }
 

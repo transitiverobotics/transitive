@@ -20,6 +20,7 @@
     "dotenv": "^16.0.0",
     "lodash": "^4.17.21",
     "mqtt": "^4.3.7",
+    "pidusage-tree": "^2.0.5",
     "tail": "^2.2.6"
   },
   "devDependencies": {

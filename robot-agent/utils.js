@@ -4,7 +4,6 @@ const os = require('os');
 const path = require('path');
 const assert = require('assert');
 const _ = require('lodash');
-const pidusage = require('pidusage');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');

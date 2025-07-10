@@ -195,7 +195,7 @@ const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
     inactive, device, versionPrefix, desiredPackagesTopic,
-    canPay } = props;
+    canPay, deviceData } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -245,8 +245,7 @@ const Capability = (props) => {
         <Col sm='3' style={styles.rowItem}>
           {running && !inactive && (
             <ResourceMetrics 
-              mqttSync={mqttSync}
-              agentPrefix={versionPrefix}
+              deviceData={deviceData}
               packageName={name}
             />
           )}
@@ -356,6 +355,7 @@ const Device = (props) => {
         mqttSync.subscribe(`${prefix}/+/status/ready`);
         mqttSync.subscribe(`${prefix}/+/desiredPackages/#`);
         mqttSync.subscribe(`${prefix}/+/disabledPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/status/metrics`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
@@ -505,8 +505,7 @@ const Device = (props) => {
       <div style={styles.row}>
         <h5>Robot Agent Resource Usage</h5>
         <ResourceMetrics 
-          mqttSync={mqttSync}
-          agentPrefix={versionPrefix}
+          deviceData={latestVersionData}
           packageName="robot-agent"
         />
       </div>
@@ -529,7 +528,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                canPay
+                canPay, deviceData: latestVersionData
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

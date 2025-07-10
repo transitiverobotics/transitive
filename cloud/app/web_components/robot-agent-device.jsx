@@ -200,7 +200,8 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, preInstalled, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, canPay } = props;
+    inactive, device, versionPrefix, desiredPackagesTopic,
+    canPay, deviceData } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -249,9 +250,8 @@ const Capability = (props) => {
         </Col>
         <Col sm='3' style={styles.rowItem}>
           {running && !inactive && (
-            <ResourceMetrics 
-              mqttSync={mqttSync}
-              agentPrefix={versionPrefix}
+            <ResourceMetrics
+              deviceData={deviceData}
               packageName={name}
             />
           )}
@@ -361,10 +361,11 @@ const Device = (props) => {
         mqttSync.subscribe(`${prefix}/+/status/ready`);
         mqttSync.subscribe(`${prefix}/+/desiredPackages/#`);
         mqttSync.subscribe(`${prefix}/+/disabledPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/status/metrics`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
-        
+
         mqttSync.subscribe(`${prefix}/+/status/metrics/#`);
 
         mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
@@ -509,9 +510,8 @@ const Device = (props) => {
     {!inactive && (
       <div style={styles.row}>
         <h5>Robot Agent Resource Usage</h5>
-        <ResourceMetrics 
-          mqttSync={mqttSync}
-          agentPrefix={versionPrefix}
+        <ResourceMetrics
+          deviceData={latestVersionData}
           packageName="robot-agent"
         />
       </div>
@@ -534,7 +534,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 preInstalled, running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                canPay
+                canPay, deviceData: latestVersionData
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

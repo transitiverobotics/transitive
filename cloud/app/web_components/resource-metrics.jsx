@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from 'react-bootstrap';
-import { Sparklines, SparklinesLine, SparklinesSpots, SparklinesReferenceLine } from 'react-sparklines';
+import React from 'react';
+import { Sparklines, SparklinesLine, SparklinesReferenceLine } from 'react-sparklines';
 
 const _ = {
   get: require('lodash/get'),
@@ -79,38 +78,8 @@ const formatCpu = (cpu) => {
 };
 
 /** Component to display resource metrics for CPU and Memory usage */
-const ResourceMetrics = ({ mqttSync, agentPrefix, packageName }) => {
-  const [metrics, setMetrics] = useState([]);
-
-  useEffect(() => {
-    if (!mqttSync || !agentPrefix || !packageName) return;
-
-    const metricsPath = `${agentPrefix}/status/metrics/${packageName}`;
-    log.debug(`Subscribing to metrics for ${packageName} at ${metricsPath}`);
-    
-    mqttSync.subscribe(metricsPath);
-    
-    const updateMetrics = (data) => {
-      log.debug(`Received metrics data for ${packageName}:`, data);
-      if (Array.isArray(data) && data.length > 0) {
-        // Keep only the last 50 data points for display
-        setMetrics(_.takeRight(data, 50));
-      }
-    };
-
-    // Get initial data
-    const initialData = mqttSync.data.getByTopic(metricsPath);
-    if (initialData) {
-      updateMetrics(initialData);
-    }
-
-    // Subscribe to updates
-    const unsubscribe = mqttSync.data.subscribePath(metricsPath, updateMetrics);
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [mqttSync, agentPrefix, packageName]);
+const ResourceMetrics = ({ deviceData, packageName }) => {
+  const metrics = deviceData?.status?.metrics?.[packageName] || [];
 
   if (!metrics || metrics.length === 0) {
     return (

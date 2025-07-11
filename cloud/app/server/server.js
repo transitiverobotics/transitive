@@ -534,6 +534,7 @@ class _robotAgent extends Capability {
         }, {
           'service.name': 'portal',
         });
+      // this.forwardAgentMetricsToHyperdx();
     });
   }
 

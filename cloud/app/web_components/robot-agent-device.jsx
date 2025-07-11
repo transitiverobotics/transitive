@@ -26,6 +26,7 @@ import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
 import SelfCheck from './self-check';
+import ResourceMetrics from './resource-metrics';
 
 const F = React.Fragment;
 
@@ -194,7 +195,7 @@ const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
     inactive, device, versionPrefix, desiredPackagesTopic,
-    canPay } = props;
+    canPay, deviceData } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -216,11 +217,11 @@ const Capability = (props) => {
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
       <Row>
-        <Col sm='4' style={styles.rowItem}>
+        <Col sm='3' style={styles.rowItem}>
           <div>{title}</div>
           <div style={styles.subText}>{name}</div>
         </Col>
-        <Col sm='3' style={styles.rowItem}>
+        <Col sm='2' style={styles.rowItem}>
           { running && !inactive && <div><Badge bg="success"
                 title={Object.values(running).join(', ')}>
                 running: v{Object.keys(running).join(', ')}
@@ -241,7 +242,15 @@ const Capability = (props) => {
                 disabled</Badge></div>
           }
         </Col>
-        <Col sm='5' style={styles.rowItem}>
+        <Col sm='3' style={styles.rowItem}>
+          {running && !inactive && (
+            <ResourceMetrics 
+              deviceData={deviceData}
+              packageName={name}
+            />
+          )}
+        </Col>
+        <Col sm='3' style={styles.rowItem}>
           {!inactive && <div style={{textAlign: 'right'}}>
             {
               running && <Button variant='link'
@@ -337,10 +346,21 @@ const Device = (props) => {
 
   useEffect(() => {
       if (mqttSync) {
-        mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        mqttSync.subscribe(`${prefix}/+/info/#`);
+        mqttSync.subscribe(`${prefix}/+/status/heartbeat`);
+        mqttSync.subscribe(`${prefix}/+/status/pong`);
+        mqttSync.subscribe(`${prefix}/+/status/package/#`);
+        mqttSync.subscribe(`${prefix}/+/status/runningPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/status/selfCheckErrors/#`);
+        mqttSync.subscribe(`${prefix}/+/status/ready`);
+        mqttSync.subscribe(`${prefix}/+/desiredPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/disabledPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/status/metrics`);
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
+        
+        mqttSync.subscribe(`${prefix}/+/status/metrics/#`);
 
         mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
           // received pong back from server for our ping:
@@ -480,6 +500,17 @@ const Device = (props) => {
 
     <SelfCheck data={latestVersionData} agentPrefix={versionPrefix} />
 
+    {/* Resource metrics for robot-agent itself */}
+    {!inactive && (
+      <div style={styles.row}>
+        <h5>Robot Agent Resource Usage</h5>
+        <ResourceMetrics 
+          deviceData={latestVersionData}
+          packageName="robot-agent"
+        />
+      </div>
+    )}
+
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 
 
@@ -497,7 +528,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                canPay
+                canPay, deviceData: latestVersionData
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

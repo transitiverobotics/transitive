@@ -8,6 +8,7 @@ const _ = require('lodash');
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
 const LogMonitor = require('./logMonitor');
+const ResourceMonitor = require('./resourceMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -121,6 +122,7 @@ const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
 
   LogMonitor.watchLogs(name);
+  log.debug("process.getuid()", process.getuid());
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
@@ -135,6 +137,8 @@ const startPackage = (name) => {
       const out = fs.openSync(logFile, 'a');
 
       // package is started with passed config
+      LogMonitor.watchLogs(name);
+
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -148,6 +152,9 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
+
+      // Start resource monitoring for the package
+      ResourceMonitor.startMonitoring(name, subprocess.pid);
 
       // start watching status.json (from startPackage) and report in mqtt
       watchStatus(name, 'requested');

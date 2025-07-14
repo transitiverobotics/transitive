@@ -55,6 +55,14 @@ const styles = {
     color: '#e74c3c',
     backgroundColor: 'rgba(231, 76, 60, 0.1)',
   },
+  systemCpuValue: {
+    color: '#9b59b6',
+    backgroundColor: 'rgba(155, 89, 182, 0.1)',
+  },
+  systemMemoryValue: {
+    color: '#f39c12',
+    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+  },
   noData: {
     fontSize: '0.8em',
     color: '#6c757d',
@@ -92,12 +100,24 @@ const ResourceMetrics = ({ deviceData, packageName }) => {
   const cpuData = metrics.map(m => m.cpu || 0);
   const memoryData = metrics.map(m => m.memory || 0);
   
+  let systemCpuData, systemMemoryData;
+  const hasSystemMetrics = metrics.length > 0 && metrics[0].system;
+  // Extract system metrics if available (only for robot-agent)
+  if (hasSystemMetrics) {
+    systemCpuData = metrics.map(m => m.system?.cpu || 0).filter(v => v > 0);
+    systemMemoryData = metrics.map(m => m.system?.memory || 0).filter(v => v > 0);
+  }
+  
   // Calculate averages
   const avgCpu = _.mean(cpuData);
   const avgMemory = _.mean(memoryData);
+  const avgSystemCpu = hasSystemMetrics ? _.mean(systemCpuData) : 0;
+  const avgSystemMemory = hasSystemMetrics ? _.mean(systemMemoryData) : 0;
   
   const latestCpu = cpuData[cpuData.length - 1] || 0;
   const latestMemory = memoryData[memoryData.length - 1] || 0;
+  const latestSystemCpu = hasSystemMetrics ? (systemCpuData[systemCpuData.length - 1] || 0) : 0;
+  const latestSystemMemory = hasSystemMetrics ? (systemMemoryData[systemMemoryData.length - 1] || 0) : 0;
 
   return (
     <div style={styles.metricsContainer}>
@@ -128,6 +148,38 @@ const ResourceMetrics = ({ deviceData, packageName }) => {
         </div>
         <span style={styles.avgValue}>avg: {formatBytes(avgMemory)}</span>
       </div>
+      
+      {hasSystemMetrics && (
+        <>
+          <div style={styles.metricRow}>
+            <span style={styles.metricLabel}>Sys CPU:</span>
+            <span style={{...styles.currentValue, ...styles.systemCpuValue}}>
+              {formatCpu(latestSystemCpu)}
+            </span>
+            <div style={styles.inlineChart}>
+              <Sparklines data={systemCpuData} height={20} width={120} margin={2}>
+                <SparklinesLine color="#9b59b6" style={{ strokeWidth: 1.5 }} />
+                <SparklinesReferenceLine type="mean" style={{ stroke: '#9b59b6', strokeOpacity: 0.3, strokeDasharray: '1,1' }} />
+              </Sparklines>
+            </div>
+            <span style={styles.avgValue}>avg: {formatCpu(avgSystemCpu)}</span>
+          </div>
+          
+          <div style={styles.metricRow}>
+            <span style={styles.metricLabel}>Sys Mem:</span>
+            <span style={{...styles.currentValue, ...styles.systemMemoryValue}}>
+              {formatBytes(latestSystemMemory)}
+            </span>
+            <div style={styles.inlineChart}>
+              <Sparklines data={systemMemoryData} height={20} width={120} margin={2}>
+                <SparklinesLine color="#f39c12" style={{ strokeWidth: 1.5 }} />
+                <SparklinesReferenceLine type="mean" style={{ stroke: '#f39c12', strokeOpacity: 0.3, strokeDasharray: '1,1' }} />
+              </Sparklines>
+            </div>
+            <span style={styles.avgValue}>avg: {formatBytes(avgSystemMemory)}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 };

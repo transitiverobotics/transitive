@@ -622,7 +622,7 @@ class _robotAgent extends Capability {
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, sub } = parseMQTTTopic(topic);
-      if (!device || !sub || sub.length !== 1 || sub[0] !== 'logs') {
+      if (!device || !organization || !topic.endsWith('/status/logs/live')) {
         return;
       }
 

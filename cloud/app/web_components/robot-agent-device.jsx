@@ -493,14 +493,23 @@ const Device = (props) => {
           packageName="robot-agent"
         />
 
-      <Fold title="Configuration">
-        <div style={styles.row}>
-          {latestVersionData?.info?.config &&
-            <ConfigEditor info={latestVersionData.info}
-              updateConfig={
-                (modifier) => runCommand('updateConfig', {modifier}, log.debug)
-              }/>}
-        </div>
+      <Fold title="Configuration & status">
+          <>
+            <div style={styles.row}>
+              {latestVersionData?.info?.config &&
+                <ConfigEditor info={latestVersionData.info}
+                  updateConfig={
+                    (modifier) => runCommand('updateConfig', {modifier}, log.debug)
+                  }/>}
+            </div>
+            <div style={styles.row}>
+              <strong>Agent Resource Usage</strong>
+              <ResourceMetrics
+                deviceData={latestVersionData}
+                packageName="robot-agent"
+              />
+            </div>
+          </>
       </Fold>
     </div>
 
@@ -518,7 +527,6 @@ const Device = (props) => {
     )}
 
     <MyToast toast={toast} onClose={() => setToast(null)}/>
-
 
     <div style={styles.row}>
       <h5>Capabilities</h5>

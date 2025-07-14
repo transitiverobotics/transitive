@@ -47,13 +47,11 @@ class ResourceMonitor {
               si.currentLoad(),
               si.mem()
             ]);
-            log.info("System CPU Load:", systemCpuLoad);
-            log.info("System Memory Info:", systemMemInfo);
             pkgData.samples.push({
               cpu: stats.cpu, // CPU usage percentage
               memory: stats.memory, // Memory usage in bytes
               system: {
-                cpu: systemCpuLoad.load, // Overall CPU usage percentage
+                cpu: systemCpuLoad.currentLoad, // Overall CPU usage percentage
                 memory: systemMemInfo.used
               }
             });

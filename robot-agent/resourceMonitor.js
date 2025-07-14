@@ -1,10 +1,11 @@
 const pidusageTree = require('pidusage-tree');
 const pidusage = require('pidusage');
 const _ = require('lodash');
+const si = require('systeminformation');
 
 const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('resourceMonitor');
-log.setLevel('debug');
+log.setLevel('info');
 
 const SAMPLE_RATE = 5000; // Sample every 5 seconds
 const SAMPLES_PER_BATCH = 12; // Publish metrics every 60 seconds
@@ -25,46 +26,52 @@ class ResourceMonitor {
     log.debug('Starting resource monitoring for all monitored packages');
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('ResourceMonitor heartbeat received, initializing...');      
-      this.initialized = true; // Set initialized state
       this.mqttSync.publish(
         `${this.agentPrefix}/status/metrics`,        
         { atomic: true }
       );
+      this.initialized = true; // Set initialized state
     });
 
     // Start the periodic sampling and publishing of resource usage metrics
-    setInterval(() => {
+    setInterval(async () => {
       _.forEach(this.monitoredPackages, async (pkgData, pkgName) => {    
         const {pid} = pkgData; 
-        let stats = null;
         try {
           if (pkgName === 'robot-agent') {
             // For the robot-agent, we use pidusage directly
-            stats = await pidusage(pid);
+            const stats = await pidusage(pid);
+
+            // Sample system metrics when monitoring robot-agent
+            const [systemCpuLoad, systemMemInfo] = await Promise.all([
+              si.currentLoad(),
+              si.mem()
+            ]);
+            log.info("System CPU Load:", systemCpuLoad);
+            log.info("System Memory Info:", systemMemInfo);
+            pkgData.samples.push({
+              cpu: stats.cpu, // CPU usage percentage
+              memory: stats.memory, // Memory usage in bytes
+              system: {
+                cpu: systemCpuLoad.load, // Overall CPU usage percentage
+                memory: systemMemInfo.used
+              }
+            });
           } else {
             // For other packages, we use pidusage-tree to include subprocesses
-            stats = await pidusageTree(pid);
+            const stats = await pidusageTree(pid); 
+
+            const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
+    
+            pkgData.samples.push({
+              cpu: _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0), // CPU usage percentage (aggregated)
+              memory: _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.memory : 0), 0), // Memory usage in bytes (aggregated)
+            });
           }
         } catch (err) {
           log.error(`Failed to get resource usage for ${pkgName} (PID: ${pid}):`, err);
           return;
         }
-        
-        let cpuUsage, memoryUsage;
-        if (pkgName === 'robot-agent') {
-          // For the robot-agent, we use pidusage directly
-          cpuUsage = stats.cpu; // CPU usage percentage
-          memoryUsage = stats.memory; // Memory usage in bytes
-        } else {
-          const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
-          // pidusage-tree returns aggregated stats for the process tree
-          cpuUsage = _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0); // CPU usage percentage (aggregated)
-          memoryUsage = _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.memory : 0), 0); // Memory usage in bytes (aggregated)     
-        }
-        pkgData.samples.push({
-          cpu: cpuUsage,
-          memory: memoryUsage,
-        });
       });
       // If first package has enough samples, publish all
       const firstPkg = Object.keys(this.monitoredPackages)[0];

@@ -68,7 +68,7 @@ export const ensureProps = (props, list) => list.every(name => {
 
 
 /** Component that renders package logs from ClickHouse and live MQTT logs */
-export const PkgLog = ({packageName, mqttClient, agentPrefix, hide}) => {
+export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide}) => {
   const [initialLogs, setInitialLogs] = useState('Loading logs...');
   const [liveLogs, setLiveLogs] = useState([]);
 
@@ -77,6 +77,7 @@ export const PkgLog = ({packageName, mqttClient, agentPrefix, hide}) => {
     const fetchInitialLogs = async () => {
       try {
         // Query ClickHouse for logs from this package in JSON format
+        // Note: The org filtering is handled server-side by the proxy middleware
         const query = `
           SELECT 
             Timestamp,
@@ -84,14 +85,19 @@ export const PkgLog = ({packageName, mqttClient, agentPrefix, hide}) => {
             ServiceName,
             Body,
             LogAttributes
-          FROM otel_logs 
+          FROM otel_logs
           WHERE ServiceName = '${packageName}'
-          ORDER BY Timestamp DESC 
+            AND ResourceAttributes['device.id'] = '${device}'
+          ORDER BY Timestamp DESC
           LIMIT 1000
           FORMAT JSON
         `;
         
-        const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`);
+        // Use the tenant-aware ClickHouse proxy endpoint
+        const response = await fetch(`/clickhouse/?query=${encodeURIComponent(query)}`, {
+          method: 'GET',
+          credentials: 'include', // Include cookies for authentication
+        });
         
         if (!response.ok) {
           throw new Error(`ClickHouse query failed: ${response.status}`);
@@ -223,7 +229,8 @@ const logButtonStyles = {
 /** Component that shows a log button with an error counter badge */
 export const GetLogButtonWithCounter = ({ 
   text, 
-  mqttSync, 
+  mqttSync,
+  device,
   versionPrefix, 
   packageName, 
   toolTipPlacement = 'top',
@@ -315,6 +322,7 @@ export const GetLogButtonWithCounter = ({
       {showLogs && <PkgLog 
         packageName={packageName}
         mqttClient={mqttSync.mqtt}
+        device={device}
         agentPrefix={versionPrefix}
         hide={() => setShowLogs(false)}
       />}

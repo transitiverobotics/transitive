@@ -23,6 +23,7 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
+const { addOrgFilter, addOrgFilterPermissive, addClickHouseOrgFilter } = require('./hyperdx-auth');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -533,7 +534,24 @@ class _robotAgent extends Capability {
           message: 'Portal (re-)started'
         }, {
           'service.name': 'portal',
+          'org.id': 'system', // System-level logs
+          'device.id': 'cloud',
         });
+
+      // // Send system test log every second
+      // setInterval(() => {
+      //   this.sendToHyperDX({
+      //     timestamp: Date.now(),
+      //     module: 'system-test',
+      //     logLevelValue: 20,
+      //     level: 'INFO',
+      //     message: 'System health check - all services operational'
+      //   }, {
+      //     'service.name': 'robot-agent',
+      //     'org.id': 'system',
+      //     'test.type': 'heartbeat'
+      //   });
+      // }, 1000);
     });
   }
 
@@ -559,13 +577,19 @@ class _robotAgent extends Capability {
       }
     }
 
+    // Ensure orgId is always included in attributes for tenant isolation
+    const enrichedAttributes = {
+      ...attributes,
+      'org.id': attributes['org.id'] || 'unknown'
+    };
+
     const body = {
       "resourceLogs": [
         {
           "resource": {
-            "attributes": _.map(attributes, (value, key) => ({
+            "attributes": _.map(enrichedAttributes, (value, key) => ({
               key,
-              value: {"stringValue": value}
+              value: {"stringValue": String(value)}
             }))
           },
           "scopeLogs": [
@@ -583,6 +607,7 @@ class _robotAgent extends Capability {
                   },
                   "attributes": [
                     { "key": "module", "value": { "stringValue": logObj.module } },
+                    { "key": "org.id", "value": { "stringValue": enrichedAttributes['org.id'] } },
                   ],
                 }
               )),
@@ -642,7 +667,11 @@ class _robotAgent extends Capability {
       });
 
       _.forEach(packageLogs, (logs, packageName) => {
-        this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+        this.sendToHyperDX(logs, {
+          'device.id': device, 
+          'service.name': packageName,
+          'org.id': organization  // Explicit org.id for tenant isolation
+        });
       });
     });
   }
@@ -1533,6 +1562,32 @@ const robotAgent = new _robotAgent();
 // let robot agent capability handle it's own sub-path; enable the same for all
 // other, regular, capabilities as well?
 app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
+app.use('/clickhouse/*', cookieParser());
+
+// // Session middleware will be added after Mongo.init() in the main section
+
+// Direct ClickHouse proxy with org filtering for testing/development
+app.use('/clickhouse/*', addOrgFilter, addClickHouseOrgFilter, (req, res) => {
+  const orgId = req.headers['x-org-id'];
+  log.debug('Proxying ClickHouse request for org:', orgId);
+  
+  // Strip the /clickhouse prefix
+  const targetPath = req.url.replace('/clickhouse', '');
+  req.url = targetPath;
+  
+  const clickHouseProxy = HttpProxy.createProxyServer({
+    target: 'http://clickhouse:8123',
+    changeOrigin: true
+  });
+  
+  clickHouseProxy.web(req, res, {
+    target: 'http://clickhouse:8123'
+  }, (err) => {
+    log.error('ClickHouse proxy error:', err);
+    res.status(500).json({error: 'ClickHouse service unavailable'});
+  });
+});
+
 
 // routes used during the installation process of a new robot
 app.use('/install', installRouter);

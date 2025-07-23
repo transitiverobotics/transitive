@@ -280,6 +280,7 @@ const Capability = (props) => {
               <GetLogButtonWithCounter
                 text="get log"
                 mqttSync={mqttSync}
+                device={device}
                 versionPrefix={versionPrefix}
                 packageName={name}
               />
@@ -463,6 +464,7 @@ const Device = (props) => {
       </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
           text="Get log"
           mqttSync={mqttSync}
+          device={device}
           versionPrefix={versionPrefix}
           packageName="robot-agent"
         />

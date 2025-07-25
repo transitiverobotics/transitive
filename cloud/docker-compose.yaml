@@ -199,15 +199,6 @@ services:
     profiles:
       - dev
 
-  # hyperdx:
-  #   image: docker.hyperdx.io/hyperdx/hyperdx-all-in-one
-  #   volumes:
-  #     - ${TR_VAR_DIR:-.}/hyperdx/db:/data/db"
-  #     - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse"
-  #     - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server"
-  #   env_file:
-  #     - .env
-
   # -----------------------------------------------------------------------
   # HyperDX
 
@@ -224,6 +215,9 @@ services:
   #   restart: always
   #   networks:
   #     - default
+  #   # ports:
+  #   #   - "8123:8123"  # HTTP interface for web UI and API
+  #   #   - "9002:9000"  # Native TCP interface for clients (mapped to avoid conflict 
   #   deploy:
   #     resources:
   #       limits:

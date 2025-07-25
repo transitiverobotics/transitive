@@ -44,6 +44,7 @@ class ResourceMonitor {
               si.mem()
             ]);
             pkgData.samples.push({
+              timestamp: Date.now(),
               cpu: Number(stats.cpu.toPrecision(3)), // CPU usage percentage (3 significant digits)
               memory: stats.memory, // Memory usage in bytes
               system: {
@@ -58,6 +59,7 @@ class ResourceMonitor {
             const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
     
             pkgData.samples.push({
+              timestamp: Date.now(),
               cpu: Number(
                 _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0)
                 .toPrecision(3)

@@ -23,6 +23,7 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
+const TelemetryService = require('./telemetry');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -444,6 +445,7 @@ class _robotAgent extends Capability {
   devicePackageVersions = {};
   router = express.Router();
   hyperDXIngestionAPIKey = null;
+  telemetryService = new TelemetryService();
 
   constructor() {
     super(() => {
@@ -523,98 +525,47 @@ class _robotAgent extends Capability {
         });
 
       // forward agent logs to HyperDX
-      this.forwardAgentLogsToHyperdx();
 
-      this.sendToHyperDX( {
+      // Initialize telemetry service and send startup log
+      this.initializeTelemetryService().then(async () => {
+        await this.telemetryService.sendLogs({
           timestamp: Date.now(),
           module: log.name,
           logLevelValue: 20,
-          level: 'DEBUG',
-          message: 'Portal (re-)started'
-        }, {
-          'service.name': 'portal',
-        });
+            level: 'DEBUG',
+            message: 'Portal (re-)started'
+          }, {
+            'service.name': 'portal',
+          }
+        );
+        this.forwardAgentLogsToHyperdx();
+      });
       // this.forwardAgentMetricsToHyperdx();
     });
   }
 
-  /** Send log line to HyperDX
-   * msgObj: { timestamp, module, logLevelValue, level, message }
-   * TODO: don't send log level text with EACH message!
-   */
-  async sendToHyperDX(logs, attributes = {}) {
-
-    if (!Array.isArray(logs)) {
-      logs = [logs];
-    }
-    // get HyperDX ingestion key from mongo DB if we don't already have it
-    if (!this.hyperDXIngestionAPIKey) {
-      const db = Mongo.client.db('hyperdx');
-      const coll = db.collection('teams');
-      const team = await coll.findOne();
-      this.hyperDXIngestionAPIKey = team.apiKey;
-
-      if (!this.hyperDXIngestionAPIKey) {
-        log.warn('No HyperDX ingestion API key found (yet), not ingesting');
-        return;
-      }
-    }
-
-    const body = {
-      "resourceLogs": [
-        {
-          "resource": {
-            "attributes": _.map(attributes, (value, key) => ({
-              key,
-              value: {"stringValue": value}
-            }))
-          },
-          "scopeLogs": [
-            {
-              "scope": {
-                "name": "logMonitor"
-              },
-              "logRecords": logs.map(logObj => ({
-                "timeUnixNano": logObj.timestamp * 1e6,
-                "observedTimeUnixNano": new Date().getTime() * 1e6,
-                "severityNumber": logObj.logLevelValue,
-                "severityText": logObj.level,
-                  "body": {
-                    "stringValue": logObj.message
-                  },
-                  "attributes": [
-                    { "key": "module", "value": { "stringValue": logObj.module } },
-                  ],
-                }
-              )),
-            }
-          ]
-        }
-      ]
-    };
-
+  /** Initialize the telemetry service with HyperDX API key */
+  async initializeTelemetryService() {
     try {
-      const response = await fetch('http://otel-collector:4318/v1/logs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'authorization': this.hyperDXIngestionAPIKey
-        },
-        body: JSON.stringify(body)
-      });
+      // get HyperDX ingestion key from mongo DB if we don't already have it
+      if (!this.hyperDXIngestionAPIKey) {
+        const db = Mongo.client.db('hyperdx');
+        const coll = db.collection('teams');
+        const team = await coll.findOne();
+        this.hyperDXIngestionAPIKey = team.apiKey;
 
-      if (!response.ok) {
-        const errorDetails = await response.text();
-        log.error(`Failed to send log to HyperDX.
-          Response status: ${response.status}, Details: ${errorDetails}`
-        );
+        if (!this.hyperDXIngestionAPIKey) {
+          log.warn('No HyperDX ingestion API key found (yet), not initializing telemetry');
+          return;
+        }
       }
+
+      await this.telemetryService.initialize(this.hyperDXIngestionAPIKey);
+      log.info('Telemetry service initialized successfully');
     } catch (error) {
-      log.error('Failed to send log to HyperDX', error);
+      log.error('Failed to initialize telemetry service:', error);
     }
-
   }
-
 
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
@@ -642,8 +593,8 @@ class _robotAgent extends Capability {
         return line.package;
       });
 
-      _.forEach(packageLogs, (logs, packageName) => {
-        this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+      _.forEach(packageLogs, async (logs, packageName) => {
+        await this.telemetryService.sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
       });
     });
   }

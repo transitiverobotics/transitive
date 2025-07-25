@@ -10,18 +10,19 @@ log.setLevel('info');
 const WAIT_TIME_IN_CASE_OF_ERROR = 5000; // 5 seconds
 const MAX_LOGS_PER_BATCH = 5; // Maximum number of logs to upload in one go
 
-/** Translate log level into a numeric value. */
-const getLogLevelValue = (levelName) => {
-  const levels = {
-    'DEBUG': 10,
-    'INFO': 20,
-    'WARN': 30,
-    'WARNING': 30,
-    'ERROR': 40,
-    'CRITICAL': 50,
-  }
-  return levels[levelName.toUpperCase()] || 20; // default to INFO if not found
-};
+const getSeverityNumber = (level) => {
+  const levelMap = {
+    'UNSPECIFIED': 0,
+    'TRACE': 1,
+    'DEBUG': 5,
+    'INFO': 9,
+    'WARN': 13,
+    'ERROR': 17,
+    'FATAL': 21
+  };
+  return levelMap[level] || levelMap['UNSPECIFIED'];
+}
+
 
 /** Get the currently configured level of logging for the given package name
  * or the global one if not specified. Defaults to 'ERROR' if not set. */
@@ -71,7 +72,7 @@ class LogMonitor {
           'to', minLogLevel
         );
         this.watchedPackages[packageName].minLogLevel = minLogLevel;
-        this.watchedPackages[packageName].minLogLevelValue = getLogLevelValue(minLogLevel);
+        this.watchedPackages[packageName].minLogLevelValue = getSeverityNumber(minLogLevel);
       });
     });
 
@@ -129,7 +130,7 @@ class LogMonitor {
     }
 
     const minLogLevel = getMinLogLevel(packageName);
-    const minLogLevelValue = getLogLevelValue(minLogLevel);
+    const minLogLevelValue = getSeverityNumber(minLogLevel);
     this.watchedPackages[packageName].minLogLevel = minLogLevel;
     this.watchedPackages[packageName].minLogLevelValue = minLogLevelValue;
 
@@ -239,8 +240,8 @@ class LogMonitor {
       log.warn('Invalid timestamp in log line:', dateTime, 'in line:', line);
       return null; // Skip invalid timestamps
     }
-
-    const logLevelValue = getLogLevelValue(level);
+    const upperLevel = level.toUpperCase();
+    const logLevelValue = getSeverityNumber(upperLevel);
     const minLogLevelValue = this.watchedPackages[packageName].minLogLevelValue;
 
     // Skip logs below the minimum log level
@@ -248,7 +249,7 @@ class LogMonitor {
     const logObject = {
       timestamp,
       module: moduleName,
-      level: level.toUpperCase(),
+      level: upperLevel,
       logLevelValue,
       message,
       package: packageName

@@ -3,9 +3,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
-const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const assert = require('assert');
 const fetch = require('node-fetch'); // TODO: use native
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -23,6 +21,7 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
+const { sendLogs, sendMetrics } = require('./telemetry');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -446,7 +445,7 @@ class _robotAgent extends Capability {
   hyperDXIngestionAPIKey = null;
 
   constructor() {
-    super(() => {
+    super(async () => {
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
       this.mqttSync.subscribe(
@@ -523,98 +522,20 @@ class _robotAgent extends Capability {
         });
 
       // forward agent logs to HyperDX
-      this.forwardAgentLogsToHyperdx();
 
-      this.sendToHyperDX( {
-          timestamp: Date.now(),
+      await sendLogs({
+        timestamp: Date.now(),
           module: log.name,
-          logLevelValue: 20,
           level: 'DEBUG',
           message: 'Portal (re-)started'
         }, {
           'service.name': 'portal',
-        });
-      // this.forwardAgentMetricsToHyperdx();
+        }
+      );
+      this.forwardAgentLogsToHyperdx();
+      this.forwardAgentMetricsToHyperdx();
     });
   }
-
-  /** Send log line to HyperDX
-   * msgObj: { timestamp, module, logLevelValue, level, message }
-   * TODO: don't send log level text with EACH message!
-   */
-  async sendToHyperDX(logs, attributes = {}) {
-
-    if (!Array.isArray(logs)) {
-      logs = [logs];
-    }
-    // get HyperDX ingestion key from mongo DB if we don't already have it
-    if (!this.hyperDXIngestionAPIKey) {
-      const db = Mongo.client.db('hyperdx');
-      const coll = db.collection('teams');
-      const team = await coll.findOne();
-      this.hyperDXIngestionAPIKey = team.apiKey;
-
-      if (!this.hyperDXIngestionAPIKey) {
-        log.warn('No HyperDX ingestion API key found (yet), not ingesting');
-        return;
-      }
-    }
-
-    const body = {
-      "resourceLogs": [
-        {
-          "resource": {
-            "attributes": _.map(attributes, (value, key) => ({
-              key,
-              value: {"stringValue": value}
-            }))
-          },
-          "scopeLogs": [
-            {
-              "scope": {
-                "name": "logMonitor"
-              },
-              "logRecords": logs.map(logObj => ({
-                "timeUnixNano": logObj.timestamp * 1e6,
-                "observedTimeUnixNano": new Date().getTime() * 1e6,
-                "severityNumber": logObj.logLevelValue,
-                "severityText": logObj.level,
-                  "body": {
-                    "stringValue": logObj.message
-                  },
-                  "attributes": [
-                    { "key": "module", "value": { "stringValue": logObj.module } },
-                  ],
-                }
-              )),
-            }
-          ]
-        }
-      ]
-    };
-
-    try {
-      const response = await fetch('http://otel-collector:4318/v1/logs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'authorization': this.hyperDXIngestionAPIKey
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorDetails = await response.text();
-        log.error(`Failed to send log to HyperDX.
-          Response status: ${response.status}, Details: ${errorDetails}`
-        );
-      }
-    } catch (error) {
-      log.error('Failed to send log to HyperDX', error);
-    }
-
-  }
-
 
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
   forwardAgentLogsToHyperdx() {
@@ -642,10 +563,33 @@ class _robotAgent extends Capability {
         return line.package;
       });
 
-      _.forEach(packageLogs, (logs, packageName) => {
-        this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+      _.forEach(packageLogs, async (logs, packageName) => {
+        await sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
       });
     });
+  }
+
+  /** Subscribe to metrics messages sent by robot agents and forward them to HyperDX **/
+  forwardAgentMetricsToHyperdx() {
+    log.debug('Subscribing to metrics');
+    this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/metrics');
+    this.data.subscribePath(
+      '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
+      async (value, topic, matched, tags) => {        
+        if (!value) return;
+        const { orgId, deviceId } = matched;
+
+        const metricsData = value;
+
+        // Forward metrics to HyperDX
+        sendMetrics(metricsData, {
+          'organization.id': orgId,
+          'device.id': deviceId,
+        }).catch(error => {
+          log.error('Failed to forward metrics to HyperDX:', error);
+        });
+      }
+    );
   }
 
   /** check whether the given device is running, i.e., had a recent heartbeat */

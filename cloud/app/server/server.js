@@ -521,19 +521,24 @@ class _robotAgent extends Capability {
           log.debug('migrated fleet config');
         });
 
-      // forward agent logs to HyperDX
-
-      await sendLogs({
-        timestamp: Date.now(),
-          module: log.name,
-          level: 'DEBUG',
-          message: 'Portal (re-)started'
-        }, {
-          'service.name': 'portal',
-        }
-      );
-      this.forwardAgentLogsToHyperdx();
-      this.forwardAgentMetricsToHyperdx();
+      // Check for ClickHouse integration
+      if (process.env.CLICKHOUSE_ENABLED === 'true') {
+        log.debug('ClickHouse integration enabled');
+        // Additional ClickHouse initialization code can go here
+        await sendLogs({
+          timestamp: Date.now(),
+            module: log.name,
+            level: 'DEBUG',
+            message: 'Portal (re-)started'
+          }, {
+            'service.name': 'portal',
+          }
+        );
+        this.forwardAgentLogsToHyperdx();
+        this.forwardAgentMetricsToHyperdx();
+      } else {
+        log.debug('ClickHouse integration disabled');
+      }
     });
   }
 

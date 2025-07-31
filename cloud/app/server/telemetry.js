@@ -20,6 +20,12 @@ const sendLogs = async (logs, resourceAttributes = {}) => {
   if (!Array.isArray(logs)) {
     logs = [logs];
   }
+  
+  if (logs.length === 0) {
+    log.debug('No logs to send');
+    return;
+  }
+  
   try {
     log.debug('Sending logs ClickHouse...', logs.length, 'logs to send');
     
@@ -82,7 +88,7 @@ const sendLogs = async (logs, resourceAttributes = {}) => {
         const errorText = await response.text();
         log.error('Failed to send logs to ClickHouse:', response.status, response.statusText, errorText);
       } else {
-        log.debug('Logs sent to ClickHouse successfully');
+        log.debug(`${logs.length} logs sent to ClickHouse successfully`);
       }
     } catch (error) {
       log.warn('Failed to insert logs into ClickHouse:', error);
@@ -93,35 +99,89 @@ const sendLogs = async (logs, resourceAttributes = {}) => {
 }
 
 /**
- * Sends a single metric to ClickHouse
- * @param {string} name - Metric name
- * @param {string} description - Metric description
- * @param {string} unit - Metric unit
- * @param {number} value - Metric value
- * @param {number} timestamp - Timestamp in milliseconds
- * @param {string} serviceName - Service name for the metric
- * @param {Object} resourceAttributes - Resource attributes to add to the metric
+ * Sends metrics for all monitored packages to ClickHouse
+ * @param {Object} metricsData - Object containing package names as keys and arrays of samples as values
+ * @param {Object} resourceAttributes - Resource attributes to add to all metrics
  */
-const sendMetric = async (name, description, unit, value, timestamp, serviceName, resourceAttributes = {}) => {
-  const timestampISO = new Date(timestamp||Date.now()).toISOString().replace('T', ' ').replace('Z', '');
-  log.debug(`Sending metric ${name} with value ${value} at ${timestampISO}`);
-  const sampleValues = {
-    TimeUnix: `toDateTime64('${timestampISO}', 9)`,          
-    ServiceName: serviceName,
-    Value: value,
-    MetricName: name,
-    MetricDescription: description,
-    MetricUnit: unit,
-    ResourceAttributes: {...resourceAttributes, 'service.name': serviceName}
-  };
-  // Format ResourceAttributes as ClickHouse Map
-  const resourceAttrsMap = Object.entries(sampleValues.ResourceAttributes)
-    .map(([key, value]) => `'${key}':'${String(value).replace(/'/g, "''")}'`)
-    .join(',');
-  const resourceAttrsStr = `{${resourceAttrsMap}}`;
-  // Construct INSERT query for otel_metrics_gauge table
-  const query = `INSERT INTO otel_metrics_gauge (TimeUnix, ServiceName, Value, MetricName, MetricDescription, MetricUnit, ResourceAttributes) VALUES (${sampleValues.TimeUnix }, '${sampleValues.ServiceName}', ${sampleValues.Value}, '${sampleValues.MetricName}', '${sampleValues.MetricDescription}', '${sampleValues.MetricUnit}', ${resourceAttrsStr})`;
-
+const sendMetrics = async (metricsData, resourceAttributes = {}) => {
+  log.debug('Sending metrics to ClickHouse...', metricsData);
+  
+  const allMetrics = [];
+  
+  for (const [packageName, samples] of Object.entries(metricsData)) {
+    if (!Array.isArray(samples) || samples.length === 0) continue;
+    
+    // Prepare metrics for ClickHouse insertion
+    for (const sample of samples) {
+      const timestamp = sample.timestamp || Date.now();
+      const timestampISO = new Date(timestamp).toISOString().replace('T', ' ').replace('Z', '');
+      const mergedResourceAttributes = {...resourceAttributes, 'service.name': packageName};
+      
+      // Add CPU usage metric
+      allMetrics.push({
+        TimeUnix: `toDateTime64('${timestampISO}', 9)`,
+        ServiceName: packageName,
+        Value: sample.cpu || 0,
+        MetricName: 'cpu_usage_percent',
+        MetricDescription: 'CPU usage percentage',
+        MetricUnit: '%',
+        ResourceAttributes: mergedResourceAttributes
+      });
+      
+      // Add memory usage metric
+      allMetrics.push({
+        TimeUnix: `toDateTime64('${timestampISO}', 9)`,
+        ServiceName: packageName,
+        Value: sample.memory || 0,
+        MetricName: 'memory_usage_bytes',
+        MetricDescription: 'Memory usage in bytes',
+        MetricUnit: 'bytes',
+        ResourceAttributes: mergedResourceAttributes
+      });
+      
+      // Add system metrics if available
+      if (sample.system) {
+        allMetrics.push({
+          TimeUnix: `toDateTime64('${timestampISO}', 9)`,
+          ServiceName: packageName,
+          Value: sample.system.cpu || 0,
+          MetricName: 'system_cpu_usage_percent',
+          MetricDescription: 'System CPU usage percentage',
+          MetricUnit: '%',
+          ResourceAttributes: mergedResourceAttributes
+        });
+        
+        allMetrics.push({
+          TimeUnix: `toDateTime64('${timestampISO}', 9)`,
+          ServiceName: packageName,
+          Value: sample.system.memory || 0,
+          MetricName: 'system_memory_usage_bytes',
+          MetricDescription: 'System memory usage in bytes',
+          MetricUnit: 'bytes',
+          ResourceAttributes: mergedResourceAttributes
+        });
+      }
+    }
+  }
+  
+  if (allMetrics.length === 0) {
+    log.debug('No metrics to send');
+    return;
+  }
+  
+  // Construct single INSERT query for all metrics
+  const values = allMetrics.map(metric => {
+    // Format ResourceAttributes as ClickHouse Map
+    const resourceAttrsMap = Object.entries(metric.ResourceAttributes)
+      .map(([key, value]) => `'${key}':'${String(value).replace(/'/g, "''")}'`)
+      .join(',');
+    const resourceAttrsStr = `{${resourceAttrsMap}}`;
+    
+    return `(${metric.TimeUnix}, '${metric.ServiceName}', ${metric.Value}, '${metric.MetricName}', '${metric.MetricDescription}', '${metric.MetricUnit}', ${resourceAttrsStr})`;
+  }).join(',');
+  
+  const query = `INSERT INTO otel_metrics_gauge (TimeUnix, ServiceName, Value, MetricName, MetricDescription, MetricUnit, ResourceAttributes) VALUES ${values}`;
+  log.debug('Constructed ClickHouse query for metrics:', query);
   try {
     const response = await fetch('http://clickhouse:8123', {
       method: 'POST',
@@ -132,65 +192,12 @@ const sendMetric = async (name, description, unit, value, timestamp, serviceName
     });
     if (!response.ok) {
       const errorText = await response.text();
-      log.error('Failed to send metric to ClickHouse:', response.status, response.statusText, errorText);
+      log.error('Failed to send metrics to ClickHouse:', response.status, response.statusText, errorText);
     } else {
-      log.debug('Metric sent to ClickHouse successfully:', name);
+      log.debug(`${allMetrics.length} metrics sent to ClickHouse successfully`);
     }
   } catch (error) {
-    log.error('Failed to insert metric into ClickHouse:', error);
-  }
-}
-
-/**
- * Sends metrics for all monitored packages to ClickHouse
- * @param {Object} metricsData - Object containing package names as keys and arrays of samples as values
- * @param {Object} resourceAttributes - Resource attributes to add to all metrics
- */
-const sendMetrics = async (metricsData, resourceAttributes = {}) => {
-  log.debug('Sending metrics to ClickHouse...', metricsData);
-  for (const [packageName, samples] of Object.entries(metricsData)) {
-    if (!Array.isArray(samples) || samples.length === 0) continue;
-    // Prepare metrics for ClickHouse insertion
-    for (const sample of samples) {
-      await sendMetric(
-        'cpu_usage_percent',
-        'CPU usage percentage',
-        '%',
-        sample.cpu || 0,
-        sample.timestamp || Date.now(),
-        packageName,
-        resourceAttributes
-      );
-      await sendMetric(
-        'memory_usage_bytes',
-        'Memory usage in bytes',
-        'bytes',
-        sample.memory || 0,
-        sample.timestamp || Date.now(),
-        packageName,
-        resourceAttributes
-      );
-      if (sample.system) {
-        await sendMetric(
-          'system_cpu_usage_percent',
-          'System CPU usage percentage',
-          '%',
-          sample.system.cpu || 0,
-          sample.timestamp || Date.now(),
-          packageName,
-          resourceAttributes
-        );
-        await sendMetric(
-          'system_memory_usage_bytes',
-          'System memory usage in bytes',
-          'bytes',
-          sample.system.memory || 0,
-          sample.timestamp || Date.now(),
-          packageName,
-          resourceAttributes
-        );
-      }
-    }
+    log.error('Failed to insert metrics into ClickHouse:', error);
   }
 }
 

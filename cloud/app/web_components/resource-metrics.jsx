@@ -87,9 +87,9 @@ const formatCpu = (cpu) => {
 
 /** Component to display resource metrics for CPU and Memory usage */
 const ResourceMetrics = ({ deviceData, packageName }) => {
-  const metrics = deviceData?.status?.metrics?.[packageName] || [];
+  const metrics = deviceData?.status?.metrics?.[packageName] || {};
 
-  if (!metrics || metrics.length === 0) {
+  if (!metrics || (!metrics.cpu && !metrics.memory)) {
     return (
       <div style={styles.noData}>
         No metrics data available yet
@@ -97,15 +97,15 @@ const ResourceMetrics = ({ deviceData, packageName }) => {
     );
   }
 
-  const cpuData = metrics.map(m => m.cpu || 0);
-  const memoryData = metrics.map(m => m.memory || 0);
+  const cpuData = metrics.cpu || [];
+  const memoryData = metrics.memory || [];
   
   let systemCpuData, systemMemoryData;
-  const hasSystemMetrics = metrics.length > 0 && metrics[0].system;
+  const hasSystemMetrics = metrics.system;
   // Extract system metrics if available (only for robot-agent)
   if (hasSystemMetrics) {
-    systemCpuData = metrics.map(m => m.system?.cpu || 0).filter(v => v > 0);
-    systemMemoryData = metrics.map(m => m.system?.memory || 0).filter(v => v > 0);
+    systemCpuData = metrics.system.cpu || [];
+    systemMemoryData = metrics.system.memory || [];
   }
   
   // Calculate averages

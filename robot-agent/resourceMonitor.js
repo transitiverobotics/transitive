@@ -84,10 +84,26 @@ class ResourceMonitor {
               pkgData.samples.unshift({
                 cpu: 0,
                 memory: 0,
+                system: pkgName === 'robot-agent' ? { cpu: 0, memory: 0 } : undefined
               });
             }
-            // publish each package's samples under its name
-            allSamples[pkgName] = pkgData.samples;
+            
+            // Convert to new schema format: separate arrays for cpu and memory
+            const cpuSamples = pkgData.samples.map(sample => sample.cpu);
+            const memorySamples = pkgData.samples.map(sample => sample.memory);
+            
+            allSamples[pkgName] = {
+              cpu: cpuSamples,
+              memory: memorySamples
+            };
+            
+            // Add system metrics for robot-agent
+            if (pkgName === 'robot-agent') {
+              allSamples[pkgName].system = {
+                cpu: pkgData.samples.map(sample => sample.system?.cpu || 0),
+                memory: pkgData.samples.map(sample => sample.system?.memory || 0)
+              };
+            }
           });
           this.mqttSync.data.update(
             `${this.agentPrefix}/status/metrics`,

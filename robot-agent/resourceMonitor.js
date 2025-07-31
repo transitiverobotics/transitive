@@ -48,10 +48,10 @@ class ResourceMonitor {
               si.mem()
             ]);
             pkgData.samples.push({
-              cpu: stats.cpu, // CPU usage percentage
+              cpu: Number(stats.cpu.toPrecision(3)), // CPU usage percentage (3 significant digits)
               memory: stats.memory, // Memory usage in bytes
               system: {
-                cpu: systemCpuLoad.currentLoad, // Overall CPU usage percentage
+                cpu: Number(systemCpuLoad.currentLoad.toPrecision(3)), // Overall CPU usage percentage (3 significant digits)
                 memory: systemMemInfo.used
               }
             });
@@ -62,7 +62,10 @@ class ResourceMonitor {
             const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
     
             pkgData.samples.push({
-              cpu: _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0), // CPU usage percentage (aggregated)
+              cpu: Number(
+                _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0)
+                .toPrecision(3)
+              ), // CPU usage percentage (aggregated)
               memory: _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.memory : 0), 0), // Memory usage in bytes (aggregated)
             });
           }

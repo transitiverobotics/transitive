@@ -26,10 +26,6 @@ class ResourceMonitor {
     log.debug('Starting resource monitoring for all monitored packages');
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('ResourceMonitor heartbeat received, initializing...');      
-      this.mqttSync.publish(
-        `${this.agentPrefix}/status/metrics`,        
-        { atomic: true }
-      );
       this.initialized = true; // Set initialized state
     });
 

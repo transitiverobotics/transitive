@@ -37,6 +37,7 @@
     "react-dom": "^17.0.2",
     "react-icons": "^4.11.0",
     "react-router-dom": "^6.2.1",
+    "react-sparklines": "^1.7.0",
     "react-web-component-style-loader": "^0.1.4-alpha",
     "refractor": "^4.8.1",
     "semver": "^7.5.4",

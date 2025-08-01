@@ -74,9 +74,6 @@ class LogMonitor {
         this.watchedPackages[packageName].minLogLevelValue = getLogLevelValue(minLogLevel);
       });
     });
-    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`);
-    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/errorCount/#`);
-    this.mqttSync.publish(`${this.AGENT_PREFIX}/status/logs/lastError/#`);
 
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('LogMonitor heartbeat received, initializing...');

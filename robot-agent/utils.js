@@ -8,6 +8,7 @@ const _ = require('lodash');
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
 const LogMonitor = require('./logMonitor');
+const ResourceMonitor = require('./resourceMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -120,13 +121,15 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
 
-  LogMonitor.watchLogs(name);
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
-  pgrep.stdout.on('data', (data) => log.debug(`pgrep: ${data}`));
 
-  pgrep.on('exit', (code) => {
+  let packagePid = null;
+  pgrep.stdout.on('data', (data) => {
+    packagePid = parseInt(data.toString().trim());
+  });
+  pgrep.on('exit', async (code) => {
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
@@ -134,7 +137,6 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-      // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -148,11 +150,18 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
-
-      // start watching status.json (from startPackage) and report in mqtt
-      watchStatus(name, 'requested');
+      packagePid = subprocess.pid;
     }
-    // else: nothing to do, it's already running
+    log.debug(`Package ${name} started with PID: ${packagePid}`);
+
+    // start watching status.json (from startPackage) and report in mqtt
+    watchStatus(name, 'requested');
+    // start watching package logs
+    LogMonitor.watchLogs(name);
+    if (packagePid) {
+      // start resource monitoring for the package
+      ResourceMonitor.startMonitoring(name, packagePid);
+    }
   });
 };
 

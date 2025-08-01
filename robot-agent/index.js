@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 
 const constants = require('./constants');
@@ -37,6 +36,7 @@ const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs,
   upgradeNodejs, killAllPackages } = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
+const ResourceMonitor = require('./resourceMonitor');
 
 require('chalk').level = 1; // force color
 
@@ -157,12 +157,8 @@ require('./mqtt');
 
 localApi.startServer();
 
-// let i = 0;
-// setInterval(() => {
-//   log.error('test', i++);
-// }, 100);
-
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
+

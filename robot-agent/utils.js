@@ -125,8 +125,11 @@ const startPackage = (name) => {
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
 
+  let packagePid = null;
+  pgrep.stdout.on('data', (data) => {
+    packagePid = parseInt(data.toString().trim());
+  });
   pgrep.on('exit', async (code) => {
-    let packagePid = null;
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
@@ -148,14 +151,6 @@ const startPackage = (name) => {
         });
       subprocess.unref();
       packagePid = subprocess.pid;
-    }
-    if(!packagePid) {
-      // Get the PID asynchronously
-      packagePid = await new Promise((resolve) => {
-        pgrep.stdout.on('data', (data) => {         
-          resolve(parseInt(data.toString().trim()));
-        });
-      });
     }
     log.debug(`Package ${name} started with PID: ${packagePid}`);
 

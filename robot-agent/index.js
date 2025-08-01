@@ -157,16 +157,8 @@ require('./mqtt');
 
 localApi.startServer();
 
-// let i = 0;
-// setInterval(() => {
-//   log.error('test', i++);
-// }, 100);
-
 /** catch-all to be safe */
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
 
-// get the process ID of the robot-agent process
-const pid = process.pid;
-ResourceMonitor.startMonitoring('robot-agent', pid);

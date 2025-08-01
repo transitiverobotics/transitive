@@ -74,7 +74,6 @@ class ResourceMonitor {
       const firstPkg = Object.keys(this.monitoredPackages)[0];
       if (this.initialized) {
         if (this.monitoredPackages[firstPkg].samples.length >= SAMPLES_PER_BATCH) {
-          log.debug(`Publishing resource usage for all monitored packages on MqttSync`);
           const allSamples = {};
           _.map(this.monitoredPackages, (pkgData, pkgName) => {
             pkgData.samples = pkgData.samples.slice(-SAMPLES_PER_BATCH);

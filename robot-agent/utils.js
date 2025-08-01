@@ -121,23 +121,18 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
 
-  LogMonitor.watchLogs(name);
-  log.debug("process.getuid()", process.getuid());
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
-  pgrep.stdout.on('data', (data) => log.debug(`pgrep: ${data}`));
 
-  pgrep.on('exit', (code) => {
+  pgrep.on('exit', async (code) => {
+    let packagePid = null;
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
       const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
-
-      // package is started with passed config
-      LogMonitor.watchLogs(name);
 
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
@@ -152,14 +147,26 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
-
-      // Start resource monitoring for the package
-      ResourceMonitor.startMonitoring(name, subprocess.pid);
-
-      // start watching status.json (from startPackage) and report in mqtt
-      watchStatus(name, 'requested');
+      packagePid = subprocess.pid;
     }
-    // else: nothing to do, it's already running
+    if(!packagePid) {
+      // Get the PID asynchronously
+      packagePid = await new Promise((resolve) => {
+        pgrep.stdout.on('data', (data) => {         
+          resolve(parseInt(data.toString().trim()));
+        });
+      });
+    }
+    log.debug(`Package ${name} started with PID: ${packagePid}`);
+
+    // start watching status.json (from startPackage) and report in mqtt
+    watchStatus(name, 'requested');
+    // start watching package logs
+    LogMonitor.watchLogs(name);
+    if (packagePid) {
+      // start resource monitoring for the package
+      ResourceMonitor.startMonitoring(name, packagePid);
+    }
   });
 };
 

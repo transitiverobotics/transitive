@@ -23,7 +23,7 @@ class ResourceMonitor {
   init(mqttSync, agentPrefix) {
     this.mqttSync = mqttSync;
     this.agentPrefix = agentPrefix;
-    log.debug('Starting resource monitoring for all monitored packages');
+    log.info('Starting resource monitoring for all monitored packages');
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('ResourceMonitor heartbeat received, initializing...');      
       this.initialized = true; // Set initialized state
@@ -118,6 +118,7 @@ class ResourceMonitor {
 
   startMonitoring(packageName, pid) {
     if (!this.monitoredPackages[packageName]) {
+      log.info(`Starting resource monitoring for ${packageName} (PID: ${pid})`);
       this.monitoredPackages[packageName] = {
         pid: pid,
         samples: [],

@@ -126,8 +126,12 @@ const startPackage = (name) => {
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
 
   let packagePid = null;
-  pgrep.stdout.on('data', (data) => {
-    packagePid = parseInt(data.toString().trim());
+  const packagePidPromise = new Promise((resolve) => {
+    pgrep.stdout.on('data', (data) => {
+      const pid = parseInt(data.toString().trim());
+      log.debug(`pgrep found package ${name} with PID: ${pid}`);
+      resolve(pid);
+    });
   });
   pgrep.on('exit', async (code) => {
     if (code) {
@@ -151,17 +155,28 @@ const startPackage = (name) => {
         });
       subprocess.unref();
       packagePid = subprocess.pid;
+    }   
+    if (!packagePid) {
+      packagePid = await Promise.race([
+        packagePidPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout waiting for package PID')), 5000)
+        )
+      ]).catch(err => {
+        log.warn(`Failed to get package PID: ${err.message}`);
+      });
+    }
+    if (!packagePid) {
+      log.warn(`Package ${name} did not start, no PID found.`);
+      return;
     }
     log.debug(`Package ${name} started with PID: ${packagePid}`);
-
     // start watching status.json (from startPackage) and report in mqtt
     watchStatus(name, 'requested');
     // start watching package logs
     LogMonitor.watchLogs(name);
-    if (packagePid) {
-      // start resource monitoring for the package
-      ResourceMonitor.startMonitoring(name, packagePid);
-    }
+    // start resource monitoring for the package
+    ResourceMonitor.startMonitoring(name, packagePid);
   });
 };
 

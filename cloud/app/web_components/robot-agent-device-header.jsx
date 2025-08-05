@@ -70,6 +70,7 @@ const Device = (props) => {
       versionPrefix={versionPrefix}
       packageName={pkg}
       toolTipPlacement='bottom'
+      jwt={jwt}
     />
   </div>;
 };

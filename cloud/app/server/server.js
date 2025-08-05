@@ -23,11 +23,17 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
-const { addOrgFilter, addOrgFilterPermissive, addClickHouseOrgFilter } = require('./hyperdx-auth');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
+const {
+  setupClickHouseUser,
+  setupUserPolicy,
+  grantUserPermissions,
+  userExists,
+  getClickHouseCredentials
+} = require('./clickhouse-auth');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -580,7 +586,7 @@ class _robotAgent extends Capability {
     // Ensure orgId is always included in attributes for tenant isolation
     const enrichedAttributes = {
       ...attributes,
-      'org.id': attributes['org.id'] || 'unknown'
+      'organization.id': attributes['organization.id'] || 'unknown'
     };
 
     const body = {
@@ -607,7 +613,7 @@ class _robotAgent extends Capability {
                   },
                   "attributes": [
                     { "key": "module", "value": { "stringValue": logObj.module } },
-                    { "key": "org.id", "value": { "stringValue": enrichedAttributes['org.id'] } },
+                    { "key": "organization.id", "value": { "stringValue": enrichedAttributes['organization.id'] } },
                   ],
                 }
               )),
@@ -670,7 +676,7 @@ class _robotAgent extends Capability {
         this.sendToHyperDX(logs, {
           'device.id': device, 
           'service.name': packageName,
-          'org.id': organization  // Explicit org.id for tenant isolation
+          'organization.id': organization  // Explicit org.id for tenant isolation
         });
       });
     });
@@ -976,6 +982,27 @@ class _robotAgent extends Capability {
       if (!valid) {
         log.info('wrong password for account', req.body.name);
         return fail('invalid credentials');
+      }
+
+      // Setup ClickHouse user on login
+      try {
+        const exists = await userExists(req.body.name);
+        
+        if (!exists) {
+          // Create user with SHA256 password authentication
+          await setupClickHouseUser(req.body.name);
+          
+          // Setup row-level security policy
+          await setupUserPolicy(req.body.name);
+          
+          // Grant necessary permissions
+          await grantUserPermissions(req.body.name);
+          
+          log.info(`Created ClickHouse user for ${req.body.name} during login`);
+        }
+      } catch (error) {
+        log.warn('Error setting up ClickHouse user during login:', error);
+        // Don't fail the login if ClickHouse setup fails
       }
 
       login(req, res, {account, redirect: false});
@@ -1308,7 +1335,21 @@ class _robotAgent extends Capability {
         return;
       }
 
-      const token = jwt.sign(req.body, account.jwtSecret);
+      // Include ClickHouse credentials in the JWT payload
+      let clickhouseCredentials = null;
+      try {
+        clickhouseCredentials = await getClickHouseCredentials(req.session.user._id);
+        log.debug(`Added ClickHouse credentials to JWT for ${req.session.user._id}`);
+      } catch (error) {
+        log.warn('Error getting ClickHouse credentials for JWT:', error);
+      }
+
+      const payload = {
+        ...req.body,
+        ...(clickhouseCredentials && { clickhouse: clickhouseCredentials })
+      };
+
+      const token = jwt.sign(payload, account.jwtSecret);
       // log.debug('responding with', {token});
       res.json({token});
     });
@@ -1562,32 +1603,6 @@ const robotAgent = new _robotAgent();
 // let robot agent capability handle it's own sub-path; enable the same for all
 // other, regular, capabilities as well?
 app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
-app.use('/clickhouse/*', cookieParser());
-
-// // Session middleware will be added after Mongo.init() in the main section
-
-// Direct ClickHouse proxy with org filtering for testing/development
-app.use('/clickhouse/*', addOrgFilter, addClickHouseOrgFilter, (req, res) => {
-  const orgId = req.headers['x-org-id'];
-  log.debug('Proxying ClickHouse request for org:', orgId);
-  
-  // Strip the /clickhouse prefix
-  const targetPath = req.url.replace('/clickhouse', '');
-  req.url = targetPath;
-  
-  const clickHouseProxy = HttpProxy.createProxyServer({
-    target: 'http://clickhouse:8123',
-    changeOrigin: true
-  });
-  
-  clickHouseProxy.web(req, res, {
-    target: 'http://clickhouse:8123'
-  }, (err) => {
-    log.error('ClickHouse proxy error:', err);
-    res.status(500).json({error: 'ClickHouse service unavailable'});
-  });
-});
-
 
 // routes used during the installation process of a new robot
 app.use('/install', installRouter);

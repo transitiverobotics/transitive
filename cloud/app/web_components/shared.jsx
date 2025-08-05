@@ -1,10 +1,10 @@
-import React, { useEffect, useReducer, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 
 import { Modal, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 
 import { FaCircle, FaRegCircle } from 'react-icons/fa';
 
-import { getLogger } from '@transitive-sdk/utils-web';
+import { getLogger, decodeJWT } from '@transitive-sdk/utils-web';
 import { ActionLink } from '../src/utils/index';
 
 const log = getLogger('shared.jsx');
@@ -66,18 +66,40 @@ export const ensureProps = (props, list) => list.every(name => {
   return !missing;
 });
 
+/**
+ * Extract ClickHouse credentials from JWT token
+ * @param {string} jwt - The JWT token
+ * @returns {Object|null} - ClickHouse credentials or null
+ */
+const extractClickHouseCredentials = (jwt) => {
+  if (!jwt) return null;
+  
+  try {
+    const payload = decodeJWT(jwt);
+    return payload.clickhouse || null;
+  } catch (error) {
+    console.error('Failed to decode JWT:', error);
+    return null;
+  }
+};
+
 
 /** Component that renders package logs from ClickHouse and live MQTT logs */
-export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide}) => {
+export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide, jwt}) => {
   const [initialLogs, setInitialLogs] = useState('Loading logs...');
   const [liveLogs, setLiveLogs] = useState([]);
 
+  const clickhouseCredentials = useMemo(() => extractClickHouseCredentials(jwt), [jwt]);
+
   // Fetch initial logs from ClickHouse
-  useEffect(() => {
+  useEffect(async () => {
+    if (!device || !packageName || !clickhouseCredentials) {
+      return;
+    }
     const fetchInitialLogs = async () => {
       try {
         // Query ClickHouse for logs from this package in JSON format
-        // Note: The org filtering is handled server-side by the proxy middleware
+        // Note: The org filtering is handled by row level policies on clickhouse
         const query = `
           SELECT 
             Timestamp,
@@ -93,36 +115,8 @@ export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide}) => 
           FORMAT JSON
         `;
         
-        // Use the tenant-aware ClickHouse proxy endpoint
-        const response = await fetch(`/clickhouse/?query=${encodeURIComponent(query)}`, {
-          method: 'GET',
-          credentials: 'include', // Include cookies for authentication
-        });
-        
-        if (!response.ok) {
-          throw new Error(`ClickHouse query failed: ${response.status}`);
-        }
-        
-        const jsonData = await response.json();
-        
-        if (!jsonData.data || jsonData.data.length === 0) {
-          setInitialLogs('No logs found for this package');
-          return;
-        }
-        
-        // Format the logs for display using JSON data
-        const formattedLogs = jsonData.data
-          .reverse() // Show oldest first
-          .map(log => {
-            const timestamp = new Date(log.Timestamp).toISOString();
-            const severity = log.SeverityText;
-            const body = log.Body;
-            const module = log.LogAttributes?.module || '';
-            const moduleStr = module ? ` ${module}` : '';
-            return `[${timestamp}${moduleStr} ${severity}] ${body}`;
-          })
-          .join('\n');
-        
+        const jsonData = await executeClickHouseQuery(query, clickhouseCredentials);
+        const formattedLogs = formatLogsForDisplay(jsonData.data);
         setInitialLogs(formattedLogs || 'No logs available');
         
       } catch (error) {
@@ -130,9 +124,8 @@ export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide}) => 
         setInitialLogs(`Error loading logs: ${error.message}`);
       }
     };
-
-    fetchInitialLogs();
-  }, [packageName]);
+    await fetchInitialLogs();
+  }, [packageName, device, clickhouseCredentials]);
 
   useEffect(() => {
     if (mqttClient) {
@@ -234,6 +227,7 @@ export const GetLogButtonWithCounter = ({
   versionPrefix, 
   packageName, 
   toolTipPlacement = 'top',
+  jwt
 }) => {
   const [errorLogsCount, setErrorLogsCount] = useState(0);
   const [lastError, setLastError] = useState(null);
@@ -325,7 +319,51 @@ export const GetLogButtonWithCounter = ({
         device={device}
         agentPrefix={versionPrefix}
         hide={() => setShowLogs(false)}
+        jwt={jwt}
       />}
     </>
   );
+};
+
+/**
+ * Execute a ClickHouse query with credentials
+ * @param {string} query - The SQL query to execute
+ * @param {Object} credentials - ClickHouse credentials {user, password}
+ * @returns {Promise<Object>} - Query result
+ */
+const executeClickHouseQuery = async (query, credentials) => {
+  const url = `http://clickhouse.azeroth.local/?user=${credentials.user}&password=${credentials.password}&query=${encodeURIComponent(query)}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+  });
+  
+  if (!response.ok) {
+    throw new Error(`ClickHouse query failed: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Format log data for display
+ * @param {Array} logData - Raw log data from ClickHouse
+ * @returns {string} - Formatted logs
+ */
+const formatLogsForDisplay = (logData) => {
+  if (!logData || logData.length === 0) {
+    return 'No logs found for this package';
+  }
+  
+  return logData
+    .reverse() // Show oldest first
+    .map(log => {
+      const timestamp = new Date(log.Timestamp).toISOString();
+      const severity = log.SeverityText;
+      const body = log.Body;
+      const module = log.LogAttributes?.module || '';
+      const moduleStr = module ? ` ${module}` : '';
+      return `[${timestamp}${moduleStr} ${severity}] ${body}`;
+    })
+    .join('\n');
 };

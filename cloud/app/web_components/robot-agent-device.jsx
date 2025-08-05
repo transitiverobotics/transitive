@@ -194,7 +194,7 @@ const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
     inactive, device, versionPrefix, desiredPackagesTopic,
-    canPay } = props;
+    canPay, jwt } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -280,8 +280,10 @@ const Capability = (props) => {
               <GetLogButtonWithCounter
                 text="get log"
                 mqttSync={mqttSync}
+                device={device}
                 versionPrefix={versionPrefix}
                 packageName={name}
+                jwt={jwt}
               />
             }
           </div>}
@@ -463,8 +465,10 @@ const Device = (props) => {
       </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
           text="Get log"
           mqttSync={mqttSync}
+          device={device}
           versionPrefix={versionPrefix}
           packageName="robot-agent"
+          jwt={jwt}
         />
 
       <Fold title="Configuration">
@@ -497,7 +501,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                canPay
+                canPay, jwt
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

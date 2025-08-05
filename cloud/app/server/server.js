@@ -27,6 +27,13 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
+const {
+  setupClickHouseUser,
+  setupUserPolicy,
+  grantUserPermissions,
+  userExists,
+  getClickHouseCredentials
+} = require('./clickhouse-auth');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -533,7 +540,24 @@ class _robotAgent extends Capability {
           message: 'Portal (re-)started'
         }, {
           'service.name': 'portal',
+          'org.id': 'system', // System-level logs
+          'device.id': 'cloud',
         });
+
+      // // Send system test log every second
+      // setInterval(() => {
+      //   this.sendToHyperDX({
+      //     timestamp: Date.now(),
+      //     module: 'system-test',
+      //     logLevelValue: 20,
+      //     level: 'INFO',
+      //     message: 'System health check - all services operational'
+      //   }, {
+      //     'service.name': 'robot-agent',
+      //     'org.id': 'system',
+      //     'test.type': 'heartbeat'
+      //   });
+      // }, 1000);
     });
   }
 
@@ -559,13 +583,19 @@ class _robotAgent extends Capability {
       }
     }
 
+    // Ensure orgId is always included in attributes for tenant isolation
+    const enrichedAttributes = {
+      ...attributes,
+      'organization.id': attributes['organization.id'] || 'unknown'
+    };
+
     const body = {
       "resourceLogs": [
         {
           "resource": {
-            "attributes": _.map(attributes, (value, key) => ({
+            "attributes": _.map(enrichedAttributes, (value, key) => ({
               key,
-              value: {"stringValue": value}
+              value: {"stringValue": String(value)}
             }))
           },
           "scopeLogs": [
@@ -583,6 +613,7 @@ class _robotAgent extends Capability {
                   },
                   "attributes": [
                     { "key": "module", "value": { "stringValue": logObj.module } },
+                    { "key": "organization.id", "value": { "stringValue": enrichedAttributes['organization.id'] } },
                   ],
                 }
               )),
@@ -622,7 +653,7 @@ class _robotAgent extends Capability {
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, sub } = parseMQTTTopic(topic);
-      if (!device || !sub || sub.length !== 1 || sub[0] !== 'logs') {
+      if (!device || !organization || !topic.endsWith('/status/logs/live')) {
         return;
       }
 
@@ -642,7 +673,11 @@ class _robotAgent extends Capability {
       });
 
       _.forEach(packageLogs, (logs, packageName) => {
-        this.sendToHyperDX(logs, {orgId: organization, deviceId: device, 'service.name': packageName});
+        this.sendToHyperDX(logs, {
+          'device.id': device, 
+          'service.name': packageName,
+          'organization.id': organization  // Explicit org.id for tenant isolation
+        });
       });
     });
   }
@@ -947,6 +982,27 @@ class _robotAgent extends Capability {
       if (!valid) {
         log.info('wrong password for account', req.body.name);
         return fail('invalid credentials');
+      }
+
+      // Setup ClickHouse user on login
+      try {
+        const exists = await userExists(req.body.name);
+        
+        if (!exists) {
+          // Create user with SHA256 password authentication
+          await setupClickHouseUser(req.body.name);
+          
+          // Setup row-level security policy
+          await setupUserPolicy(req.body.name);
+          
+          // Grant necessary permissions
+          await grantUserPermissions(req.body.name);
+          
+          log.info(`Created ClickHouse user for ${req.body.name} during login`);
+        }
+      } catch (error) {
+        log.warn('Error setting up ClickHouse user during login:', error);
+        // Don't fail the login if ClickHouse setup fails
       }
 
       login(req, res, {account, redirect: false});
@@ -1279,7 +1335,21 @@ class _robotAgent extends Capability {
         return;
       }
 
-      const token = jwt.sign(req.body, account.jwtSecret);
+      // Include ClickHouse credentials in the JWT payload
+      let clickhouseCredentials = null;
+      try {
+        clickhouseCredentials = await getClickHouseCredentials(req.session.user._id);
+        log.debug(`Added ClickHouse credentials to JWT for ${req.session.user._id}`);
+      } catch (error) {
+        log.warn('Error getting ClickHouse credentials for JWT:', error);
+      }
+
+      const payload = {
+        ...req.body,
+        ...(clickhouseCredentials && { clickhouse: clickhouseCredentials })
+      };
+
+      const token = jwt.sign(payload, account.jwtSecret);
       // log.debug('responding with', {token});
       res.json({token});
     });

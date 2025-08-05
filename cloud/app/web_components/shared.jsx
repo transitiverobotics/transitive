@@ -1,11 +1,10 @@
-import React, { useEffect, useReducer, useState } from 'react';
-import pako from 'pako';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 
 import { Modal, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 
 import { FaCircle, FaRegCircle } from 'react-icons/fa';
 
-import { getLogger } from '@transitive-sdk/utils-web';
+import { getLogger, decodeJWT } from '@transitive-sdk/utils-web';
 import { ActionLink } from '../src/utils/index';
 
 const log = getLogger('shared.jsx');
@@ -67,35 +66,66 @@ export const ensureProps = (props, list) => list.every(name => {
   return !missing;
 });
 
-
-/** given a compressed base64 buffer, convert and decompress */
-const decompress = (zippedBase64) => {
-  const buf = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
-  return pako.ungzip(buf, {to: 'string'});
+/**
+ * Extract ClickHouse credentials from JWT token
+ * @param {string} jwt - The JWT token
+ * @returns {Object|null} - ClickHouse credentials or null
+ */
+const extractClickHouseCredentials = (jwt) => {
+  if (!jwt) return null;
+  
+  try {
+    const payload = decodeJWT(jwt);
+    return payload.clickhouse || null;
+  } catch (error) {
+    console.error('Failed to decode JWT:', error);
+    return null;
+  }
 };
 
-/** Component that renders the package log response, such as
-{
-  "@transitive-robotics": {
-    "webrtc-video": {
-      "err": null,
-      "stdout": [base64 encoded gzip buffer of text],
-      "stderr": [base64 encoded gzip buffer of text],
-    }
-  }
-}
-*/
-export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
-  const scope = Object.keys(response)[0];
-  const cap = Object.values(response)[0];
-  const capName = Object.keys(cap)[0];
-  const result = Object.values(cap)[0];
-  const stdout = decompress(result.stdout);
 
-  const packageName = (capName === 'robot-agent') ?
-    'robot-agent' : `${scope}/${capName}`;
-  
+/** Component that renders package logs from ClickHouse and live MQTT logs */
+export const PkgLog = ({packageName, mqttClient, device, agentPrefix, hide, jwt}) => {
+  const [initialLogs, setInitialLogs] = useState('Loading logs...');
   const [liveLogs, setLiveLogs] = useState([]);
+
+  const clickhouseCredentials = useMemo(() => extractClickHouseCredentials(jwt), [jwt]);
+
+  // Fetch initial logs from ClickHouse
+  useEffect(async () => {
+    if (!device || !packageName || !clickhouseCredentials) {
+      return;
+    }
+    const fetchInitialLogs = async () => {
+      try {
+        // Query ClickHouse for logs from this package in JSON format
+        // Note: The org filtering is handled by row level policies on clickhouse
+        const query = `
+          SELECT 
+            Timestamp,
+            SeverityText,
+            ServiceName,
+            Body,
+            LogAttributes
+          FROM otel_logs
+          WHERE ServiceName = '${packageName}'
+            AND ResourceAttributes['device.id'] = '${device}'
+          ORDER BY Timestamp DESC
+          LIMIT 1000
+          FORMAT JSON
+        `;
+        
+        const jsonData = await executeClickHouseQuery(query, clickhouseCredentials);
+        const formattedLogs = formatLogsForDisplay(jsonData.data);
+        setInitialLogs(formattedLogs || 'No logs available');
+        
+      } catch (error) {
+        console.error('Failed to fetch logs from ClickHouse:', error);
+        setInitialLogs(`Error loading logs: ${error.message}`);
+      }
+    };
+    await fetchInitialLogs();
+  }, [packageName, device, clickhouseCredentials]);
 
   useEffect(() => {
     if (mqttClient) {
@@ -107,7 +137,8 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
           console.log('Subscribed to live logs:', topic);
         }
       });
-      mqttClient.on('message', (msgTopic, message) => {
+      
+      const handleMessage = (msgTopic, message) => {
         if (msgTopic === topic) {
           const logLines = message && JSON.parse(message.toString());
           if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
@@ -126,9 +157,17 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
             });
           }
         }
-      });
+      };
+      
+      mqttClient.on('message', handleMessage);
+      
+      // Cleanup function
+      return () => {
+        mqttClient.off('message', handleMessage);
+        mqttClient.unsubscribe(topic);
+      };
     }
-  }, [mqttClient, scope, capName]);
+  }, [mqttClient, packageName]);
 
   const style = {
     whiteSpace: 'pre-wrap',
@@ -146,8 +185,9 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
       }
     </Modal.Header>
     <Modal.Body>
-      {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>}
-      <h5>Live Log:</h5>
+      <h5>Logs</h5>
+      <pre style={style}>{initialLogs}</pre>
+      <h5>Live Logs</h5>
       <pre style={style}>
         {liveLogs}
       </pre>
@@ -182,14 +222,16 @@ const logButtonStyles = {
 /** Component that shows a log button with an error counter badge */
 export const GetLogButtonWithCounter = ({ 
   text, 
-  mqttSync, 
+  mqttSync,
+  device,
   versionPrefix, 
   packageName, 
   toolTipPlacement = 'top',
+  jwt
 }) => {
   const [errorLogsCount, setErrorLogsCount] = useState(0);
   const [lastError, setLastError] = useState(null);
-  const [pkgLog, setPkgLog] = useState(null);
+  const [showLogs, setShowLogs] = useState(false);
 
   // Subscribe to error logs and get data
   useEffect(() => {
@@ -230,19 +272,9 @@ export const GetLogButtonWithCounter = ({
 
   // Handle get log button click
   const handleGetLog = () => {
-    const topic = `${versionPrefix}/rpc/getPkgLog`;
-    console.log('running getPkgLog command', {topic, pkg: packageName});
-    mqttSync.call(topic, {pkg: packageName}, (response) => {
-      console.log('got package log response', response);
-      
-      // Format response for PkgLog component
-      if (packageName === 'robot-agent') {
-        setPkgLog({'@transitive-robotics': {'robot-agent': response}});
-      } else {
-        const [scope, capName] = packageName.split('/');
-        setPkgLog({[scope]: {[capName]: response}});
-      }
-    });
+    // Simply show the modal with the package name
+    // The PkgLog component will handle fetching from ClickHouse
+    setShowLogs(true);
   };
   
   const formatLastError = (errorObj) => {
@@ -281,12 +313,57 @@ export const GetLogButtonWithCounter = ({
         )}
       </div>
       
-      {pkgLog && <PkgLog 
-        response={pkgLog} 
+      {showLogs && <PkgLog 
+        packageName={packageName}
         mqttClient={mqttSync.mqtt}
+        device={device}
         agentPrefix={versionPrefix}
-        hide={() => setPkgLog(null)}
+        hide={() => setShowLogs(false)}
+        jwt={jwt}
       />}
     </>
   );
+};
+
+/**
+ * Execute a ClickHouse query with credentials
+ * @param {string} query - The SQL query to execute
+ * @param {Object} credentials - ClickHouse credentials {user, password}
+ * @returns {Promise<Object>} - Query result
+ */
+const executeClickHouseQuery = async (query, credentials) => {
+  const url = `http://clickhouse.azeroth.local/?user=${credentials.user}&password=${credentials.password}&query=${encodeURIComponent(query)}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+  });
+  
+  if (!response.ok) {
+    throw new Error(`ClickHouse query failed: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+/**
+ * Format log data for display
+ * @param {Array} logData - Raw log data from ClickHouse
+ * @returns {string} - Formatted logs
+ */
+const formatLogsForDisplay = (logData) => {
+  if (!logData || logData.length === 0) {
+    return 'No logs found for this package';
+  }
+  
+  return logData
+    .reverse() // Show oldest first
+    .map(log => {
+      const timestamp = new Date(log.Timestamp).toISOString();
+      const severity = log.SeverityText;
+      const body = log.Body;
+      const module = log.LogAttributes?.module || '';
+      const moduleStr = module ? ` ${module}` : '';
+      return `[${timestamp}${moduleStr} ${severity}] ${body}`;
+    })
+    .join('\n');
 };

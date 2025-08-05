@@ -66,9 +66,11 @@ const Device = (props) => {
     <GetLogButtonWithCounter
       text="show capability log"
       mqttSync={mqttSync}
+      device={device}
       versionPrefix={versionPrefix}
       packageName={pkg}
       toolTipPlacement='bottom'
+      jwt={jwt}
     />
   </div>;
 };

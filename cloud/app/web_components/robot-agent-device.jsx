@@ -251,8 +251,7 @@ const Capability = (props) => {
         <Col sm='3' style={styles.rowItem}>
           {running && !inactive && (
             <ResourceMetrics
-              deviceData={deviceData}
-              packageName={name}
+              metrics={deviceData?.status?.metrics?.[name] || {}}
             />
           )}
         </Col>
@@ -496,8 +495,7 @@ const Device = (props) => {
             <div style={styles.row}>
               <strong>Agent Resource Usage</strong>
               <ResourceMetrics
-                deviceData={latestVersionData}
-                packageName="robot-agent"
+                metrics={latestVersionData?.status?.metrics?.['robot-agent'] || {}}
               />
             </div>
           </F>

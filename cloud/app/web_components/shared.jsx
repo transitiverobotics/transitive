@@ -11,6 +11,8 @@ import { ActionLink } from '../src/utils/index';
 const log = getLogger('shared.jsx');
 log.setLevel('info');
 
+const F = React.Fragment;
+
 const _ = {
   map: require('lodash/map'),
   filter: require('lodash/filter'),
@@ -256,7 +258,7 @@ export const GetLogButtonWithCounter = ({
   };
 
   return (
-    <>
+    <F>
       <div style={logButtonStyles.container}>
         <ActionLink onClick={handleGetLog}>
           {text}
@@ -287,6 +289,6 @@ export const GetLogButtonWithCounter = ({
         agentPrefix={versionPrefix}
         hide={() => setPkgLog(null)}
       />}
-    </>
+    </F>
   );
 };

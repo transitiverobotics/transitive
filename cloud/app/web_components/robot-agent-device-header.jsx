@@ -46,8 +46,7 @@ const Device = (props) => {
   const [scope, capName] = pkg.split('/');
 
   useEffect(() => {
-    mqttSync?.subscribe(`${prefix}/+/info/#`);
-    mqttSync?.subscribe(`${prefix}/+/status/heartbeat`);
+    mqttSync?.subscribe(`${prefix}/+/#`);
   }, [mqttSync]);
 
   const ourData = data?.[id]?.[device]?.['@transitive-robotics']['_robot-agent'];

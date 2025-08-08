@@ -34,6 +34,8 @@ const { ensureDesiredPackages } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
+const LogMonitor = require('./logMonitor');
+const ResourceMonitor = require('./resourceMonitor');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -137,7 +139,7 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
-
+      
       staticInfo();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
@@ -162,6 +164,7 @@ mqttClient.on('connect', function(connackPacket) {
 
       const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX,
         (error) => {
+          log.error('Error starting local MQTT broker:', error);
           data.update(`${AGENT_PREFIX}/status/selfCheckErrors/mqttPortAvailable`,
             'Failed to start local MQTT broker on port 1883, please check if another process is using it.'
           );
@@ -177,6 +180,11 @@ mqttClient.on('connect', function(connackPacket) {
       getGeoIP();
       executeSelfChecks(data);
 
+      LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
+      LogMonitor.watchLogs('robot-agent');
+      
+      ResourceMonitor.init(mqttSync, AGENT_PREFIX);
+      ResourceMonitor.startMonitoring('robot-agent', process.pid);
       initialized = true;
     });
 });

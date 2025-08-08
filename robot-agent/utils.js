@@ -7,6 +7,8 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
+const LogMonitor = require('./logMonitor');
+const ResourceMonitor = require('./resourceMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -64,6 +66,7 @@ const removePackage = (pkg) => {
       log.debug('package stopped, removing files');
     }
     exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
+    LogMonitor.stopWatchingLogs(pkg);
   });
 };
 
@@ -121,9 +124,41 @@ const startPackage = (name) => {
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
-  pgrep.stdout.on('data', (data) => log.debug(`pgrep: ${data}`));
+
+  let packagePid = null;
+  let stdoutEnded = false;
+  let exitOccurred = false;
+
+  const checkCompletion = () => {
+    if (stdoutEnded && exitOccurred) {
+      if (!packagePid) {
+        log.warn(`Package ${name} did not start, no PID found.`);
+        return;
+      }
+      log.debug(`Package ${name} started with PID: ${packagePid}`);
+      // start watching status.json (from startPackage) and report in mqtt
+      watchStatus(name, 'requested');
+      // start watching package logs
+      LogMonitor.watchLogs(name);
+      // start resource monitoring for the package
+      ResourceMonitor.startMonitoring(name, packagePid);
+    }
+  };
+
+  pgrep.stdout.on('data', (data) => {
+    const pid = parseInt(data.toString().trim());
+    log.debug(`pgrep found package ${name} with PID: ${pid}`);
+    packagePid = pid;
+  });
+
+  pgrep.stdout.on('end', () => {
+    stdoutEnded = true;
+    checkCompletion();
+  });
 
   pgrep.on('exit', (code) => {
+    exitOccurred = true;
+    
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
@@ -131,8 +166,6 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-
-      // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -146,11 +179,10 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
-
-      // start watching status.json (from startPackage) and report in mqtt
-      watchStatus(name, 'requested');
+      packagePid = subprocess.pid;
     }
-    // else: nothing to do, it's already running
+    
+    checkCompletion();
   });
 };
 
@@ -233,12 +265,17 @@ const logRotate = (file, {count}) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
+  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
+  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
+    err && log.error('error rotating agent log file', err));
+  LogMonitor.clearErrorCount('robot-agent')
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
     logRotate(logFile, {count: LOG_COUNT}, (err) =>
       err && log.error(`error rotating log file for ${dir}`, err)
     );
+    LogMonitor.clearErrorCount(dir);
   });
 };
 

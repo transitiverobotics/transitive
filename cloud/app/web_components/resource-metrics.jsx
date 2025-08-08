@@ -88,9 +88,7 @@ const formatCpu = (cpu) => {
 };
 
 /** Component to display resource metrics for CPU and Memory usage */
-const ResourceMetrics = ({ deviceData, packageName }) => {
-  const metrics = deviceData?.status?.metrics?.[packageName] || {};
-
+const ResourceMetrics = ({ metrics }) => {
   if (!metrics || (!metrics.cpu && !metrics.memory)) {
     return (
       <div style={styles.noData}>

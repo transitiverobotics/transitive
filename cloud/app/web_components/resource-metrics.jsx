@@ -13,6 +13,8 @@ import { getLogger } from '@transitive-sdk/utils-web';
 const log = getLogger('resource-metrics');
 log.setLevel('debug');
 
+const F = React.Fragment;
+
 const styles = {
   metricsContainer: {
     display: 'flex',
@@ -150,7 +152,7 @@ const ResourceMetrics = ({ deviceData, packageName }) => {
       </div>
       
       {hasSystemMetrics && (
-        <>
+        <F>
           <div style={styles.metricRow}>
             <span style={styles.metricLabel}>Sys CPU:</span>
             <span style={{...styles.currentValue, ...styles.systemCpuValue}}>
@@ -178,7 +180,7 @@ const ResourceMetrics = ({ deviceData, packageName }) => {
             </div>
             <span style={styles.avgValue}>avg: {formatBytes(avgSystemMemory)}</span>
           </div>
-        </>
+        </F>
       )}
     </div>
   );

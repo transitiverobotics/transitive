@@ -485,7 +485,7 @@ const Device = (props) => {
         />
 
       <Fold title="Configuration & status">
-          <>
+          <F>
             <div style={styles.row}>
               {latestVersionData?.info?.config &&
                 <ConfigEditor info={latestVersionData.info}
@@ -500,7 +500,7 @@ const Device = (props) => {
                 packageName="robot-agent"
               />
             </div>
-          </>
+          </F>
       </Fold>
     </div>
 

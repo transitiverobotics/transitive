@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+Applying settings to reduce memory usage as recommended in
+https://clickhouse.com/docs/operations/tips#using-less-than-16gb-of-ram
+-->
+<clickhouse>
+  <mark_cache_size>524288000</mark_cache_size>
+  <!-- <concurrent_threads_soft_limit_num>1</concurrent_threads_soft_limit_num> -->
+
+  <!--
+    Recommended by AskAI when asked about MergeTreeBackgroundExecutor exception
+   -->
+  <!-- <merges_mutations_memory_usage_soft_limit>524288000</merges_mutations_memory_usage_soft_limit>
+  <merge_tree>
+    <merge_max_block_size>1024</merge_max_block_size> -->
+    <!-- <max_bytes_to_merge_at_max_space_in_pool>153741824</max_bytes_to_merge_at_max_space_in_pool>
+    <number_of_free_entries_in_pool_to_lower_max_size_of_merge>0</number_of_free_entries_in_pool_to_lower_max_size_of_merge> -->
+  <!-- </merge_tree> -->
+
+
+  <!-- From https://jamesoclaire.com/2024/12/20/clickhouse-in-less-than-2gb-ram-in-docker/ -->
+  <!-- <cache_size_to_ram_max_ratio replace="replace">0.2</cache_size_to_ram_max_ratio>
+  <max_server_memory_usage_to_ram_ratio replace="replace">2</max_server_memory_usage_to_ram_ratio> -->
+
+
+
+  <!-- From https://kb.altinity.com/altinity-kb-setup-and-maintenance/configure_clickhouse_for_low_mem_envs/ -->
+
+
+  <mlock_executable>false</mlock_executable>
+
+</clickhouse>

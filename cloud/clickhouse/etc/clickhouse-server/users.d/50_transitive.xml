@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+Applying settings to reduce memory usage as recommended in
+https://clickhouse.com/docs/operations/tips#using-less-than-16gb-of-ram.
+The settings applied here are added to the default user profile.
+-->
+
+<clickhouse>
+  <profiles>
+    <default>
+      <!-- <max_block_size>8192</max_block_size> -->
+      <max_block_size>1024</max_block_size>
+      <max_download_threads>1</max_download_threads>
+      <input_format_parallel_parsing>0</input_format_parallel_parsing>
+      <output_format_parallel_formatting>0</output_format_parallel_formatting>
+      <!-- <max_threads>2</max_threads> -->
+
+      <!-- <max_memory_usage>524288000</max_memory_usage> -->
+      <!-- <max_memory_usage>4024288000</max_memory_usage> -->
+
+
+      <!-- <max_threads>2</max_threads>
+      <queue_max_wait_ms>1000</queue_max_wait_ms>
+      <max_execution_time>600</max_execution_time>
+      <input_format_parallel_parsing>0</input_format_parallel_parsing>
+      <output_format_parallel_formatting>0</output_format_parallel_formatting>
+      <max_bytes_before_external_group_by>3221225472</max_bytes_before_external_group_by>
+      <max_bytes_before_external_sort>3221225472</max_bytes_before_external_sort> -->
+    </default>
+  </profiles>
+</clickhouse>

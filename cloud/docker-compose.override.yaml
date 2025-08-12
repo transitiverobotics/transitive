@@ -77,3 +77,6 @@ services:
   # In Dev: run a small mDNS service to allow local testing with subdomains
   mdns:
     build: ./tools/mDNS
+
+  clickhouse:
+    build: ./clickhouse

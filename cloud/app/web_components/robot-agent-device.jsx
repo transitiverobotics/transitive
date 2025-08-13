@@ -504,17 +504,6 @@ const Device = (props) => {
 
     <SelfCheck data={latestVersionData} agentPrefix={versionPrefix} />
 
-    {/* Resource metrics for robot-agent itself */}
-    {!inactive && (
-      <div style={styles.row}>
-        <h5>Robot Agent Resource Usage</h5>
-        <ResourceMetrics
-          deviceData={latestVersionData}
-          packageName="robot-agent"
-        />
-      </div>
-    )}
-
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 
     <div style={styles.row}>

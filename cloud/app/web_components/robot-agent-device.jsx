@@ -264,9 +264,9 @@ const Capability = (props) => {
               </Button>
             } {
               !disabled && <span
-                title={preInstalled ? 'pre-installed' : null}>
+                title={(preInstalled || !desired) ? 'pre-installed' : null}>
                 <Button variant='link'
-                  disabled={preInstalled}
+                  disabled={preInstalled || !desired}
                   onClick={() => uninstall(name)}>
                   uninstall
                 </Button>

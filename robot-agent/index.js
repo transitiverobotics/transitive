@@ -32,11 +32,11 @@ if (!process.env.TR_USERID) {
 
 const {exec, execSync} = require('child_process');
 const { CronJob } = require('cron');
-const {getInstalledPackages, restartPackage, startPackage, rotateAllLogs,
-  upgradeNodejs, killAllPackages } = require('./utils');
+const {restartPackage, startPackage, rotateAllLogs,
+  upgradeNodejs, killAllPackages, getInstalledPackages
+} = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
-const ResourceMonitor = require('./resourceMonitor');
 
 require('chalk').level = 1; // force color
 

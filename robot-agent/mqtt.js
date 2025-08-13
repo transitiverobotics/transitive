@@ -181,10 +181,7 @@ mqttClient.on('connect', function(connackPacket) {
       executeSelfChecks(data);
 
       LogMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
-      LogMonitor.watchLogs('robot-agent');
-      
       ResourceMonitor.init(mqttSync, AGENT_PREFIX);
-      ResourceMonitor.startMonitoring('robot-agent', process.pid);
       initialized = true;
     });
 });

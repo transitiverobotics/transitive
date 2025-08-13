@@ -66,7 +66,6 @@ const removePackage = (pkg) => {
       log.debug('package stopped, removing files');
     }
     exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
-    LogMonitor.stopWatchingLogs(pkg);
   });
 };
 
@@ -138,10 +137,6 @@ const startPackage = (name) => {
       log.debug(`Package ${name} started with PID: ${packagePid}`);
       // start watching status.json (from startPackage) and report in mqtt
       watchStatus(name, 'requested');
-      // start watching package logs
-      LogMonitor.watchLogs(name);
-      // start resource monitoring for the package
-      ResourceMonitor.startMonitoring(name, packagePid);
     }
   };
 
@@ -197,6 +192,12 @@ const watchStatus = (name, status) => {
     if (err) {
       fs.writeFileSync(statusFile, JSON.stringify({status}));
     }
+
+    // update initial status in mqtt, from file
+    const initialStatus = fs.readFileSync(statusFile, {encoding: 'utf-8'});
+    log.info(`Initial status for ${name}:`, initialStatus);
+    global.data?.update(`${global.AGENT_PREFIX}/status/package/${name}`,
+      JSON.parse(initialStatus));
 
     const watcher = fs.watch(statusFile, {persistence: false},
       (eventType, filename) => {

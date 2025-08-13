@@ -25,6 +25,7 @@ class ResourceMonitor {
     this.mqttSync = mqttSync;
     this.agentPrefix = agentPrefix;
     log.info('Starting resource monitoring for all monitored packages');
+    
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('ResourceMonitor heartbeat received, initializing...');      
       this.initialized = true; // Set initialized state
@@ -68,7 +69,7 @@ class ResourceMonitor {
             });
           }
         } catch (err) {
-          log.error(`Failed to get resource usage for ${pkgName} (PID: ${pid}):`, err);
+          log.warn(`Failed to get resource usage for ${pkgName} (PID: ${pid}):`);
           return;
         }
       });
@@ -137,7 +138,7 @@ class ResourceMonitor {
   stopMonitoring(packageName) {
     if (this.monitoredPackages[packageName]) {
       delete this.monitoredPackages[packageName];
-      log.debug(`Stopped resource monitoring for ${packageName}`);
+      log.info(`Stopped resource monitoring for ${packageName}`);
     }
   }
 }

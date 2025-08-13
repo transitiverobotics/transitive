@@ -60,7 +60,7 @@ class LogMonitor {
     this.mqttClient = mqttClient;
     this.mqttSync = mqttSync;
     this.AGENT_PREFIX = agentPrefix;
-    this.mqttSync.subscribe(`${this.AGENT_PREFIX}/info`);
+
     this.mqttSync.data.subscribePathFlat(`${this.AGENT_PREFIX}/info/config`, () => {
       // Update minLogLevel for all watched packages
       Object.keys(this.watchedPackages).forEach(packageName => {
@@ -82,12 +82,14 @@ class LogMonitor {
         `${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`
       ) || 0; // Get last log timestamp or default to 0
       this.initialized = true; // Set initialized state
+  
       log.info('Starting watching logs for packages registered before initialization');
       _.forEach(this.watchedPackages, (packageData, packageName) => {
         if( !packageData.initialized) {
           this.watchLogs(packageName); // Start watching logs for the package
         }
       });
+
       this.startUploadingLogs(); // Start the log uploading process
     });
   }
@@ -111,8 +113,8 @@ class LogMonitor {
       }
     }
     if (!this.initialized) {
-      log.warn('LogMonitor not initialized yet, will wait for initialization before watching logs for', packageName);
-      return; // Wait until initialized
+      log.debug('LogMonitor not initialized yet, package will be watched when ready:', packageName);
+      return;
     }
 
     this.clearErrorCount(packageName); // Clear any existing upload timer for this package
@@ -368,5 +370,4 @@ class LogMonitor {
 }
 
 const logMonitor = new LogMonitor();
-
 module.exports = logMonitor;

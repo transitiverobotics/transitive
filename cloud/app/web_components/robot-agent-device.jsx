@@ -69,7 +69,7 @@ const getMergedPackageInfo = (robotAgentData) => {
     return {};
   }
 
-  // log.debug(robotAgentData, toFlatObject(robotAgentData.status.runningPackages));
+  // log.debug('robotAgentData', robotAgentData, toFlatObject(robotAgentData.status.runningPackages));
 
   const rtv = {};
   robotAgentData?.status?.runningPackages &&
@@ -82,6 +82,12 @@ const getMergedPackageInfo = (robotAgentData) => {
           rtv[name].running = rtv[name].running || {};
           rtv[name].running[version] = fullVersion;
         }
+      });
+  robotAgentData?.info?.config?.global?.desiredPackages &&
+    _.forEach(robotAgentData.info.config.global.desiredPackages,
+      (name) => {
+        rtv[name] ||= {};
+        rtv[name].preInstalled = true;
       });
 
   robotAgentData.desiredPackages &&
@@ -191,7 +197,7 @@ const Package = ({pkg, install, issues}) => {
 
 const Capability = (props) => {
 
-  const { mqttSync, running, desired, status, disabled, name, title,
+  const { mqttSync, preInstalled, running, desired, status, disabled, name, title,
     inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
     canPay } = props;
 
@@ -211,7 +217,7 @@ const Capability = (props) => {
     mqttSync.call(`${versionPrefix}/rpc/${command}`, {pkg: name}, cb);
     };
 
-    return <Accordion.Item eventKey="0" key={name}>
+  return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
       <Row>
         <Col sm='4' style={styles.rowItem}>
@@ -258,9 +264,9 @@ const Capability = (props) => {
               </Button>
             } {
               !disabled && <span
-                title={!desired ? 'pre-installed' : null}>
+                title={(preInstalled || !desired) ? 'pre-installed' : null}>
                 <Button variant='link'
-                  disabled={!desired}
+                  disabled={preInstalled || !desired}
                   onClick={() => uninstall(name)}>
                   uninstall
                 </Button>
@@ -485,10 +491,10 @@ const Device = (props) => {
 
       <Accordion defaultActiveKey={['0']} alwaysOpen>
         { Object.keys(packages).length > 0 ?
-          mapSorted(packages, ({running, desired, status, disabled}, name) =>
+          mapSorted(packages, ({preInstalled, running, desired, status, disabled}, name) =>
             <Capability key={name} {...{
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
-                running, desired, status, disabled, inactive,
+                preInstalled, running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
                 setPkgLog, canPay
               }} />

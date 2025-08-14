@@ -107,13 +107,14 @@ const sendMetrics = async (metricsData, resourceAttributes = {}) => {
   log.debug('Sending metrics to ClickHouse...', metricsData);
   
   const allMetrics = [];
-  
-  for (const [packageName, samples] of Object.entries(metricsData)) {
-    if (!Array.isArray(samples) || samples.length === 0) continue;
-    
+  if(!metricsData || !metricsData.samplesPerPackage || Object.keys(metricsData.samplesPerPackage).length === 0) {
+    log.debug('No metrics to send');
+    return;
+  }
+  for (const [packageName, samples] of Object.entries(metricsData.samplesPerPackage)) {
+    log.debug(`Processing metrics for package: ${packageName}`, samples);
     // Prepare metrics for ClickHouse insertion
-    for (const sample of samples) {
-      const timestamp = sample.timestamp || Date.now();
+    for (const [index, timestamp] of metricsData?.timestamps?.entries() || []) {
       const timestampISO = new Date(timestamp).toISOString().replace('T', ' ').replace('Z', '');
       const mergedResourceAttributes = {...resourceAttributes, 'service.name': packageName};
       
@@ -121,7 +122,7 @@ const sendMetrics = async (metricsData, resourceAttributes = {}) => {
       allMetrics.push({
         TimeUnix: `toDateTime64('${timestampISO}', 9)`,
         ServiceName: packageName,
-        Value: sample.cpu || 0,
+        Value: samples?.cpu?.[index] || 0,
         MetricName: 'cpu_usage_percent',
         MetricDescription: 'CPU usage percentage',
         MetricUnit: '%',
@@ -132,7 +133,7 @@ const sendMetrics = async (metricsData, resourceAttributes = {}) => {
       allMetrics.push({
         TimeUnix: `toDateTime64('${timestampISO}', 9)`,
         ServiceName: packageName,
-        Value: sample.memory || 0,
+        Value: samples?.memory?.[index] || 0,
         MetricName: 'memory_usage_bytes',
         MetricDescription: 'Memory usage in bytes',
         MetricUnit: 'bytes',
@@ -140,11 +141,11 @@ const sendMetrics = async (metricsData, resourceAttributes = {}) => {
       });
       
       // Add system metrics if available
-      if (sample.system) {
+      if (samples.system) {
         allMetrics.push({
           TimeUnix: `toDateTime64('${timestampISO}', 9)`,
           ServiceName: packageName,
-          Value: sample.system.cpu || 0,
+          Value: samples.system?.cpu?.[index] || 0,
           MetricName: 'system_cpu_usage_percent',
           MetricDescription: 'System CPU usage percentage',
           MetricUnit: '%',
@@ -154,7 +155,7 @@ const sendMetrics = async (metricsData, resourceAttributes = {}) => {
         allMetrics.push({
           TimeUnix: `toDateTime64('${timestampISO}', 9)`,
           ServiceName: packageName,
-          Value: sample.system.memory || 0,
+          Value: samples.system?.memory?.[index] || 0,
           MetricName: 'system_memory_usage_bytes',
           MetricDescription: 'System memory usage in bytes',
           MetricUnit: 'bytes',

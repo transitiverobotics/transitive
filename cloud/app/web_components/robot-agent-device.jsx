@@ -200,8 +200,9 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, setPkgLog,
-    canPay } = props;
+    inactive, device, versionPrefix, desiredPackagesTopic, canPay, 
+    deviceData, preInstalled
+  } = props;
 
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
@@ -251,7 +252,7 @@ const Capability = (props) => {
         <Col sm='3' style={styles.rowItem}>
           {running && !inactive && (
             <ResourceMetrics
-              metrics={deviceData?.status?.metrics?.[name] || {}}
+              metrics={deviceData?.status?.metrics?.samplesPerPackage?.[name] || {}}
             />
           )}
         </Col>
@@ -495,7 +496,7 @@ const Device = (props) => {
             <div style={styles.row}>
               <strong>Agent Resource Usage</strong>
               <ResourceMetrics
-                metrics={latestVersionData?.status?.metrics?.['robot-agent'] || {}}
+                metrics={latestVersionData?.status?.metrics?.samplesPerPackage?.['robot-agent'] || {}}
               />
             </div>
           </F>
@@ -520,7 +521,7 @@ const Device = (props) => {
                 mqttSync, desiredPackagesTopic, versionPrefix, device,
                 preInstalled, running, desired, status, disabled, inactive,
                 name, title: getPkgTitle(name, availablePackages),
-                setPkgLog, canPay
+                canPay, deviceData: latestVersionData
               }} />
           ) :
           <ListGroup.Item>No capabilities added yet.</ListGroup.Item>

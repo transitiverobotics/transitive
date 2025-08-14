@@ -18,6 +18,7 @@ class ResourceMonitor {
     this.agentPrefix = null;
     this.initialized = false;
     this.monitoredPackages = {};
+    this.sampleTimestamps = [];
   }
 
   init(mqttSync, agentPrefix) {
@@ -31,6 +32,7 @@ class ResourceMonitor {
 
     // Start the periodic sampling and publishing of resource usage metrics
     setInterval(async () => {
+      this.sampleTimestamps.push(Date.now());
       _.forEach(this.monitoredPackages, async (pkgData, pkgName) => {    
         const {pid} = pkgData; 
         try {
@@ -44,7 +46,6 @@ class ResourceMonitor {
               si.mem()
             ]);
             pkgData.samples.push({
-              timestamp: Date.now(),
               cpu: Number(stats.cpu.toPrecision(3)), // CPU usage percentage (3 significant digits)
               memory: stats.memory, // Memory usage in bytes
               system: {
@@ -59,7 +60,6 @@ class ResourceMonitor {
             const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
     
             pkgData.samples.push({
-              timestamp: Date.now(),
               cpu: Number(
                 _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0)
                 .toPrecision(3)
@@ -75,8 +75,11 @@ class ResourceMonitor {
       // If first package has enough samples, publish all
       const firstPkg = Object.keys(this.monitoredPackages)[0];
       if (this.initialized) {
-        if (this.monitoredPackages[firstPkg].samples.length >= SAMPLES_PER_BATCH) {
-          const allSamples = {};
+        if (this.monitoredPackages[firstPkg]?.samples.length >= SAMPLES_PER_BATCH) {
+          const dataToSend = {
+            timestamps: this.sampleTimestamps.slice(-SAMPLES_PER_BATCH),
+            samplesPerPackage: {}
+          };
           _.map(this.monitoredPackages, (pkgData, pkgName) => {
             pkgData.samples = pkgData.samples.slice(-SAMPLES_PER_BATCH);
             // complete samples with 0 on the left side if needed
@@ -92,14 +95,14 @@ class ResourceMonitor {
             const cpuSamples = pkgData.samples.map(sample => sample.cpu);
             const memorySamples = pkgData.samples.map(sample => sample.memory);
             
-            allSamples[pkgName] = {
+            dataToSend.samplesPerPackage[pkgName] = {
               cpu: cpuSamples,
               memory: memorySamples
             };
             
             // Add system metrics for robot-agent
             if (pkgName === 'robot-agent') {
-              allSamples[pkgName].system = {
+              dataToSend.samplesPerPackage[pkgName].system = {
                 cpu: pkgData.samples.map(sample => sample.system?.cpu || 0),
                 memory: pkgData.samples.map(sample => sample.system?.memory || 0)
               };
@@ -107,7 +110,7 @@ class ResourceMonitor {
           });
           this.mqttSync.data.update(
             `${this.agentPrefix}/status/metrics`,
-            allSamples
+            dataToSend
           );
           // Clear samples after publishing
           _.forEach(this.monitoredPackages, pkgData => {

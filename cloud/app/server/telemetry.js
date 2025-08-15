@@ -118,48 +118,45 @@ class TelemetryService {
         const timestampISO = new Date(timestamp).toISOString().replace('T', ' ').replace('Z', '');
         const mergedResourceAttributes = {...resourceAttributes, 'service.name': packageName};
         
-        // Add CPU usage metric
-        allMetrics.push({
+        const sharedAttributes = {
           TimeUnix: timestampISO,
           ServiceName: packageName,
+          ResourceAttributes: mergedResourceAttributes
+        };
+        // Add CPU usage metric
+        allMetrics.push({
+          ...sharedAttributes,
           Value: samples?.cpu?.[index] || 0,
           MetricName: 'cpu_usage_percent',
           MetricDescription: 'CPU usage percentage',
           MetricUnit: '%',
-          ResourceAttributes: mergedResourceAttributes
         });
         
         // Add memory usage metric
         allMetrics.push({
-          TimeUnix: timestampISO,
-          ServiceName: packageName,
+          ...sharedAttributes,
           Value: samples?.memory?.[index] || 0,
           MetricName: 'memory_usage_bytes',
           MetricDescription: 'Memory usage in bytes',
           MetricUnit: 'bytes',
-          ResourceAttributes: mergedResourceAttributes
         });
         
         // Add system metrics if available
         if (samples.system) {
           allMetrics.push({
-            TimeUnix: timestampISO,
-            ServiceName: packageName,
+            ...sharedAttributes,
             Value: samples.system?.cpu?.[index] || 0,
             MetricName: 'system_cpu_usage_percent',
             MetricDescription: 'System CPU usage percentage',
             MetricUnit: '%',
-            ResourceAttributes: mergedResourceAttributes
           });
           
           allMetrics.push({
-            TimeUnix: timestampISO,
-            ServiceName: packageName,
+            ...sharedAttributes,
             Value: samples.system?.memory?.[index] || 0,
             MetricName: 'system_memory_usage_bytes',
             MetricDescription: 'System memory usage in bytes',
             MetricUnit: 'bytes',
-            ResourceAttributes: mergedResourceAttributes
           });
         }
       }

@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",
+    "@clickhouse/client": "^1.12.1",
     "@transitive-sdk/mongo": "^0.14.0",
     "@transitive-sdk/utils": "^0.14.2",
     "@transitive-sdk/utils-web": "^0.14.4",

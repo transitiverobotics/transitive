@@ -21,7 +21,7 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
-const { sendLogs, sendMetrics } = require('./telemetry');
+const { TelemetryService } = require('./telemetry');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -523,9 +523,10 @@ class _robotAgent extends Capability {
 
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
-        log.debug('ClickHouse integration enabled');
-        // Additional ClickHouse initialization code can go here
-        await sendLogs({
+        log.debug('ClickHouse integration enabled');        
+        this.telemetry = new TelemetryService();
+
+        await this.telemetry.sendLogs({
           timestamp: Date.now(),
             module: log.name,
             level: 'DEBUG',
@@ -569,7 +570,7 @@ class _robotAgent extends Capability {
       });
 
       _.forEach(packageLogs, async (logs, packageName) => {
-        await sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
+        await this.telemetry.sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
       });
     });
   }
@@ -587,7 +588,7 @@ class _robotAgent extends Capability {
         const metricsData = value;
 
         // Forward metrics to HyperDX
-        sendMetrics(metricsData, {
+        await this.telemetry.sendMetrics(metricsData, {
           'organization.id': orgId,
           'device.id': deviceId,
         }).catch(error => {

@@ -24,9 +24,55 @@ class ResourceMonitor {
     this.mqttSync = mqttSync;
     this.agentPrefix = agentPrefix;
     log.info('Starting resource monitoring for all monitored packages');
+    
     this.mqttSync.waitForHeartbeatOnce(() => {
       log.info('ResourceMonitor heartbeat received, initializing...');      
       this.initialized = true; // Set initialized state
+      
+      // Subscribe to package topics to automatically start/stop monitoring
+      this.mqttSync.data.subscribePathFlat(`${this.agentPrefix}/status/package`, (value, topic, matched) => {
+        const topicParts = topic.split('/');
+        // Extract package name from topic like "/agent-xxx/status/package/@scope/name/..."
+        const agentPrefixParts = this.agentPrefix.split('/').length;
+        if (topicParts.length < agentPrefixParts + 4) return; // Not enough parts for a valid package topic
+        
+        const packageScope = topicParts[agentPrefixParts + 2];
+        const packageName = topicParts[agentPrefixParts + 3];
+        const fullPackageName = `${packageScope}/${packageName}`;
+        
+        // Check if this is a status update (like /status/package/@scope/name/status)
+        const isStatusTopic = topicParts[agentPrefixParts + 4] === 'status';
+        
+        if (isStatusTopic && value === 'started') {
+          // Package is running, start monitoring
+          log.info('Package started, beginning resource monitoring:', fullPackageName);
+          this.startMonitoringFromPackage(fullPackageName);
+        } else if (value === null) {
+          // Package stopped or removed, stop monitoring
+          log.info('Package stopped/removed, stopping resource monitoring:', fullPackageName);
+          this.stopMonitoring(fullPackageName);
+        }
+      });
+      
+      // Check for existing package statuses at startup
+      const packageData = this.mqttSync.data.getByTopic(`${this.agentPrefix}/status/package`);
+      if (packageData) {
+        Object.keys(packageData).forEach(packageScope => {
+          if (typeof packageData[packageScope] === 'object') {
+            Object.keys(packageData[packageScope]).forEach(packageName => {
+              const packageStatus = packageData[packageScope][packageName];
+              if (packageStatus && typeof packageStatus === 'object' && packageStatus.status) {
+                const fullPackageName = `${packageScope}/${packageName}`;
+                log.info('Found existing running package, beginning resource monitoring:', fullPackageName);
+                this.startMonitoringFromPackage(fullPackageName);
+              }
+            });
+          }
+        });
+      }
+      
+      // Start monitoring robot-agent immediately (it's not in runningPackages)
+      this.startMonitoring('robot-agent', process.pid);
     });
 
     // Start the periodic sampling and publishing of resource usage metrics
@@ -114,6 +160,37 @@ class ResourceMonitor {
         }
       }
     }, SAMPLE_RATE);
+  }
+
+  startMonitoringFromPackage(packageName) {
+    if (this.monitoredPackages[packageName]) {
+      log.warn(`Already monitoring package ${packageName}, skipping`);
+      return;
+    }
+
+    // Use pgrep to find the PID of the running package
+    const { spawn } = require('child_process');
+    const pgrep = spawn('pgrep', ['-nf', `startPackage.sh ${packageName}`, '-U', process.getuid()]);
+    
+    let packagePid = null;
+    
+    pgrep.stdout.on('data', (data) => {
+      packagePid = parseInt(data.toString().trim());
+      log.debug(`Found running package ${packageName} with PID: ${packagePid}`);
+    });
+
+    pgrep.on('exit', (code) => {
+      if (code === 0 && packagePid) {
+        // Package is running, start monitoring
+        this.startMonitoring(packageName, packagePid);
+      } else {
+        log.debug(`Package ${packageName} not found running (exit code: ${code})`);
+      }
+    });
+
+    pgrep.on('error', (err) => {
+      log.error(`Error searching for package ${packageName}:`, err);
+    });
   }
 
   startMonitoring(packageName, pid) {

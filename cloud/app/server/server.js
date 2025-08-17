@@ -1156,6 +1156,13 @@ class _robotAgent extends Capability {
         return;
       }
 
+      // verify that payload matches logged in user
+      if (req.body.id != req.session.user._id) {
+        log.warn(`User ${req.session.user._id} tried to get a JWT for ${req.body.id}!`);
+        res.status(400).end(JSON.stringify({error: 'Not authorized'}));
+        return;
+      }
+
       const token = jwt.sign(req.body, account.jwtSecret);
       // log.debug('responding with', {token});
       res.json({token});

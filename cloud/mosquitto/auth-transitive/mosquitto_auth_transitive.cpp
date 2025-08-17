@@ -225,11 +225,12 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
 
 	struct mosquitto_evt_basic_auth *ed = (mosquitto_evt_basic_auth *)event_data;
 	const char *username = mosquitto_client_username(ed->client);
+  const char *ip = mosquitto_client_address(ed->client);
   const char *jwt_token = ed->password;
 
 	UNUSED(event);
 	UNUSED(userdata);
-  cout << "basic auth check: " << username << endl;
+  // cout << "basic auth check: " << username << endl;
 
   if (!username || !jwt_token) {
     return MOSQ_ERR_AUTH;
@@ -283,7 +284,7 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     if (!(payload["validity"].is<double>() && payload["iat"].is<double>() &&
         (payload["iat"].get<double>() + payload["validity"].get<double>())
         > currentTime)) {
-      cout << "WARN: JWT is expired! " << endl;
+      cout << "WARN: JWT is expired! " << username << " " << ip << endl;
       return MOSQ_ERR_AUTH;
     }
 
@@ -300,10 +301,10 @@ static int basic_auth_callback(int event, void *event_data, void *userdata) {
     return MOSQ_ERR_AUTH;
   } catch (const std::exception& e) {
     std::cerr << "basic_auth std::exception: " << e.what() << " " << username
-    << " " << jwt_token << endl;
+    << " " << jwt_token << " " << ip << endl;
     return MOSQ_ERR_AUTH;
   } catch (...) {
-    std::cerr << "basic_auth unkoen exception: " << username << " "
+    std::cerr << "basic_auth unknown exception: " << username << " "
     << jwt_token << endl;
     return MOSQ_ERR_AUTH;
   }
@@ -619,7 +620,8 @@ static int on_disconnect_callback(int event, void *event_data, void *userdata) {
 	const char *id = mosquitto_client_id(ed->client);
 	const char *ip = mosquitto_client_address(ed->client);
 
-  cout << "Client disconnected: " << id << " " << ip << endl;
+  // cout << "Client disconnected: " << id << " " << ip << endl;
+  printf("Client disconnected: %s %s %s\n", id, username, ip);
 
   if (id && prefix("{", username)) {
     remove_client(username);

@@ -49,14 +49,80 @@ const routingTable = {
 
 console.log('using routes', routingTable);
 
+
+/** Rate limits requests based on IP:
+ * maxPerPeriod: maximum number of allowed request for the specified period
+ * period: period in seconds over which to apply limit
+ * name: a descriptor, only used for debug output
+ */
+class RateLimiter {
+
+  ipRates = {}; // per IP: requests in the last minute
+  rate = null; // max per minute
+  name = null; // for debug output
+
+  constructor(maxPerPeriod = 30, period = 300, name = undefined) {
+    this.rate = maxPerPeriod;
+    this.period = period;
+    this.name = name;
+
+    // Once a second: clear requests older than this.period
+    setInterval(() => {
+      for (let ip in this.ipRates) {
+        while (this.ipRates[ip][0] < Date.now() - this.period * 1000) {
+          this.ipRates[ip].shift();
+        }
+      }
+    }, 1000);
+  }
+
+  wait(delay) {
+    return new Promise((resolve) => { setTimeout(resolve, delay); });
+  }
+
+  /** check request and delay it if necessary */
+  async limit(req) {
+    const ip = req.socket.remoteAddress;
+    this.ipRates[ip] ||= [];
+
+    let requests = this.ipRates[ip].length; // number of recent requests
+
+    // Once the request exceed twice the limit, we just drop the requests to
+    // (a) ensure we don't store too many samples per IP, to avoid mem hogging, and
+    // (b) limit the number of "awaits".
+    if (requests > 2 * this.rate) {
+      console.log(`block ${this.name}, ${ip}`);
+      return true;
+    }
+
+    // count thie request
+    this.ipRates[ip].push(Date.now());
+    requests++;
+    console.log(`ip rate ${this.name}, ${ip}: ${requests}/${this.rate}`);
+
+    if (requests > this.rate) {
+      const delay = (this.period / this.rate) * (requests / this.rate);
+      console.log(`enforcing ${this.name} rate on ${ip}, delaying: ${delay} s`);
+      await this.wait(delay * 1000);
+    }
+
+    return false;
+  };
+}
+
+
+
 /** Given the request, return the target `service:port` to route to */
 const getTarget = (req) => {
   const subdomain = req.headers.host.split('.')[0];
   return routingTable[subdomain] || routingTable[''];
 };
 
+// const httpRateLimiter = new RateLimiter(50, 60, 'http');
+
 /** route the request */
-const handleRequest = (req, res) => {
+const handleRequest = async (req, res) => {
+  // await httpRateLimiter.limit(req);
   const target = getTarget(req);
   if (!target) {
     res.statusCode = 404;
@@ -67,13 +133,22 @@ const handleRequest = (req, res) => {
   proxy.web(req, res, { target: `http://${target}` });
 };
 
+// rate limit ws requests
+const wsRateLimiter = new RateLimiter(120, 600, 'ws');
+
 /** handler for web socket upgrade */
-const handleUpgrade = function(req, socket, head) {
+const handleUpgrade = async (req, socket, head) => {
   console.log(`ws: ${req.socket.remoteAddress}: ${req.headers.host}${req.url}`);
+  const block = await wsRateLimiter.limit(req);
+  if (block) {
+    // the rate limiter wants us to drop this request
+    req.destroy();
+    return;
+  }
+
   const target = getTarget(req);
   if (!target) {
-    res.statusCode = 404;
-    res.end('Not found');
+    req.destroy();
     return;
   }
   proxy.ws(req, socket, head, {ws: true, target: `ws://${target}`});

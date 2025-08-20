@@ -525,7 +525,7 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');        
         this.telemetry = new TelemetryService();
-
+        await this.telemetry.init();
         await this.telemetry.sendLogs({
           timestamp: Date.now(),
             module: log.name,

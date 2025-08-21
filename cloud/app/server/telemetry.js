@@ -50,7 +50,7 @@ class TelemetryService {
       log.info('Creating logs table if it does not exist');
       await this.clickHouseClient.command({
         query: `
-          CREATE TABLE IF NOT EXISTS logs (
+          CREATE TABLE IF NOT EXISTS default.logs (
             Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1)),
             TimestampTime DateTime DEFAULT toDateTime(Timestamp),
             TraceId String CODEC(ZSTD(1)),

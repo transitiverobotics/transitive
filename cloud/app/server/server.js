@@ -525,18 +525,21 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');        
         this.telemetry = new TelemetryService();
-        await this.telemetry.init();
-        await this.telemetry.sendLogs({
-          timestamp: Date.now(),
-            module: log.name,
-            level: 'DEBUG',
-            message: 'Portal (re-)started'
-          }, {
-            'service.name': 'portal',
-          }
-        );
-        this.forwardAgentLogsToHyperdx();
-        this.forwardAgentMetricsToHyperdx();
+        this.telemetry.init().then(async () => {
+          await this.telemetry.sendLogs({
+            timestamp: Date.now(),
+              module: log.name,
+              level: 'DEBUG',
+              message: 'Portal (re-)started'
+            }, {
+              'service.name': 'portal',
+            }
+          );
+          this.forwardAgentLogsToClickhouse();
+          this.forwardAgentMetricsToClickhouse();
+        }).catch((error) => {
+          log.error('Failed to initialize TelemetryService:', error);
+        });
       } else {
         log.debug('ClickHouse integration disabled');
       }
@@ -544,7 +547,7 @@ class _robotAgent extends Capability {
   }
 
   /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
-  forwardAgentLogsToHyperdx() {
+  forwardAgentLogsToClickhouse() {
     log.debug('Subscribing to logs');
     this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/logs/live');
 
@@ -576,7 +579,7 @@ class _robotAgent extends Capability {
   }
 
   /** Subscribe to metrics messages sent by robot agents and forward them to HyperDX **/
-  forwardAgentMetricsToHyperdx() {
+  forwardAgentMetricsToClickhouse() {
     log.debug('Subscribing to metrics');
     this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/metrics');
     this.data.subscribePath(

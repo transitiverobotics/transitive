@@ -80,3 +80,7 @@ services:
 
   clickhouse:
     build: ./clickhouse
+    # only in dev: open some of the ports
+    ports:
+      - "8123:8123"  # HTTP interface for web UI and API
+      - "9002:9000"  # Native TCP interface for clients (mapped to avoid conflict

@@ -203,7 +203,6 @@ services:
   # HyperDX
 
   clickhouse:
-    # image: clickhouse/clickhouse-server:24-alpine
     image: transitiverobotics/clickhouse:latest
     env_file:
       - .env
@@ -216,9 +215,6 @@ services:
     restart: always
     networks:
       - default
-    ports:
-      - "8123:8123"  # HTTP interface for web UI and API
-      - "9002:9000"  # Native TCP interface for clients (mapped to avoid conflict
     deploy:
       resources:
         limits:

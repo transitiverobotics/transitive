@@ -1,6 +1,8 @@
-const { Tail } = require('tail');
 const fs = require('fs');
 const util = require('util');
+const zlib = require('zlib');
+
+const { Tail } = require('tail');
 const _ = require('lodash');
 
 const { getLogger } = require('@transitive-sdk/utils');
@@ -8,7 +10,7 @@ const log = getLogger('logMonitor.js');
 log.setLevel('info');
 
 const WAIT_TIME_IN_CASE_OF_ERROR = 5000; // 5 seconds
-const MAX_LOGS_PER_BATCH = 5; // Maximum number of logs to upload in one go
+const MAX_LOGS_PER_BATCH = 500; // Maximum number of logs to upload in one go
 
 const getSeverityNumber = (level) => {
   const levelMap = {
@@ -330,16 +332,12 @@ class LogMonitor {
    * @returns {Promise} - Resolves when the log is published.
    */
   async publishLogsAsJson(logs){
-    const strMsg = JSON.stringify(logs);
+    // const strMsg = JSON.stringify(logs);
+    const zipMsg = zlib.gzipSync(JSON.stringify(logs));
+
     return new Promise((resolve, reject) => {
-      this.mqttClient.publish(`${this.AGENT_PREFIX}/status/logs/live`, strMsg,
-        { qos: 2 }, (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
+      this.mqttClient.publish(`${this.AGENT_PREFIX}/status/logs/live`, zipMsg,
+        { qos: 2 }, (err) => { if (err) reject(err); else resolve(); });
     });
   }
 

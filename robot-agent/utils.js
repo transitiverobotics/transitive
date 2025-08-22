@@ -262,13 +262,13 @@ const logRotate = (file, count = LOG_COUNT) => {
 const rotateAllLogs = () => {
   const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
   logRotate(agentLogFile);
-  LogMonitor.clearErrors('robot-agent');
+  logMonitor.clearErrors('robot-agent');
 
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
     logRotate(logFile);
-    LogMonitor.clearErrors(dir);
+    logMonitor.clearErrors(dir);
   });
 };
 

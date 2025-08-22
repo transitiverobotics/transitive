@@ -3,6 +3,8 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
+const zlib = require('zlib');
+
 const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch'); // TODO: use native
 const bcrypt = require('bcrypt');
@@ -523,7 +525,7 @@ class _robotAgent extends Capability {
 
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
-        log.debug('ClickHouse integration enabled');        
+        log.debug('ClickHouse integration enabled');
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
           await this.telemetry.sendLogs({
@@ -553,11 +555,14 @@ class _robotAgent extends Capability {
 
     this.mqtt.on('message', (topic, message) => {
       const { organization, device, sub } = parseMQTTTopic(topic);
-      if (!device || !organization || !topic.endsWith('/status/logs/live')) {
+      if (!device || !organization || !topic.endsWith('/status/logs/live') || !message) {
         return;
       }
 
-      const logLines = message && tryJSONParse(message.toString());
+      // const logLines = message && tryJSONParse(message.toString());
+      const jsonPayload = zlib.gunzipSync(message).toString();
+      const logLines = tryJSONParse(jsonPayload);
+
       if (!Array.isArray(logLines)) {
         log.warn(`Received logs message that is not an array: ${message}`);
         return;
@@ -567,13 +572,17 @@ class _robotAgent extends Capability {
         log.warn(`Received empty logs message for ${organization}/${device}`);
         return;
       }
-      
-      const packageLogs = _.groupBy(logLines, (line) => {
-        return line.package;
-      });
+
+      log.debug(`received ${logLines.length} log lines for ${device}`);
+
+      const packageLogs = _.groupBy(logLines, line => line.package);
 
       _.forEach(packageLogs, async (logs, packageName) => {
-        await this.telemetry.sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
+        await this.telemetry.sendLogs(logs, {
+          'organization.id': organization,
+          'device.id': device,
+          'service.name': packageName
+        });
       });
     });
   }
@@ -584,7 +593,7 @@ class _robotAgent extends Capability {
     this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/metrics');
     this.data.subscribePath(
       '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
-      async (value, topic, matched, tags) => {        
+      async (value, topic, matched, tags) => {
         if (!value) return;
         const { orgId, deviceId } = matched;
 

@@ -200,7 +200,7 @@ const Package = ({pkg, install, issues}) => {
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
-    inactive, device, versionPrefix, desiredPackagesTopic, canPay, 
+    inactive, device, versionPrefix, desiredPackagesTopic, canPay,
     deviceData, preInstalled
   } = props;
 
@@ -352,7 +352,17 @@ const Device = (props) => {
 
   useEffect(() => {
       if (mqttSync) {
-        mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        // mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        mqttSync.subscribe(`${prefix}/+/info/#`);
+        mqttSync.subscribe(`${prefix}/+/status/heartbeat`);
+        mqttSync.subscribe(`${prefix}/+/status/pong`);
+        mqttSync.subscribe(`${prefix}/+/status/package/#`);
+        mqttSync.subscribe(`${prefix}/+/status/runningPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/status/selfCheckErrors/#`);
+        mqttSync.subscribe(`${prefix}/+/status/ready`);
+        mqttSync.subscribe(`${prefix}/+/desiredPackages/#`);
+        mqttSync.subscribe(`${prefix}/+/disabledPackages/#`);
+
         mqttSync.publish(`${prefix}/+/desiredPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/disabledPackages`, {atomic: true});
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings

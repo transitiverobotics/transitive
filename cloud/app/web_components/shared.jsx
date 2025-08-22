@@ -86,6 +86,8 @@ const decompress = (zippedBase64) => {
     }
   }
 }
+  This has now been extended to additionally also show the live-log, which comes
+  directly from MQTT (not MQTTSync).
 */
 export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const scope = Object.keys(response)[0];
@@ -96,32 +98,41 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
 
   const packageName = (capName === 'robot-agent') ?
     'robot-agent' : `${scope}/${capName}`;
-  
+
   const [liveLogs, setLiveLogs] = useState([]);
 
+  // subscribe to live-log and append it
   useEffect(() => {
+
     if (mqttClient) {
       const topic = `${agentPrefix}/status/logs/live`;
+
       mqttClient.subscribe(topic, (err) => {
         if (err) {
-          console.error('Failed to subscribe to live logs:', err);
+          log.error('Failed to subscribe to live logs:', err);
         } else {
-          console.log('Subscribed to live logs:', topic);
+          log.debug('Subscribed to live logs:', topic);
         }
       });
+
       mqttClient.on('message', (msgTopic, message) => {
         if (msgTopic === topic) {
-          const logLines = message && JSON.parse(message.toString());
+          // const logLines = message && JSON.parse(message.toString());
+          const jsonStr = pako.ungzip(message, {to: 'string'});
+          const logLines = message && JSON.parse(jsonStr);
+
           if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
             return;
-          }  
+          }
+
           const packageLogObjects = _.filter(logLines, (line) => {
             return line.package === packageName;
           });
+
           const newLog = _.map(packageLogObjects, (log) => {
             return `[${new Date(log.timestamp).toISOString()} ${log.module} ${log.level.toLowerCase()}] ${log.message}`;
           }).join('\n');
-  
+
           if (newLog) {
             setLiveLogs((prevLogs) => {
               return prevLogs + '\n' + newLog;
@@ -182,11 +193,11 @@ const logButtonStyles = {
 };
 
 /** Component that shows a log button with an error counter badge */
-export const GetLogButtonWithCounter = ({ 
-  text, 
-  mqttSync, 
-  versionPrefix, 
-  packageName, 
+export const GetLogButtonWithCounter = ({
+  text,
+  mqttSync,
+  versionPrefix,
+  packageName,
   toolTipPlacement = 'top',
 }) => {
   const [errorLogsCount, setErrorLogsCount] = useState(0);
@@ -199,44 +210,39 @@ export const GetLogButtonWithCounter = ({
       // Subscribe to error logs count and last error topics
       const errorLogsCountTopic = `${versionPrefix}/status/logs/errorCount/${packageName}`;
       const lastErrorTopic = `${versionPrefix}/status/logs/lastError/${packageName}`;
-      
+
       mqttSync.subscribe(errorLogsCountTopic);
       mqttSync.subscribe(lastErrorTopic);
-      
+
       // Get current values and set up listeners
       const updateErrorLogsCount = () => {
         const count = mqttSync.data.getByTopic(errorLogsCountTopic) || 0;
         setErrorLogsCount(count);
       };
-      
+
       const updateLastError = () => {
         const error = mqttSync.data.getByTopic(lastErrorTopic);
         setLastError(error);
       };
-      
+
       // Initial load
       updateErrorLogsCount();
       updateLastError();
-      
+
       // Set up data listeners
-      const unsubscribeCount = mqttSync.data.subscribePath(errorLogsCountTopic, updateErrorLogsCount);
-      const unsubscribeError = mqttSync.data.subscribePath(lastErrorTopic, updateLastError);
-      
-      // Cleanup
-      return () => {
-        if (unsubscribeCount) unsubscribeCount();
-        if (unsubscribeError) unsubscribeError();
-      };
+      mqttSync.data.subscribePath(errorLogsCountTopic, updateErrorLogsCount);
+      mqttSync.data.subscribePath(lastErrorTopic, updateLastError);
     }
   }, [mqttSync, versionPrefix, packageName]);
 
   // Handle get log button click
   const handleGetLog = () => {
     const topic = `${versionPrefix}/rpc/getPkgLog`;
-    console.log('running getPkgLog command', {topic, pkg: packageName});
+    log.debug('running getPkgLog command', {topic, pkg: packageName});
+
     mqttSync.call(topic, {pkg: packageName}, (response) => {
-      console.log('got package log response', response);
-      
+      log.debug('got package log response', response);
+
       // Format response for PkgLog component
       if (packageName === 'robot-agent') {
         setPkgLog({'@transitive-robotics': {'robot-agent': response}});
@@ -246,14 +252,14 @@ export const GetLogButtonWithCounter = ({
       }
     });
   };
-  
+
   const formatLastError = (errorObj) => {
     if (!errorObj) return 'No error details available';
-    
+
     const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
     const module = errorObj.module || 'Unknown module';
     const message = errorObj.message || 'No message';
-    
+
     return `${timestamp} - ${module}: ${message}`;
   };
 
@@ -272,8 +278,8 @@ export const GetLogButtonWithCounter = ({
               </Tooltip>
             }
           >
-            <Badge 
-              pill 
+            <Badge
+              pill
               bg='danger'
               style={logButtonStyles.errorCountBadge}
             >
@@ -282,9 +288,9 @@ export const GetLogButtonWithCounter = ({
           </OverlayTrigger>
         )}
       </div>
-      
-      {pkgLog && <PkgLog 
-        response={pkgLog} 
+
+      {pkgLog && <PkgLog
+        response={pkgLog}
         mqttClient={mqttSync.mqtt}
         agentPrefix={versionPrefix}
         hide={() => setPkgLog(null)}

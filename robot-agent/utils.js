@@ -40,7 +40,7 @@ const getInstalledPackages = () => {
 
 /**
  * Gets the process ID (PID) of a running package
- * 
+ *
  * @param {string} pkgName - The name of the package to find the PID for
  */
 const getPackagePid = (pkgName) =>{
@@ -55,7 +55,7 @@ const getPackagePid = (pkgName) =>{
         pkgPid = pid;
       } else {
         log.warn(`pgrep did not return a valid PID for package ${pkgName}`);
-      }      
+      }
     });
 
     pgrep.stdout.on('end', () => {
@@ -244,7 +244,7 @@ const fileExists = (filePath) => {
 }
 
 /** rotate given (log) file */
-const logRotate = (file, {count}) => {
+const logRotate = (file, count = LOG_COUNT) => {
   if (!fileExists(file)) return;
 
   for (let i = count - 1; i > 0; i--) {
@@ -261,16 +261,14 @@ const logRotate = (file, {count}) => {
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
   const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
-  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
-    err && log.error('error rotating agent log file', err));
-  logMonitor.clearErrorCount('robot-agent')
+  logRotate(agentLogFile);
+  LogMonitor.clearErrors('robot-agent');
+
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
-    logRotate(logFile, {count: LOG_COUNT}, (err) =>
-      err && log.error(`error rotating log file for ${dir}`, err)
-    );
-    logMonitor.clearErrorCount(dir);
+    logRotate(logFile);
+    LogMonitor.clearErrors(dir);
   });
 };
 

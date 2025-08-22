@@ -6,6 +6,8 @@ import { getLogger } from '@transitive-sdk/utils-web';
 const log = getLogger('SelfChecks');
 log.setLevel('info');
 
+const F = React.Fragment;
+
 const styles = {
   error: {
     marginBottom: '2em',
@@ -33,7 +35,7 @@ const SelfCheck = ({ data, agentPrefix }) => {
     );
   } else {
     return (
-      <></>
+      <F></F>
     );
   }
 

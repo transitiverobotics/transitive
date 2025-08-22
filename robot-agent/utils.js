@@ -7,6 +7,7 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
+const logMonitor = require('./logMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -37,6 +38,37 @@ const getInstalledPackages = () => {
   return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
 };
 
+/**
+ * Gets the process ID (PID) of a running package
+ * 
+ * @param {string} pkgName - The name of the package to find the PID for
+ */
+const getPackagePid = (pkgName) =>{
+  return new Promise((resolve, reject) => {
+    const pgrep = spawn('pgrep',
+    ['-nf', `startPackage.sh ${pkgName}`, '-U', process.getuid()]);
+    let pkgPid = null;
+    pgrep.stdout.on('data', (data) => {
+      const pid = parseInt(data.toString().trim());
+      log.debug(`pgrep found package ${pkgName} with PID: ${pid}`);
+      if (!isNaN(pid)) {
+        pkgPid = pid;
+      } else {
+        log.warn(`pgrep did not return a valid PID for package ${pkgName}`);
+      }      
+    });
+
+    pgrep.stdout.on('end', () => {
+      if (pkgPid) {
+        log.debug(`Resolved PID for package ${pkgName}: ${pkgPid}`);
+        resolve(pkgPid);
+      } else {
+        log.warn(`No PID found for package ${pkgName}`);
+        resolve(null);
+      }
+    });
+  });
+}
 
 /** install new package. Note: addedPkg may include a scope,
 e.g., @transitive-robotics/test1 */
@@ -112,16 +144,14 @@ const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
   pkill.stderr.on('data', buffer => log.warn(buffer.toString()));
   pkill.on('error', log.error);
   cb && pkill.on('exit', cb);
-};
+}
 
 /** start the named package if it isn't already running */
 const startPackage = (name) => {
   log.debug(`startPackage ${name}`);
-
   // first check whether it might already be running
   const pgrep = spawn('pgrep',
     ['-nf', `startPackage.sh ${name}`, '-U', process.getuid()]);
-  pgrep.stdout.on('data', (data) => log.debug(`pgrep: ${data}`));
 
   pgrep.on('exit', (code) => {
     if (code) {
@@ -131,8 +161,6 @@ const startPackage = (name) => {
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-
-      // package is started with passed config
       const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
@@ -146,11 +174,10 @@ const startPackage = (name) => {
             })
         });
       subprocess.unref();
-
-      // start watching status.json (from startPackage) and report in mqtt
-      watchStatus(name, 'requested');
+      log.debug(`Package ${name} started with PID: ${subprocess.pid}`);
+    } else {
+      log.debug(`Package ${name} is already running`);
     }
-    // else: nothing to do, it's already running
   });
 };
 
@@ -233,12 +260,17 @@ const logRotate = (file, {count}) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
+  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
+  logRotate(agentLogFile, {count: LOG_COUNT}, (err) =>
+    err && log.error('error rotating agent log file', err));
+  logMonitor.clearErrorCount('robot-agent')
   const list = getInstalledPackages();
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
     logRotate(logFile, {count: LOG_COUNT}, (err) =>
       err && log.error(`error rotating log file for ${dir}`, err)
     );
+    logMonitor.clearErrorCount(dir);
   });
 };
 
@@ -340,7 +372,6 @@ const upgradeNodejs = (cb) => {
 
 
 module.exports = {
-  getInstalledPackages,
   restartPackage,
   killPackage,
   startPackage,
@@ -349,5 +380,8 @@ module.exports = {
   killAllPackages,
   ensureDesiredPackages,
   upgradeNodejs,
-  updatePackageConfigFile
+  updatePackageConfigFile,
+  watchStatus,
+  getInstalledPackages,
+  getPackagePid,
 };

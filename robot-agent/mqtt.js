@@ -30,10 +30,12 @@ const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
   loglevel, clone, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 const { handleAgentCommand, commands } = require('./commands');
-const { ensureDesiredPackages } = require('./utils');
+const { ensureDesiredPackages, watchStatus, getPackagePid } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
+const logMonitor = require('./logMonitor');
+const resourceMonitor = require('./resourceMonitor');
 
 const log = getLogger('mqtt.js');
 log.setLevel('info');
@@ -121,7 +123,7 @@ mqttClient.on('connect', function(connackPacket) {
   // "publication", of which this may be a "clear on start" functionality
   const allVersionsPrefix = `${PREFIX}/${CAP_NAME}`;
   !initialized && mqttClearRetained(mqttClient,
-    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], async () => {
+    [`${allVersionsPrefix}/+/info`, `${allVersionsPrefix}/+/status`], () => {
 
       data = mqttSync.data;
       global.data = data; // #hacky; need this in commands.js
@@ -137,7 +139,7 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
-
+      
       staticInfo();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
@@ -160,8 +162,9 @@ mqttClient.on('connect', function(connackPacket) {
         }
       });
 
-      const localBroker = startLocalMQTTBroker(mqttClient, PREFIX, AGENT_PREFIX,
+      const localBroker = startLocalMQTTBroker(mqttClient, mqttSync, PREFIX, AGENT_PREFIX,
         (error) => {
+          log.error('Error starting local MQTT broker:', error);
           data.update(`${AGENT_PREFIX}/status/selfCheckErrors/mqttPortAvailable`,
             'Failed to start local MQTT broker on port 1883, please check if another process is using it.'
           );
@@ -177,6 +180,45 @@ mqttClient.on('connect', function(connackPacket) {
       getGeoIP();
       executeSelfChecks(data);
 
+      mqttSync.data.subscribePathFlat(`${AGENT_PREFIX}/status/runningPackages/+scope/+capName/+version`,
+        async (value, topic, matched, tags) => {
+          const {scope, capName, version} = matched;
+          const pkgName = `${scope}/${capName}`;
+
+          if (!value || value === 'false') {
+            log.info(`Package ${pkgName} stopped`);
+            resourceMonitor.stopMonitoring(pkgName);
+            logMonitor.stopWatchingLogs(pkgName);
+            // TODO: stop watching status
+          } else {
+            log.info(`Package ${pkgName} started`);
+            logMonitor.watchLogs(pkgName);
+            watchStatus(pkgName);
+            getPackagePid(pkgName).then(pid => {
+              if (pid) {
+                log.info(`Package ${pkgName} is running with PID: ${pid}`);
+                resourceMonitor.startMonitoring(pkgName, pid);
+              } else {
+                log.warn(`Could not find PID for package ${pkgName}, not starting resource monitoring`);
+              }
+            }).catch(err => {
+              log.error(`Error getting PID for package ${pkgName}, not starting resource monitoring:`, err);
+            });
+          }
+        }
+      );
+      try {
+        logMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
+        logMonitor.watchLogs('robot-agent');
+      } catch (err) {
+        log.error('Failed to initialize log monitor:', err);
+      }
+      try {
+        resourceMonitor.init(mqttSync, AGENT_PREFIX);
+        resourceMonitor.startMonitoring('robot-agent', process.pid);
+      } catch (err) {
+        log.error('Failed to initialize resource monitor:', err);
+      }
       initialized = true;
     });
 });

@@ -3,9 +3,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
-const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const assert = require('assert');
 const fetch = require('node-fetch'); // TODO: use native
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -23,11 +21,11 @@ const Mongo = require('@transitive-sdk/mongo');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
+const { TelemetryService } = require('./telemetry');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
-const {isAuthorized} = require('./utils');
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -444,9 +442,10 @@ class _robotAgent extends Capability {
   // store for each device which versions of which packages it is running (speaking)
   devicePackageVersions = {};
   router = express.Router();
+  hyperDXIngestionAPIKey = null;
 
   constructor() {
-    super(() => {
+    super(async () => {
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
       this.mqttSync.subscribe(
@@ -521,7 +520,85 @@ class _robotAgent extends Capability {
         }], () => {
           log.debug('migrated fleet config');
         });
+
+      // Check for ClickHouse integration
+      if (process.env.CLICKHOUSE_ENABLED === 'true') {
+        log.debug('ClickHouse integration enabled');        
+        this.telemetry = new TelemetryService();
+        this.telemetry.init().then(async () => {
+          await this.telemetry.sendLogs({
+            timestamp: Date.now(),
+              module: log.name,
+              level: 'DEBUG',
+              message: 'Portal (re-)started'
+            }, {
+              'service.name': 'portal',
+            }
+          );
+          this.forwardAgentLogsToClickhouse();
+          this.forwardAgentMetricsToClickhouse();
+        }).catch((error) => {
+          log.error('Failed to initialize TelemetryService:', error);
+        });
+      } else {
+        log.debug('ClickHouse integration disabled');
+      }
     });
+  }
+
+  /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
+  forwardAgentLogsToClickhouse() {
+    log.debug('Subscribing to logs');
+    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/logs/live');
+
+    this.mqtt.on('message', (topic, message) => {
+      const { organization, device, sub } = parseMQTTTopic(topic);
+      if (!device || !organization || !topic.endsWith('/status/logs/live')) {
+        return;
+      }
+
+      const logLines = message && tryJSONParse(message.toString());
+      if (!Array.isArray(logLines)) {
+        log.warn(`Received logs message that is not an array: ${message}`);
+        return;
+      }
+
+      if (logLines.length === 0) {
+        log.warn(`Received empty logs message for ${organization}/${device}`);
+        return;
+      }
+      
+      const packageLogs = _.groupBy(logLines, (line) => {
+        return line.package;
+      });
+
+      _.forEach(packageLogs, async (logs, packageName) => {
+        await this.telemetry.sendLogs(logs, {'organization.id': organization, 'device.id': device, 'service.name': packageName});
+      });
+    });
+  }
+
+  /** Subscribe to metrics messages sent by robot agents and forward them to HyperDX **/
+  forwardAgentMetricsToClickhouse() {
+    log.debug('Subscribing to metrics');
+    this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/metrics');
+    this.data.subscribePath(
+      '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
+      async (value, topic, matched, tags) => {        
+        if (!value) return;
+        const { orgId, deviceId } = matched;
+
+        const metricsData = value;
+
+        // Forward metrics to HyperDX
+        await this.telemetry.sendMetrics(metricsData, {
+          'organization.id': orgId,
+          'device.id': deviceId,
+        }).catch(error => {
+          log.error('Failed to forward metrics to HyperDX:', error);
+        });
+      }
+    );
   }
 
   /** check whether the given device is running, i.e., had a recent heartbeat */

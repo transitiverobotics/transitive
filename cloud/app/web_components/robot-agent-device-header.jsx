@@ -46,8 +46,10 @@ const Device = (props) => {
   const [scope, capName] = pkg.split('/');
 
   useEffect(() => {
-    mqttSync?.subscribe(`${prefix}/+/#`);
-  }, [mqttSync]);
+      if (!mqttSync) return;
+      mqttSync.subscribe(`${prefix}/+/status/heartbeat`);
+      mqttSync.subscribe(`${prefix}/+/info/#`);
+    }, [mqttSync]);
 
   const ourData = data?.[id]?.[device]?.['@transitive-robotics']['_robot-agent'];
   const mergedData = mergeVersions(ourData);

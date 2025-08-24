@@ -139,7 +139,7 @@ mqttClient.on('connect', function(connackPacket) {
         mqttSync.data.update(`${AGENT_PREFIX}/status/pong`,
           {ping, pong: Date.now()});
       });
-      
+
       staticInfo();
       heartbeat();
       setInterval(heartbeat, 60 * 1e3);
@@ -180,8 +180,10 @@ mqttClient.on('connect', function(connackPacket) {
       getGeoIP();
       executeSelfChecks(data);
 
-      mqttSync.data.subscribePathFlat(`${AGENT_PREFIX}/status/runningPackages/+scope/+capName/+version`,
+      mqttSync.data.subscribePathFlat(
+        `${AGENT_PREFIX}/status/runningPackages/+scope/+capName/+version`,
         async (value, topic, matched, tags) => {
+
           const {scope, capName, version} = matched;
           const pkgName = `${scope}/${capName}`;
 
@@ -199,26 +201,31 @@ mqttClient.on('connect', function(connackPacket) {
                 log.info(`Package ${pkgName} is running with PID: ${pid}`);
                 resourceMonitor.startMonitoring(pkgName, pid);
               } else {
-                log.warn(`Could not find PID for package ${pkgName}, not starting resource monitoring`);
+                log.warn(`Could not find PID for package ${pkgName
+                  }, not starting resource monitoring`);
               }
             }).catch(err => {
-              log.error(`Error getting PID for package ${pkgName}, not starting resource monitoring:`, err);
-            });
+                log.error(`Error getting PID for package ${pkgName
+                  }, not starting resource monitoring:`, err);
+              });
           }
         }
       );
+
       try {
         logMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
         logMonitor.watchLogs('robot-agent');
       } catch (err) {
         log.error('Failed to initialize log monitor:', err);
       }
+
       try {
-        resourceMonitor.init(mqttSync, AGENT_PREFIX);
+        resourceMonitor.init(mqttSync, `${AGENT_PREFIX}/status/metrics`);
         resourceMonitor.startMonitoring('robot-agent', process.pid);
       } catch (err) {
         log.error('Failed to initialize resource monitor:', err);
       }
+
       initialized = true;
     });
 });

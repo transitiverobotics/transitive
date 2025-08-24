@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const { Tail } = require('tail');
 const _ = require('lodash');
 
-const { getLogger } = require('@transitive-sdk/utils');
+const { getLogger, wait } = require('@transitive-sdk/utils');
 const log = getLogger('logMonitor.js');
 log.setLevel('info');
 
@@ -130,10 +130,11 @@ class LogMonitor {
       `${process.env.HOME}/.transitive/packages/${packageName}/log`;
 
     if (!fs.existsSync(filePath)) {
-      log.warn(`Log file does not exist yet for package: ${packageName} at path: ${filePath}`);
+      // log.warn(`Log file does not exist yet for package: ${packageName} at path: ${filePath}`);
       // Retry watching logs after a delay
-      setTimeout(() => this.watchLogs(packageName), 5000);
-      log.debug('Waiting for log file to be created:', filePath);
+      // setTimeout(() => this.watchLogs(packageName), 5000);
+      // log.debug('Waiting for log file to be created:', filePath);
+      log.warn(`Log file ${filePath} for package ${packageName} does not exist`);
       return;
     }
 
@@ -296,18 +297,23 @@ class LogMonitor {
 
     if (!this.initialized) {
       log.debug('LogMonitor not initialized yet, waiting...');
+
     } else {
+
       let logCount = 0;
       log.debug('Starting to upload pending logs, count:', this.pendingLogs.length);
+
       while (this.pendingLogs.length > 0) {
         const logsToUpload = this.pendingLogs.slice(0, MAX_LOGS_PER_BATCH);
         this.pendingLogs = this.pendingLogs.slice(MAX_LOGS_PER_BATCH);
+
         try {
           await this.publishLogsAsJson(logsToUpload);
           this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastLogTimestamp`,
             logsToUpload[logsToUpload.length - 1].timestamp);
           log.debug('Published logs:', logsToUpload);
           logCount += logsToUpload.length;
+
         } catch (err) {
           log.debug(`Failed to publish ${logsToUpload.length} logs:`, err.message);
           log.debug(`Will retry uploading this logs in ${WAIT_TIME_IN_CASE_OF_ERROR} ms`);
@@ -322,7 +328,11 @@ class LogMonitor {
       }
       log.debug('Uploaded', logCount, 'logs successfully.');
     }
-    // this.clearUploadLogsTimer(); // Clear the timer after processing all logs
+
+    // now wait before releasing the `uploading` token, to ensure we don't upload
+    // logs more than so often in regular operation
+    await wait(10000);
+
     this.uploading = false;
   }
 
@@ -352,7 +362,7 @@ class LogMonitor {
     }
     this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/errorCount/${packageName}`, 0);
     this.mqttSync.data.update(`${this.AGENT_PREFIX}/status/logs/lastError/${packageName}`, null);
-    log.info('Cleared error logs count for package:', packageName);
+    // log.debug('Cleared error logs count for package:', packageName);
   }
 
   /** Increments the error logs count for a specific package.

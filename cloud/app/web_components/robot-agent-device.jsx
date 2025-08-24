@@ -145,6 +145,7 @@ const OSInfo = ({info}) => !info ? <div></div> :
     </div>
     <Form.Text>
       {info.os.dpkgArch}, {info.os.lsb?.Description}
+      {info.isDocker && <span> (Docker)</span>}
       {info.geo && <span>, {info.geo.city}, {info.geo.country}</span>}
     </Form.Text>
   </div>;
@@ -228,7 +229,7 @@ const Capability = (props) => {
           <div>{title}</div>
           <div style={styles.subText}>{name}</div>
         </Col>
-        <Col sm='2' style={styles.rowItem}>
+        <Col sm='3' style={styles.rowItem}>
           { running && !inactive && <div><Badge bg="success"
                 title={Object.values(running).join(', ')}>
                 running: v{Object.keys(running).join(', ')}
@@ -249,14 +250,14 @@ const Capability = (props) => {
                 disabled</Badge></div>
           }
         </Col>
-        <Col sm='3' style={styles.rowItem}>
+        <Col sm='2' style={styles.rowItem}>
           {running && !inactive && (
             <ResourceMetrics
               metrics={deviceData?.status?.metrics?.samplesPerPackage?.[name] || {}}
             />
           )}
         </Col>
-        <Col sm='3' style={styles.rowItem}>
+        <Col sm='4' style={styles.rowItem}>
           {!inactive && <div style={{textAlign: 'right'}}>
             {
               running && <Button variant='link'
@@ -353,6 +354,10 @@ const Device = (props) => {
   useEffect(() => {
       if (mqttSync) {
         // mqttSync.subscribe(`${prefix}/+`); // TODO: narrow this
+        // Since the robot now publishes non-JSON data on /status/log/live, we
+        // need to make sure not to subscribe to that topic with MqttSync, to
+        // avoid trying to parse that data. See
+        // https://github.com/transitiverobotics/transitive-utils/commit/5205e0c
         mqttSync.subscribe(`${prefix}/+/info/#`);
         mqttSync.subscribe(`${prefix}/+/status/heartbeat`);
         mqttSync.subscribe(`${prefix}/+/status/pong`);

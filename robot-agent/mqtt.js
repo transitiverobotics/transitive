@@ -219,12 +219,7 @@ mqttClient.on('connect', function(connackPacket) {
         log.error('Failed to initialize log monitor:', err);
       }
 
-      try {
-        resourceMonitor.init(mqttSync, `${AGENT_PREFIX}/status/metrics`);
-        resourceMonitor.startMonitoring('robot-agent', process.pid);
-      } catch (err) {
-        log.error('Failed to initialize resource monitor:', err);
-      }
+      resourceMonitor.init(mqttSync, `${AGENT_PREFIX}/status/metrics`);
 
       initialized = true;
     });

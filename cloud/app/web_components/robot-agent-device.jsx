@@ -253,7 +253,10 @@ const Capability = (props) => {
         <Col sm='2' style={styles.rowItem}>
           {running && !inactive && (
             <ResourceMetrics
-              metrics={deviceData?.status?.metrics?.samplesPerPackage?.[name] || {}}
+              label='CPU'
+              title='CPU usage by this capability'
+              color='#3498db'
+              data={deviceData?.status?.metrics?.packages?.[name]}
             />
           )}
         </Col>
@@ -499,7 +502,23 @@ const Device = (props) => {
           packageName="robot-agent"
         />
 
-      <Fold title="Configuration & status">
+      <div>
+        <ResourceMetrics
+          label='CPU'
+          title='System: total CPU usage'
+          color='#9b59b6'
+          data={latestVersionData?.status?.metrics?.system.cpu}
+          />
+        <ResourceMetrics
+          label='Mem'
+          title='System: total (active) memory usage'
+          color='#f39c12'
+          data={latestVersionData?.status?.metrics?.system.mem}
+          />
+
+      </div>
+
+      <Fold title="Configuration">
           <F>
             <div style={styles.row}>
               {latestVersionData?.info?.config &&
@@ -507,12 +526,6 @@ const Device = (props) => {
                   updateConfig={
                     (modifier) => runCommand('updateConfig', {modifier}, log.debug)
                   }/>}
-            </div>
-            <div style={styles.row}>
-              <strong>Agent Resource Usage</strong>
-              <ResourceMetrics
-                metrics={latestVersionData?.status?.metrics?.samplesPerPackage?.['robot-agent'] || {}}
-              />
             </div>
           </F>
       </Fold>

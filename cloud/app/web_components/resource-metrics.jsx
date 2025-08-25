@@ -7,81 +7,53 @@ log.setLevel('debug');
 
 const F = React.Fragment;
 
-const styles = {
-  metricsContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5em',
-  },
-  noData: {
-    fontSize: '0.8em',
-    color: '#6c757d',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: '1em',
-  },
-};
-
 
 /** Format number as percentage */
 const formatPercentage = (x) => `${x.toFixed(1)}%`;
 
 /** Draw a Sparkline with the given data and color, applying our common style */
-const Chart = ({label, data, color}) =>
-  <div title={`${label} usage over the last minute`}
-    style={{
-      display: 'flex',
+const ResourceMetrics = ({label, data, color, title}) => {
+
+  const styles = {
+    metricsContainer: {
+      display: 'inline-flex',
       alignItems: 'center',
       gap: '0.5em',
-      fontSize: '0.8em',
+      fontSize: '0.7em',
       color: color,
-      maxWidth: '15em',
-    }}>
-
-    <span style={{
-      fontSize: '0.75em',
-      fontWeight: 'bold',
-      padding: '2px 4px',
-      borderRadius: '3px',
-      textAlign: 'center',
-    }}>
-      {`${label}: ${formatPercentage(data.at(-1) || 0)}`}
-    </span><div style={{
+      width: '12em',
+      marginRight: '0.5em'
+    },
+    chart: {
       margin: 0,
       flex: 1,
       maxWidth: '8em',
-      backgroundColor: `${color}40` // semi-transparent
-    }}>
+      backgroundColor: `${color}20` // semi-transparent
+    },
+    referenceLine: {
+      stroke: color,
+      strokeOpacity: 0.3,
+      strokeDasharray: '1,1'
+    },
+  };
+
+
+  if (!data || data.length == 0) {
+    return null;
+  }
+
+  return <div title={`${title} over the last minute`} style={styles.metricsContainer}>
+    <span style={{ fontWeight: 'bold' }}>
+      {`${label}: ${formatPercentage(data.at(-1) || 0)}`}
+    </span>
+
+    <span style={styles.chart}>
       <Sparklines data={data} height={20} width={80} margin={2} max={100} min={0}>
         <SparklinesLine color={color} style={{ strokeWidth: 1.5 }} />
-        <SparklinesReferenceLine type="mean"
-          style={{
-            stroke: color,
-            strokeOpacity: 0.3,
-            strokeDasharray: '1,1'
-          }} />
+        <SparklinesReferenceLine type="mean" style={styles.referenceLine} />
       </Sparklines>
-    </div>
+    </span>
   </div>;
-
-
-/** Component to display resource metrics for CPU and Memory usage */
-const ResourceMetrics = ({ metrics }) => metrics?.cpu ?
-  // show metric when available
-  <div style={styles.metricsContainer}>
-    <Chart label='CPU' data={metrics.cpu || []} color='#3498db'/>
-    {metrics.system && (
-      <F>
-        System:<br/>
-        <Chart label='CPU' data={metrics.system.cpu || []} color='#9b59b6' />
-        <Chart label='Memory' data={metrics.system.memory || []} color='#f39c12' />
-      </F>
-    )}
-  </div>
-  // else:
-  : <div style={styles.noData}>
-    No metrics data available yet
-  </div>;
-
+};
 
 export default ResourceMetrics;

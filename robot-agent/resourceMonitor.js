@@ -1,11 +1,13 @@
 const pidusageTree = require('pidusage-tree');
-const pidusage = require('pidusage');
 const _ = require('lodash');
 const si = require('systeminformation');
 
 const { getLogger } = require('@transitive-sdk/utils');
+
+const { toPrecision } = require('./utils.js');
+
 const log = getLogger('resourceMonitor');
-log.setLevel('info');
+log.setLevel('debug');
 
 const SAMPLE_RATE = 5000; // Sample every X ms
 const SAMPLES_PER_BATCH = 12; // Publish metrics once we have X samples
@@ -16,20 +18,14 @@ class ResourceMonitor {
 
   mqttSync = null;
   metricsTopic = null;
-  initialized = false;
   monitoredPackages = {};
-  sampleTimestamps = [];
+  samples = { time: [], system: {cpu: [], mem: []}, packages: {} };
 
   init(mqttSync, metricsTopic) {
     this.mqttSync = mqttSync;
     this.metricsTopic = metricsTopic;
 
     log.info('Starting resource monitoring for all monitored packages');
-
-    this.mqttSync.waitForHeartbeatOnce(() => {
-      log.info('ResourceMonitor heartbeat received, initializing...');
-      this.initialized = true; // Set initialized state
-    });
 
     // Start the periodic sampling and publishing of resource usage metrics
     setInterval(this.collectAndPublish.bind(this), SAMPLE_RATE);
@@ -38,100 +34,74 @@ class ResourceMonitor {
   /** Do one pass of collecting the metrics and adding them to mqttsync. */
   async collectAndPublish() {
 
-    this.sampleTimestamps.push(Date.now());
+    // this.sampleTimestamps.push(Date.now());
+    this.samples.time.push(Date.now());
 
+    // Always get system metrics
+    const [systemCpuLoad, systemMemInfo] =
+      await Promise.all([ si.currentLoad(), si.mem() ]);
+
+    // Overall CPU usage percentage
+    this.samples.system.cpu.push(toPrecision(systemCpuLoad.currentLoad, 1));
+    // overall used memory percentage (excluding buffer)
+    this.samples.system.mem.push(
+      toPrecision(systemMemInfo.active * 100 / systemMemInfo.total, 1));
+
+
+    // collect metrics for all monitored packages
     await Promise.all(_.map(this.monitoredPackages, async (pkgData, pkgName) => {
       const {pid} = pkgData;
+
+      let stats;
       try {
-        if (pkgName === 'robot-agent') {
-          // For the robot-agent, we use pidusage directly
-          const stats = await pidusage(pid);
-
-          // Sample system metrics when monitoring robot-agent
-          const [systemCpuLoad, systemMemInfo] =
-            await Promise.all([ si.currentLoad(), si.mem() ]);
-          log.debug({systemMemInfo});
-
-          pkgData.samples.push({
-            // CPU usage percentage
-            cpu: Number(stats.cpu.toPrecision(3)),
-            // memory: stats.memory, // Memory usage in bytes
-            system: {
-              // Overall CPU usage percentage
-              cpu: Number(systemCpuLoad.currentLoad.toPrecision(3)),
-              // overall used memory percentage (excluding buffer)
-              memory: Number((systemMemInfo.active * 100 / systemMemInfo.total)
-                  .toPrecision(3))
-            }
-          });
-        } else {
-          // For other packages, we use pidusage-tree to include subprocesses
-          const stats = await pidusageTree(pid);
-
-          const nonNullStats = _.filter(stats, stat => stat !== null && stat !== undefined);
-
-          pkgData.samples.push({
-            cpu: Number(
-              _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.cpu : 0), 0)
-                .toPrecision(3)
-            ), // CPU usage percentage (aggregated)
-            // memory: _.reduce(nonNullStats, (sum, stat) => sum + (stat ? stat.memory : 0), 0), // Memory usage in bytes (aggregated)
-          });
-        }
+        // We use pidusage-tree to include subprocesses
+        stats = await pidusageTree(pid);
       } catch (err) {
         log.warn(`Failed to get resource usage for ${pkgName} (PID: ${pid}):`);
         return;
       }
+
+      const nonNullStats = _.filter(stats, Boolean);
+
+      // Sum the CPU usage of the process and all its sub-processes
+      const cpu = toPrecision(_.sumBy(nonNullStats, stat => stat?.cpu || 0), 1);
+
+      this.samples.packages[pkgName] ||= [];
+      this.samples.packages[pkgName].push(cpu);
     }));
 
-    // If first package has enough samples, publish all
-    const firstPkg = Object.keys(this.monitoredPackages)[0];
-
-    if (this.initialized) {
-      if (this.monitoredPackages[firstPkg]?.samples.length >= SAMPLES_PER_BATCH) {
-
-        const dataToSend = {
-          timestamps: this.sampleTimestamps.slice(-SAMPLES_PER_BATCH),
-          samplesPerPackage: {}
-        };
-
-        _.forEach(this.monitoredPackages, (pkgData, pkgName) => {
-
-          pkgData.samples = pkgData.samples.slice(-SAMPLES_PER_BATCH);
-          // complete samples with 0 on the left side if needed
-          while (pkgData.samples.length < SAMPLES_PER_BATCH) {
-            pkgData.samples.unshift({
-              cpu: 0,
-              // memory: 0,
-              system: pkgName === 'robot-agent' ? { cpu: 0, memory: 0 } : undefined
-            });
-          }
-
-          // Convert to new schema format: separate arrays for cpu and memory
-          const cpuSamples = pkgData.samples.map(sample => sample.cpu);
-          const memorySamples = pkgData.samples.map(sample => sample.memory);
-
-          dataToSend.samplesPerPackage[pkgName] = {
-            cpu: cpuSamples,
-            // memory: memorySamples
-          };
-
-          // Add system metrics for robot-agent
-          if (pkgName === 'robot-agent') {
-            dataToSend.samplesPerPackage[pkgName].system = {
-              cpu: pkgData.samples.map(sample => sample.system?.cpu || 0),
-              memory: pkgData.samples.map(sample => sample.system?.memory || 0)
-            };
-          }
-        });
-
-        this.mqttSync.data.update(this.metricsTopic, dataToSend);
-
-        // Clear samples after publishing
-        _.forEach(this.monitoredPackages, pkgData => { pkgData.samples = []; });
-      }
+    if (this.samples.system.cpu.length >= SAMPLES_PER_BATCH) {
+      this.publish();
     }
   }
+
+  /** Publish the batch of samples  */
+  publish() {
+
+    _.forEach(this.samples.packages, (pkgData, pkgName) => {
+      if (!this.monitoredPackages[pkgName]) {
+        // package stopped during batch
+        delete this.samples.packages[pkgName];
+        return;
+      }
+
+      // complete samples with 0 in the front if needed
+      pkgData.splice(0, 0,
+        ...Array(Math.max(SAMPLES_PER_BATCH - pkgData.length, 0)).fill(0))
+    });
+
+    // publish!
+    this.mqttSync.data.update(this.metricsTopic, structuredClone(this.samples));
+
+    // Clear samples after publishing
+    this.samples.time = [];
+    this.samples.system.cpu = [];
+    this.samples.system.mem = [];
+
+    // for packages we clear the entire object, so that stopped packages are removed
+    this.samples.packages = {};
+  }
+
 
   /** Add the named package and pi to the list of packages to monitor resource
   * of. */

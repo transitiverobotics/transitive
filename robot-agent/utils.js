@@ -368,6 +368,12 @@ const upgradeNodejs = (cb) => {
   });
 }
 
+/** Round to precision avoiding the string conversions of Number(x.toPrecision()).
+*/
+const toPrecision = (number, precision) => {
+  const factor = Math.pow(10, precision);
+  return Math.trunc(number * factor) / factor;
+};
 
 module.exports = {
   restartPackage,
@@ -382,4 +388,5 @@ module.exports = {
   watchStatus,
   getInstalledPackages,
   getPackagePid,
+  toPrecision
 };

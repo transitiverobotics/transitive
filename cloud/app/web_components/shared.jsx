@@ -161,6 +161,7 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
     <Modal.Body>
       {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>}
       <h5>Live Log:</h5>
+      (Configured <tt>minLogLevel</tt> (default: "error") and above only.)
       <pre style={style}>
         {liveLogs}
       </pre>

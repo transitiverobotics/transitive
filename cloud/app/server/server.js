@@ -17,7 +17,7 @@ const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
   mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
-  getPackageVersionNamespace } = require('@transitive-sdk/utils');
+  getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
@@ -404,6 +404,8 @@ app.get('/running/:scope/:capName/*', (req, res) => {
 // After 1h of a robot not reporting a heartbeat we'll pause reporting its use to
 // billing
 const RUNNING_THRESHOLD = 1 * 60 * 60 * 1000;
+// Time to wait before turning off unused capability containers:
+const PRESERVE_CAPS_DOCKER_CONTAINERS_THRESHOLD = 5 * 60 * 60 * 1000 * 24;
 
 /** given an account (object from DB), create the cookie payload string */
 const createCookie = (account, impersonating = false) => JSON.stringify({
@@ -470,12 +472,10 @@ class _robotAgent extends Capability {
       this.data.subscribePathFlat(
         '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
         async (value, topic, matched, tags) => {
-
           if (!value) return;
 
           // Make sure the docker container for this cap is running
           const {orgId, deviceId, scope, capName, version} = matched;
-
           if (!this.isRunning(orgId, deviceId)) {
             log.debug('Device is not live', orgId, deviceId);
             return;
@@ -508,6 +508,11 @@ class _robotAgent extends Capability {
         this.updateAllSubscriptions();
         // report usage every hour
         new CronJob('0 0 * * * *', this.updateAllSubscriptions.bind(this),
+          null, true);
+
+        this.stopUnusedContainers();
+        // check every day at 1AM
+        new CronJob('0 0 1 * * *', this.stopUnusedContainers.bind(this),
           null, true);
       });
 
@@ -833,6 +838,63 @@ class _robotAgent extends Capability {
         });
       });;
     });
+  }
+
+  /** Stop cloud docker containers for capabilities that haven't been used in a
+    while. */
+  async stopUnusedContainers() {
+    if (process.env.NODOCKER) {
+      log.info('NODOCKER: not stopping unused docker containers');
+      return;
+    }
+    log.info('Checking for unused containers');
+
+    // flattens to list of container names, removing leadning @ and replacing / with .
+    const capabilitiesInUse = this.getCapabilitiesInUse();
+
+    log.info('Capabilities in use', capabilitiesInUse);
+    const capabilityContainers = await docker.listCapabilityContainers();
+    log.info('Running capability containers', capabilityContainers.map(c => c.Names));
+
+    _.forEach(capabilityContainers, (container) => {
+      const containerName = container.Names[0].slice(1); // remove leading /
+      // if no device is using this capability, stop it
+      const [scope, name, ...versionParts] = containerName.split('.');
+      const version = versionParts.join('.');
+
+      if (capabilitiesInUse[`@${scope}`]?.[name]?.[version]){
+        log.debug(`stopUnusedContainers: still in use, not stopping ${containerName}`);
+      } else {
+        // split name and version from containerName, e.g.
+        // transitive-robotics.terminal.0.1.5
+        log.info(`Stopping ${containerName} not in use by any device`);
+        docker.stop({ name: `${scope}.${name}`, version});
+      }
+    });
+  }
+
+  /** Get last capabilities used by devices which have sent a heartbeat recently */
+  getCapabilitiesInUse() {
+    const capabilities = {};
+
+    _.forEach(this.data.get(), (orgData, orgId) => {
+      const devicesStatus = this.getStatus(orgId);
+
+      _.forEach(devicesStatus, (status, deviceId) => {
+        const heartbeat = new Date(status.heartbeat || 0).getTime();
+        // If device's heartbeat is old, don't consider its capabilities in use
+        if (heartbeat < (Date.now() - PRESERVE_CAPS_DOCKER_CONTAINERS_THRESHOLD))
+          return;
+
+        forMatchIterator(status, ['runningPackages', '+scope', '+capName', '+version'],
+          (value, topic, {scope, capName, version}) => {
+            if (!value) return;
+            _.set(capabilities, [scope, capName, version], true);
+          });
+      });
+    });
+
+    return capabilities;
   }
 
   /** get list of all packages running on a device, incl. their versions */
@@ -1360,6 +1422,10 @@ class _robotAgent extends Capability {
 
     this.router.get('/runningPackages', requireLogin, async (req, res) => {
       res.json(this.getLatestRunningVersions(req.session.user._id));
+    });
+
+    this.router.get('/capabilitiesInUse', requireAdmin, async (req, res) => {
+      res.json(this.getCapabilitiesInUse());
     });
 
     this.router.get('/security', requireLogin, async (req, res) => {

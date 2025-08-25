@@ -36,6 +36,10 @@ const docker = new Docker();
 /** generate docker tag name from capability name and version */
 const getTagName = ({name, version}) => `${name.replace(/@/g, '')}:${version}`;
 
+/** generate docker container name from capability name and version */
+const getCointainerName = ({name, version}) =>
+  getTagName({name, version}).replace(/[\/:]/g, '.');
+
 /** Given an image tag name, parse it an return capability name and version.
  * Inverse of getTagName.
 * Example: transitive-robotics/foxglove-webrtc:0.5.0 ->
@@ -232,7 +236,7 @@ const start = async ({name, version, pkgInfo}) => {
   }
 
   docker.run(tagName, [], devNull, {
-      name: tagName.replace(/[\/:]/g, '.'),
+      name: getCointainerName({name, version}),
       Env: [
         `MQTT_URL=${process.env.MQTT_URL}`,
         `PUBLIC_PORT=${exposedPorts.min}`,
@@ -253,11 +257,13 @@ const start = async ({name, version, pkgInfo}) => {
 
 /** stop the container for the given version of the given package name */
 const stop = async ({name, version}) => {
-  const containerName = `${name}_${version}`;
+  const containerName = getCointainerName({name, version});
   log.debug('stopping', containerName);
   const list = await docker.listContainers({filters: {name: [containerName]}});
   if (list.length > 0) {
     await docker.getContainer(list[0].Id).stop();
+  } else {
+    log.debug(containerName, 'was not running');
   }
 };
 
@@ -279,4 +285,11 @@ const allocatePorts = async (count = 1) => {
   return rtv;
 };
 
-module.exports = { ensureRunning, stop, RUN_DIR };
+/** list all capability containers */
+const listCapabilityContainers = async () => {
+  const list = await docker.listContainers();
+  return list.filter(c =>
+    c.Labels?.['transitive-type'] == 'capability');
+};
+
+module.exports = { ensureRunning, stop, RUN_DIR, listCapabilityContainers };

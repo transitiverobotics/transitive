@@ -10,7 +10,7 @@ import { Badge, Button } from 'react-bootstrap';
 import { useMqttSync, createWebComponent, decodeJWT, mergeVersions, getLogger, versionCompare}
 from '@transitive-sdk/utils-web';
 
-import { Heartbeat, ensureProps, GetLogButtonWithCounter } from './shared';
+import { Heartbeat, ensureProps, LogButtonWithCounter } from './shared';
 
 const log = getLogger('robot-agent-device-header');
 log.setLevel('debug');
@@ -48,6 +48,7 @@ const Device = (props) => {
   useEffect(() => {
       if (!mqttSync) return;
       mqttSync.subscribe(`${prefix}/+/status/heartbeat`);
+      mqttSync.publish(`${prefix}/+/status/logs/errorCount/+`);
       mqttSync.subscribe(`${prefix}/+/info/#`);
     }, [mqttSync]);
 
@@ -65,12 +66,13 @@ const Device = (props) => {
     {mergedData?.info?.labels?.map(label =>
         <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
     }
-    <GetLogButtonWithCounter
+    <LogButtonWithCounter
       text="show capability log"
       mqttSync={mqttSync}
       versionPrefix={versionPrefix}
       packageName={pkg}
-      toolTipPlacement='bottom'
+      // toolTipPlacement='bottom',
+      errorCount={mergedData?.status?.logs?.errorCount?.[scope]?.[capName]}
     />
   </div>;
 };

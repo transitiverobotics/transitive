@@ -21,7 +21,7 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps, GetLogButtonWithCounter } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, LogButtonWithCounter } from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -205,6 +205,8 @@ const Capability = (props) => {
     deviceData, preInstalled
   } = props;
 
+  const [pkgScope, pkgName] = name.split('/');
+
   const uninstall = (pkgName) => {
     log.debug(`uninstalling ${pkgName}`);
     mqttSync.data.update(`${desiredPackagesTopic}/${pkgName}`, null);
@@ -296,11 +298,12 @@ const Capability = (props) => {
                 </Button>
               </span>
             } {
-              <GetLogButtonWithCounter
+              <LogButtonWithCounter
                 text="get log"
                 mqttSync={mqttSync}
                 versionPrefix={versionPrefix}
                 packageName={name}
+                errorCount={deviceData?.status?.logs?.errorCount?.[pkgScope]?.[pkgName]}
               />
             }
           </div>}
@@ -376,8 +379,11 @@ const Device = (props) => {
         mqttSync.publish(`${prefix}/+/client/#`); // for client pings
 
         mqttSync.subscribe(`${prefix}/+/status/metrics/#`);
+        mqttSync.subscribe(`${prefix}/+/status/logs/errorCount`);
 
-        mqttSync.data.subscribePath(`${prefix}/+/status/pong`, ({ping, pong}) => {
+        mqttSync.data.subscribePath(`${prefix}/+/status/pong`, value => {
+          if (!value) return; // was a reset
+          const {ping, pong} = value;
           // received pong back from server for our ping:
           log.debug({ping, pong}, `round-trip: ${Date.now() - ping} ms`);
         });
@@ -495,11 +501,12 @@ const Device = (props) => {
       </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
         explanation={explanation} question='Remove device?'>
         Remove device
-      </ConfirmedButton>&nbsp;&nbsp; <GetLogButtonWithCounter
+      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter
           text="Get log"
           mqttSync={mqttSync}
           versionPrefix={versionPrefix}
-          packageName="robot-agent"
+          packageName='@transitive-robotics/robot-agent'
+          errorCount={latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent']}
         />
 
       <div>

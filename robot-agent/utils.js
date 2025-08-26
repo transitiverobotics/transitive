@@ -7,7 +7,6 @@ const _ = require('lodash');
 
 const { toFlatObject, getLogger } = require('@transitive-sdk/utils');
 const constants = require('./constants');
-const logMonitor = require('./logMonitor');
 
 const log = getLogger('utils');
 log.setLevel('debug');
@@ -21,8 +20,8 @@ const getSubDirs = (path) => fs.readdirSync(path, {withFileTypes: true})
     .map(f => f.name);
 
 /** find list of installed packages, defined as those that have a folder in
-packages/ with a package.json in it. */
-const getInstalledPackages = () => {
+packages/ with a package.json in it (or other expected file if specified). */
+const getInstalledPackages = (expectedFile = 'package.json') => {
   const list = getSubDirs(basePath);
 
   const lists = list.map(dir => {
@@ -35,7 +34,8 @@ const getInstalledPackages = () => {
     }
   });
   const flat = [].concat(...lists); // flatten
-  return flat.filter(dir => fileExists(`${basePath}/${dir}/package.json`));
+
+  return flat.filter(dir => fileExists(`${basePath}/${dir}/${expectedFile}`));
 };
 
 /**
@@ -54,7 +54,7 @@ const getPackagePid = (pkgName) =>{
       if (!isNaN(pid)) {
         pkgPid = pid;
       } else {
-        log.warn(`pgrep did not return a valid PID for package ${pkgName}`);
+        log.debug(`pgrep did not return a valid PID for package ${pkgName}`);
       }
     });
 
@@ -63,7 +63,7 @@ const getPackagePid = (pkgName) =>{
         log.debug(`Resolved PID for package ${pkgName}: ${pkgPid}`);
         resolve(pkgPid);
       } else {
-        log.warn(`No PID found for package ${pkgName}`);
+        log.debug(`No PID found for package ${pkgName}`);
         resolve(null);
       }
     });
@@ -170,7 +170,8 @@ const startPackage = (name) => {
             process.env, // TODO: is this safe? we may *not* want capabilities to see this
             {
               TRPACKAGE: name,
-              TR_ROS_RELEASES: config?.global?.rosReleases?.join(' ')
+              TR_ROS_RELEASES: config?.global?.rosReleases?.join(' '),
+              FORCE_COLOR: 1 // force chalk level 1 (color logging)
             })
         });
       subprocess.unref();
@@ -246,6 +247,7 @@ const fileExists = (filePath) => {
 /** rotate given (log) file */
 const logRotate = (file, count = LOG_COUNT) => {
   if (!fileExists(file)) return;
+  log.debug('Rotating log file', file);
 
   for (let i = count - 1; i > 0; i--) {
     try {
@@ -260,15 +262,10 @@ const logRotate = (file, count = LOG_COUNT) => {
 
 /** rotate the log files for all installed packages */
 const rotateAllLogs = () => {
-  const agentLogFile = `${constants.TRANSITIVE_DIR}/agent.log`;
-  logRotate(agentLogFile);
-  logMonitor.clearErrors('robot-agent');
-
-  const list = getInstalledPackages();
+  const list = getInstalledPackages('log');
   list.forEach(dir => {
     const logFile = `${basePath}/${dir}/log`;
     logRotate(logFile);
-    logMonitor.clearErrors(dir);
   });
 };
 

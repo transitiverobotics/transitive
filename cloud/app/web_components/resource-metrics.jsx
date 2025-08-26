@@ -22,7 +22,7 @@ const ResourceMetrics = ({label, data, color, title}) => {
       fontSize: '0.7em',
       color: color,
       width: '12em',
-      marginRight: '0.5em'
+      marginRight: '1em'
     },
     chart: {
       margin: 0,

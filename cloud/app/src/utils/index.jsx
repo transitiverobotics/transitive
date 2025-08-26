@@ -4,12 +4,16 @@ import React, {forwardRef} from 'react';
 export const ActionLink = forwardRef((props, ref) => {
   const {onClick, onContextMenu, disabled, children} = props;
 
-  const style = {};
+  const style = {
+    // verticalAlign: 'middle',
+    // padding: '12px',
+  };
   disabled && Object.assign(style, {
     opacity: '0.5'
   });
 
   return <a href={disabled ? null : '#'} ref={ref}
+    className='btn btn-link'
     style={style}
     onClick={(e) => {
       e.preventDefault();

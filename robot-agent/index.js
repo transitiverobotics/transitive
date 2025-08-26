@@ -31,7 +31,6 @@ if (!process.env.TR_USERID) {
 // --------------------------------------------------------------------------
 
 const {exec, execSync} = require('child_process');
-const { CronJob } = require('cron');
 const {restartPackage, startPackage, rotateAllLogs,
   upgradeNodejs, killAllPackages, getInstalledPackages
 } = require('./utils');
@@ -145,9 +144,10 @@ const update = () => {
 };
 
 setInterval(update, UPDATE_INTERVAL);
-// rotate all log files at 1am
-rotateAllLogs();
-new CronJob('0 0 1 * * *', rotateAllLogs, null, true);
+
+// rotateAllLogs();
+// rotate all log files once a day at 1am
+// new CronJob('0 0 1 * * *', rotateAllLogs, null, true);
 
 update();
 
@@ -162,3 +162,7 @@ process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
 
+
+// #DEBUG
+// setTimeout(() => log.error('error test'), 5000);
+// setTimeout(() => log.warn('warn test'), 5000);

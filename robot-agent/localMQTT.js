@@ -39,8 +39,9 @@ const tryJSONParse = (string) => {
 const ensureSlash = (topic) => `${(topic[0] == '/' ? '' : '/')}${topic}`;
 
 /** Start the local mqtt broker. upstreamClient is the upstream mqtt client */
-const startLocalMQTTBroker = (upstreamClient, mqttSync, prefix, agentPrefix, onError) => {
+const startLocalMQTTBroker = (mqttSync, prefix, agentPrefix, onError) => {
 
+  const upstreamClient = mqttSync.mqtt;
   const aedes = Aedes({persistence});
 
   const server = require('net').createServer(aedes.handle);
@@ -88,7 +89,7 @@ const startLocalMQTTBroker = (upstreamClient, mqttSync, prefix, agentPrefix, onE
     log.info('clientReady', client.id, client.meta);
     const path = [agentPrefix, 'status', 'runningPackages', client.id ];
     const version = client.meta?.version || client.id.split('/').at(-1);
-    mqttSync.data.update(path.join('/'), version); 
+    mqttSync.data.update(path.join('/'), version);
   });
 
   aedes.on('clientDisconnect', (client) => {

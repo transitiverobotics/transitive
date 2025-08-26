@@ -1,9 +1,9 @@
 import React, { useEffect, useReducer, useState } from 'react';
 import pako from 'pako';
 
-import { Modal, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
-
+import { Modal, Badge, OverlayTrigger, Tooltip, Button } from 'react-bootstrap';
 import { FaCircle, FaRegCircle } from 'react-icons/fa';
+import { AnsiHtml } from 'fancy-ansi/react';
 
 import { getLogger } from '@transitive-sdk/utils-web';
 import { ActionLink } from '../src/utils/index';
@@ -96,10 +96,20 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const result = Object.values(cap)[0];
   const stdout = decompress(result.stdout);
 
-  const packageName = (capName === 'robot-agent') ?
-    'robot-agent' : `${scope}/${capName}`;
+  // const packageName = (capName === 'robot-agent') ?
+  //   'robot-agent' : `${scope}/${capName}`;
+  const packageName = `${scope}/${capName}`;
 
   const [liveLogs, setLiveLogs] = useState([]);
+
+  const style = {
+    display: 'block',
+    color: '#999',
+    fontFamily: 'monospace',
+    fontSize: 'smaller',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all',
+  };
 
   // subscribe to live-log and append it
   useEffect(() => {
@@ -143,25 +153,24 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
     }
   }, [mqttClient, scope, capName]);
 
-  const style = {
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all',
-  };
+
+  const lines = stdout ? stdout.split(/\n/g) : null;
 
   // fullscreen={true}
   return <Modal show={true} size='xl' onHide={hide} >
     <Modal.Header closeButton>
-      {packageName === 'robot-agent' &&
-        <Modal.Title> Robot Agent Log </Modal.Title>
-      }
-      {packageName !== 'robot-agent' &&
-        <Modal.Title>Package Log for {packageName}</Modal.Title>
-      }
+      <Modal.Title>Log for {packageName}</Modal.Title>
     </Modal.Header>
-    <Modal.Body>
-      {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>}
-      <h5>Live Log:</h5>
-      (Configured <tt>minLogLevel</tt> (default: "error") and above only.)
+    <Modal.Body style={{background: 'hsl(240, 7%, 5%)'}}>
+      {/* {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>} */}
+      { lines ?
+        lines.map((line, i) => <AnsiHtml style={style} text={line} key={i}/>)
+        : <div>stdout is empty</div>
+      }
+
+      <hr/>
+      <h6>Live Log, configured <tt>minLogLevel</tt> and above only (default: "error"):</h6>
+
       <pre style={style}>
         {liveLogs}
       </pre>
@@ -169,72 +178,25 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   </Modal>;
 }
 
-// Styles for LogButtonWithCounter component
-const logButtonStyles = {
-  container: {
-    display: 'inline-flex',
-    alignItems: 'baseline',
-    position: 'relative',
-    marginRight: '2em'
-  },
-  errorCountBadge: {
-    cursor: 'default',
-    fontSize: '0.75em',
-    lineHeight: 1,
-    minWidth: '1.4em',
-    height: '1.4em',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    top: '-0.6em',
-    left: '100%',
-    marginLeft: '0.1em'
-  }
-};
-
 /** Component that shows a log button with an error counter badge */
-export const GetLogButtonWithCounter = ({
-  text,
-  mqttSync,
-  versionPrefix,
-  packageName,
-  toolTipPlacement = 'top',
-}) => {
+export const LogButtonWithCounter = (props) => {
+  const { text, mqttSync, versionPrefix, packageName, errorCount } = props;
+
   const [errorLogsCount, setErrorLogsCount] = useState(0);
   const [lastError, setLastError] = useState(null);
   const [pkgLog, setPkgLog] = useState(null);
 
-  // Subscribe to error logs and get data
-  useEffect(() => {
-    if (mqttSync && versionPrefix && packageName) {
-      // Subscribe to error logs count and last error topics
-      const errorLogsCountTopic = `${versionPrefix}/status/logs/errorCount/${packageName}`;
-      const lastErrorTopic = `${versionPrefix}/status/logs/lastError/${packageName}`;
-
-      mqttSync.subscribe(errorLogsCountTopic);
-      mqttSync.subscribe(lastErrorTopic);
-
-      // Get current values and set up listeners
-      const updateErrorLogsCount = () => {
-        const count = mqttSync.data.getByTopic(errorLogsCountTopic) || 0;
-        setErrorLogsCount(count);
-      };
-
-      const updateLastError = () => {
-        const error = mqttSync.data.getByTopic(lastErrorTopic);
-        setLastError(error);
-      };
-
-      // Initial load
-      updateErrorLogsCount();
-      updateLastError();
-
-      // Set up data listeners
-      mqttSync.data.subscribePath(errorLogsCountTopic, updateErrorLogsCount);
-      mqttSync.data.subscribePath(lastErrorTopic, updateLastError);
+  const styles = {
+    container: {
+      position: 'relative',
+      // verticalAlign: 'initial',
+    },
+    errorCountBadge: {
+      cursor: 'default',
+      fontSize: '0.5em',
+      position: 'absolute',
     }
-  }, [mqttSync, versionPrefix, packageName]);
+  };
 
   // Handle get log button click
   const handleGetLog = () => {
@@ -243,52 +205,31 @@ export const GetLogButtonWithCounter = ({
 
     mqttSync.call(topic, {pkg: packageName}, (response) => {
       log.debug('got package log response', response);
-
-      // Format response for PkgLog component
-      if (packageName === 'robot-agent') {
-        setPkgLog({'@transitive-robotics': {'robot-agent': response}});
-      } else {
-        const [scope, capName] = packageName.split('/');
-        setPkgLog({[scope]: {[capName]: response}});
-      }
+      const [scope, capName] = packageName.split('/');
+      setPkgLog({[scope]: {[capName]: response}});
     });
   };
 
-  const formatLastError = (errorObj) => {
-    if (!errorObj) return 'No error details available';
+  // const formatLastError = (errorObj) => {
+  //   if (!errorObj) return 'No error details available';
 
-    const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
-    const module = errorObj.module || 'Unknown module';
-    const message = errorObj.message || 'No message';
+  //   const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
+  //   const module = errorObj.module || 'Unknown module';
+  //   const message = errorObj.message || 'No message';
 
-    return `${timestamp} - ${module}: ${message}`;
-  };
+  //   return `${timestamp} - ${module}: ${message}`;
+  // };
 
   return (
     <F>
-      <div style={logButtonStyles.container}>
-        <ActionLink onClick={handleGetLog}>
-          {text}
-        </ActionLink>
-        {errorLogsCount > 0 && lastError && (
-          <OverlayTrigger
-            placement={toolTipPlacement}
-            overlay={
-              <Tooltip id={`error-tooltip-${Math.random()}`}>
-                Last error: {formatLastError(lastError)}
-              </Tooltip>
-            }
-          >
-            <Badge
-              pill
-              bg='danger'
-              style={logButtonStyles.errorCountBadge}
-            >
-              {errorLogsCount}
-            </Badge>
-          </OverlayTrigger>
-        )}
-      </div>
+      <Button variant='link' style={styles.container}
+        onClick={handleGetLog}>
+        {text}
+        { errorCount > 0 && <Badge pill bg='danger' style={styles.errorCountBadge}
+          title={`There are ${errorCount} errors.`}>
+          {errorCount}
+        </Badge>}
+      </Button>
 
       {pkgLog && <PkgLog
         response={pkgLog}

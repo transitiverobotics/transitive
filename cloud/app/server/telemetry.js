@@ -6,18 +6,20 @@ log.setLevel('info');
 
 const getSeverityNumber = (level) => {
   const levelMap = {
-    'UNSPECIFIED': 0,
-    'TRACE': 1,
-    'DEBUG': 5,
-    'INFO': 9,
-    'WARN': 13,
-    'ERROR': 17,
-    'FATAL': 21
+    'unspecified': 0,
+    'trace': 1,
+    'debug': 5,
+    'info': 9,
+    'warn': 13,
+    'error': 17,
+    'fatal': 21
   };
-  return levelMap[level] || levelMap['UNSPECIFIED'];
+  return levelMap[level] || levelMap['unspecified'];
 }
 
+
 class TelemetryService {
+
   constructor() {
     log.debug('Creating TelemetryService');
     try {
@@ -43,6 +45,7 @@ class TelemetryService {
       throw error;
     }
   }
+
   async init() {
     log.info('Initializing TelemetryService');
     // create logs and metrics tables if they do not exist
@@ -87,7 +90,7 @@ class TelemetryService {
           wait_end_of_query: 1,
         }
       });
-      
+
       await this.clickHouseClient.command({
         query:`
           CREATE TABLE IF NOT EXISTS default.metrics
@@ -129,38 +132,39 @@ class TelemetryService {
         clickhouse_settings: {
           wait_end_of_query: 1,
         }
-      });      
+      });
       log.info('Telemetry tables created or already exist');
     } catch (error) {
       log.error('Failed to create telemetry tables:', error);
       throw error;
     }
   }
+
   sendLogs = async (logs, resourceAttributes = {}) => {
     if (!Array.isArray(logs)) {
       logs = [logs];
     }
-    
+
     if (logs.length === 0) {
       log.debug('No logs to send');
       return;
     }
-    
+
     try {
       log.debug('Sending logs ClickHouse...', logs.length, 'logs to send');
-      
+
       // Prepare logs for ClickHouse insertion with correct otel_logs schema
       const clickhouseLogs = logs.map(logObj => {
         const timestamp = logObj.timestamp || Date.now();
         const timestampISO = new Date(timestamp).toISOString();//.replace('T', ' ').replace('Z', '');
-        const upperLevel = logObj.level ? logObj.level.toUpperCase() : 'UNSPECIFIED';
+        const levelLowercase = logObj.level ? logObj.level.toLowerCase() : 'unspecified';
         return {
           Timestamp: timestampISO, //`toDateTime64('${timestampISO}', 9)`,
           TraceId: '', // Empty for now, could be populated if available
           SpanId: '', // Empty for now, could be populated if available
           TraceFlags: 0,
-          SeverityText: upperLevel,
-          SeverityNumber: logObj.logLevelValue || getSeverityNumber(upperLevel),
+          SeverityText: levelLowercase,
+          SeverityNumber: logObj.logLevelValue || getSeverityNumber(levelLowercase),
           ServiceName: resourceAttributes['service.name'] || 'unknown-service',
           Body: (logObj.message || '').replace(/'/g, "''").replace(/\\/g, '\\\\'),
           ResourceSchemaUrl: '',
@@ -185,7 +189,7 @@ class TelemetryService {
         log.debug(`${clickhouseLogs.length} logs sent to ClickHouse successfully`);
       }).catch(err => {
         log.error('Failed to send logs to ClickHouse:', err);
-      }); 
+      });
     } catch (error) {
       log.error('Failed to send logs to ClickHouse:', error);
     }
@@ -198,7 +202,9 @@ class TelemetryService {
    */
   sendMetrics = async (metricsData, resourceAttributes = {}) => {
     log.debug('Sending metrics to ClickHouse...', metricsData);
-    
+
+    // #TODO: update to new samples format and remove the things we removed
+
     const allMetrics = [];
     if(!metricsData || !metricsData.samplesPerPackage || Object.keys(metricsData.samplesPerPackage).length === 0) {
       log.debug('No metrics to send');
@@ -210,7 +216,7 @@ class TelemetryService {
       for (const [index, timestamp] of metricsData?.timestamps?.entries() || []) {
         const timestampISO = new Date(timestamp).toISOString().replace('T', ' ').replace('Z', '');
         const mergedResourceAttributes = {...resourceAttributes, 'service.name': packageName};
-        
+
         const sharedAttributes = {
           TimeUnix: timestampISO,
           ServiceName: packageName,
@@ -224,7 +230,7 @@ class TelemetryService {
           MetricDescription: 'CPU usage percentage',
           MetricUnit: '%',
         });
-        
+
         // Add memory usage metric
         allMetrics.push({
           ...sharedAttributes,
@@ -233,7 +239,7 @@ class TelemetryService {
           MetricDescription: 'Memory usage in bytes',
           MetricUnit: 'bytes',
         });
-        
+
         // Add system metrics if available
         if (samples.system) {
           allMetrics.push({
@@ -243,7 +249,7 @@ class TelemetryService {
             MetricDescription: 'System CPU usage percentage',
             MetricUnit: '%',
           });
-          
+
           allMetrics.push({
             ...sharedAttributes,
             Value: samples.system?.memory?.[index] || 0,
@@ -254,7 +260,7 @@ class TelemetryService {
         }
       }
     }
-    
+
     if (allMetrics.length === 0) {
       log.debug('No metrics to send');
       return;

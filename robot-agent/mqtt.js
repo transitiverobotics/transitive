@@ -30,7 +30,7 @@ const { parseMQTTTopic, mqttClearRetained, MqttSync, getLogger,
   loglevel, clone, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 
 const { handleAgentCommand, commands } = require('./commands');
-const { ensureDesiredPackages, watchStatus, getPackagePid } = require('./utils');
+const { ensureDesiredPackages, watchStatus } = require('./utils');
 const { startLocalMQTTBroker } = require('./localMQTT');
 const { updateFleetConfig } = require('./config');
 const { executeSelfChecks } = require('./selfChecks');
@@ -84,6 +84,7 @@ mqttClient.on('connect', function(connackPacket) {
       }],
       onReady: () => {
         log.info('migration complete');
+
         mqttSync.subscribe(`${AGENT_PREFIX}/desiredPackages`, (err) => {
           if (err) {
             log.warn('Failed to subscribe to desiredPackages:', err,
@@ -162,7 +163,7 @@ mqttClient.on('connect', function(connackPacket) {
         }
       });
 
-      const localBroker = startLocalMQTTBroker(mqttClient, mqttSync, PREFIX, AGENT_PREFIX,
+      const localBroker = startLocalMQTTBroker(mqttSync, PREFIX, AGENT_PREFIX,
         (error) => {
           log.error('Error starting local MQTT broker:', error);
           data.update(`${AGENT_PREFIX}/status/selfCheckErrors/mqttPortAvailable`,
@@ -180,50 +181,55 @@ mqttClient.on('connect', function(connackPacket) {
       getGeoIP();
       executeSelfChecks(data);
 
-      mqttSync.data.subscribePathFlat(
-        `${AGENT_PREFIX}/status/runningPackages/+scope/+capName/+version`,
-        async (value, topic, matched, tags) => {
-
-          const {scope, capName, version} = matched;
-          const pkgName = `${scope}/${capName}`;
-
-          if (!value || value === 'false') {
-            log.info(`Package ${pkgName} stopped`);
-            resourceMonitor.stopMonitoring(pkgName);
-            logMonitor.stopWatchingLogs(pkgName);
-            // TODO: stop watching status
-          } else {
-            log.info(`Package ${pkgName} started`);
-            logMonitor.watchLogs(pkgName);
-            watchStatus(pkgName);
-            getPackagePid(pkgName).then(pid => {
-              if (pid) {
-                log.info(`Package ${pkgName} is running with PID: ${pid}`);
-                resourceMonitor.startMonitoring(pkgName, pid);
-              } else {
-                log.warn(`Could not find PID for package ${pkgName
-                  }, not starting resource monitoring`);
-              }
-            }).catch(err => {
-                log.error(`Error getting PID for package ${pkgName
-                  }, not starting resource monitoring:`, err);
-              });
-          }
+      mqttSync.subscribe(`${AGENT_PREFIX}/cloudStatus`, (err) => {
+        if (err) {
+          log.warn('Failed to subscribe to cloudStatus', err);
+          return;
         }
-      );
 
-      try {
-        logMonitor.init(mqttClient, mqttSync, AGENT_PREFIX);
-        logMonitor.watchLogs('robot-agent');
-      } catch (err) {
-        log.error('Failed to initialize log monitor:', err);
-      }
-
-      resourceMonitor.init(mqttSync, `${AGENT_PREFIX}/status/metrics`);
+        mqttSync.waitForHeartbeatOnce(startMonitoring);
+      });
 
       initialized = true;
     });
 });
+
+
+/** Start monitoring: logs, resources, and capability's status.json */
+const startMonitoring = () => {
+
+  try {
+    logMonitor.init(mqttSync, AGENT_PREFIX);
+  } catch (err) {
+    log.error('Failed to initialize log monitor:', err);
+  }
+
+  const handlePackageStartStop = (value, topic, {scope, capName}) => {
+    const pkgName = `${scope}/${capName}`;
+    log.info({value});
+
+    if (!value || value === 'false') {
+      log.info(`Package ${pkgName} stopped`);
+      resourceMonitor.stopMonitoring(pkgName);
+      logMonitor.stopWatchingLogs(pkgName);
+      // TODO: stop watching status
+
+    } else {
+      log.info(`Package ${pkgName} started`);
+      resourceMonitor.startMonitoring(pkgName);
+      logMonitor.watchLogs(pkgName);
+      watchStatus(pkgName);
+    }
+  };
+
+  const topic = `${AGENT_PREFIX}/status/runningPackages/+scope/+capName/+version`;
+  // start monitor already running packages
+  mqttSync.data.forMatch(topic, handlePackageStartStop);
+  // watch for start/stop events
+  mqttSync.data.subscribePathFlat(topic, handlePackageStartStop);
+
+  resourceMonitor.init(mqttSync, `${AGENT_PREFIX}/status/metrics`);
+};
 
 /** publish static info about this machine */
 const staticInfo = () => {

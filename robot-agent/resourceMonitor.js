@@ -4,7 +4,7 @@ const si = require('systeminformation');
 
 const { getLogger } = require('@transitive-sdk/utils');
 
-const { toPrecision } = require('./utils.js');
+const { toPrecision, getPackagePid } = require('./utils.js');
 
 const log = getLogger('resourceMonitor');
 log.setLevel('debug');
@@ -47,11 +47,8 @@ class ResourceMonitor {
     this.samples.system.mem.push(
       toPrecision(systemMemInfo.active * 100 / systemMemInfo.total, 1));
 
-
     // collect metrics for all monitored packages
-    await Promise.all(_.map(this.monitoredPackages, async (pkgData, pkgName) => {
-      const {pid} = pkgData;
-
+    await Promise.all(_.map(this.monitoredPackages, async (pid, pkgName) => {
       let stats;
       try {
         // We use pidusage-tree to include subprocesses
@@ -105,16 +102,24 @@ class ResourceMonitor {
 
   /** Add the named package and pi to the list of packages to monitor resource
   * of. */
-  startMonitoring(packageName, pid) {
-    if (!this.monitoredPackages[packageName]) {
-      log.info(`Starting resource monitoring for ${packageName} (PID: ${pid})`);
-      this.monitoredPackages[packageName] = {
-        pid: pid,
-        samples: [],
-      }
+  startMonitoring(pkgName) {
+    if (!this.monitoredPackages[pkgName]) {
+      log.info(`Starting resource monitoring for ${pkgName}`);
+
+      getPackagePid(pkgName).then(pid => {
+        if (pid) {
+          log.info(`Package ${pkgName} is running with PID: ${pid}`);
+          this.monitoredPackages[pkgName] = pid;
+        } else {
+          log.warn(`Could not find PID for package ${pkgName}, not monitoring`);
+        }
+      }).catch(err => {
+          log.error(`Error getting PID for package ${pkgName}, not monitoring:`,
+            err);
+        });
+
     } else {
-      log.warn(`Already monitoring package ${packageName}, skipping startMonitoring`);
-      return;
+      log.debug(`Already monitoring package ${pkgName}`);
     }
   }
 

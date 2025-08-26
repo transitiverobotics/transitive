@@ -450,24 +450,21 @@ class _robotAgent extends Capability {
     super(async () => {
       // Subscribe to all messages and make sure that the named capabilities are
       // running.
-      this.mqttSync.subscribe(
-        '/+/+/@transitive-robotics/_robot-agent/+/status/runningPackages');
-      this.mqttSync.subscribe(
-        '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat');
-      this.mqttSync.subscribe(
-        '/+/+/@transitive-robotics/_robot-agent/+/desiredPackages');
-      this.mqttSync.subscribe(
-        '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages');
-      this.mqttSync.subscribe(
-        '/+/+/@transitive-robotics/_robot-agent/+/info');
+      this.prefix = '/+/+/@transitive-robotics/_robot-agent/+';
+
+      this.mqttSync.subscribe(`${this.prefix}/status/runningPackages`);
+      this.mqttSync.subscribe(`${this.prefix}/status/heartbeat`);
+      this.mqttSync.subscribe(`${this.prefix}/desiredPackages`);
+      this.mqttSync.subscribe(`${this.prefix}/disabledPackages`);
+      this.mqttSync.subscribe(`${this.prefix}/info`);
 
       this.mqttSync.publish('/+/+/+/+/+/billing/token');
-      this.mqttSync.publish(
-        '/+/+/@transitive-robotics/_robot-agent/+/desiredPackages',
-        {atomic: true});
-      this.mqttSync.publish(
-        '/+/+/@transitive-robotics/_robot-agent/+/disabledPackages',
-        {atomic: true});
+      this.mqttSync.publish(`${this.prefix}/desiredPackages`, {atomic: true});
+      this.mqttSync.publish(`${this.prefix}/disabledPackages`, {atomic: true});
+      // a topic where we can publish a status back to agents
+      this.mqttSync.publish(`${this.prefix}/cloudStatus`);
+      // publish error counts per package
+      this.mqttSync.publish(`${this.prefix}/status/logs/errorCount/+`);
 
       log.debug('resubscribing');
       this.data.subscribePathFlat(
@@ -537,8 +534,8 @@ class _robotAgent extends Capability {
               'service.name': 'portal',
             }
           );
-          this.forwardAgentLogsToClickhouse();
-          this.forwardAgentMetricsToClickhouse();
+          this.ingestLogs();
+          this.forwardMetricsToClickhouse();
         }).catch((error) => {
           log.error('Failed to initialize TelemetryService:', error);
         });
@@ -548,57 +545,96 @@ class _robotAgent extends Capability {
     });
   }
 
-  /** Subscribe to log messages sent by robot agents and forward them to HyperDX **/
-  forwardAgentLogsToClickhouse() {
+  /** Subscribe to log messages sent by robot agents and:
+   * - publish updated error counts, per package
+   * - forward them to HyperDX */
+  ingestLogs() {
     log.debug('Subscribing to logs');
-    this.mqtt.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/logs/live');
+    this.mqtt.subscribe(`${this.prefix}/status/logs/live`);
+    this.mqtt.subscribe(`${this.prefix}/status/logs/reset`);
 
     this.mqtt.on('message', (topic, message) => {
-      const { organization, device, sub } = parseMQTTTopic(topic);
-      if (!device || !organization || !topic.endsWith('/status/logs/live') || !message) {
+      const { organization, device, capability, version, sub } = parseMQTTTopic(topic);
+
+      if (!device || !organization || capability != '@transitive-robotics/_robot-agent'
+        || sub[0] != 'status' || sub[1] != 'logs') {
+        // not for us
         return;
       }
 
-      // const logLines = message && tryJSONParse(message.toString());
-      const jsonPayload = zlib.gunzipSync(message).toString();
-      const logLines = tryJSONParse(jsonPayload);
+      const prefixPath = [organization, device,
+        '@transitive-robotics', '_robot-agent', version];
 
-      if (!Array.isArray(logLines)) {
-        log.warn(`Received logs message that is not an array: ${message}`);
-        return;
-      }
+      if (sub[2] == 'reset') {
+        log.debug('Resetting error counts');
+        // This signifies the robot having rotated the logs, meaning that we should
+        // reset the error counts for all packages (capabilities).
+        this.mqttSync.data.forPathMatch([...prefixPath, 'status', 'logs',
+            'errorCount', '+pkgScope', '+pkgName'],
+          (currentCount, topic, { pkgScope, pkgName }) => {
+            const pkgPath = [...prefixPath, 'status', 'logs', 'errorCount',
+              pkgScope, pkgName];
+            log.debug('Resetting error count for', pkgName);
+            this.mqttSync.data.update(pkgPath, 0);
+          });
 
-      if (logLines.length === 0) {
-        log.warn(`Received empty logs message for ${organization}/${device}`);
-        return;
-      }
+      } else if (sub[2] == 'live') {
 
-      log.debug(`received ${logLines.length} log lines for ${device}`);
+        // const logLines = message && tryJSONParse(message.toString());
+        const jsonPayload = zlib.gunzipSync(message).toString();
+        const logLines = tryJSONParse(jsonPayload);
 
-      const packageLogs = _.groupBy(logLines, line => line.package);
+        if (!Array.isArray(logLines)) {
+          log.warn(`Received logs message that is not an array: ${message}`);
+          return;
+        }
 
-      _.forEach(packageLogs, async (logs, packageName) => {
-        await this.telemetry.sendLogs(logs, {
-          'organization.id': organization,
-          'device.id': device,
-          'service.name': packageName
+        if (logLines.length === 0) {
+          log.warn(`Received empty logs message for ${organization}/${device}`);
+          return;
+        }
+
+        log.debug(`received ${logLines.length} log lines for ${device}`);
+
+        // let the device know that we got it
+        this.mqttSync.data.update(
+          [...prefixPath, 'cloudStatus', 'lastLogTimestamp'], logLines.at(-1).timestamp);
+
+        const packageLogs = _.groupBy(logLines, line => line.package);
+
+        _.forEach(packageLogs, async (logs, pkgName) => {
+          const [scope, name] = pkgName.split('/');
+
+          // update the error count
+          const pkgPath = [...prefixPath, 'status', 'logs', 'errorCount',
+            scope, name];
+
+          const newErrors = (_.filter(logLines, line => line.level == 'error')).length;
+          const currentErrorCount = this.mqttSync.data.get(pkgPath);
+          if (!currentErrorCount || newErrors > 0) {
+            this.mqttSync.data.update(pkgPath, (currentErrorCount || 0) + newErrors);
+          }
+
+          // forward to ClickHouse
+          await this.telemetry.sendLogs(logs, {
+            'organization.id': organization,
+            'device.id': device,
+            'service.name': pkgName
+          });
         });
-      });
+      }
     });
   }
 
-  /** Subscribe to metrics messages sent by robot agents and forward them to HyperDX **/
-  forwardAgentMetricsToClickhouse() {
+  /** Subscribe metrics sent by robot agents and forward them to HyperDX */
+  forwardMetricsToClickhouse() {
     log.debug('Subscribing to metrics');
-    this.mqttSync.subscribe('/+/+/@transitive-robotics/_robot-agent/+/status/metrics');
+    this.mqttSync.subscribe(`${this.prefix}/status/metrics`);
+
     this.data.subscribePath(
       '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
-      async (value, topic, matched, tags) => {
-        if (!value) return;
-        const { orgId, deviceId } = matched;
-
-        const metricsData = value;
-
+      async (metricsData, topic, { orgId, deviceId }) => {
+        if (!metricsData) return;
         // Forward metrics to HyperDX
         await this.telemetry.sendMetrics(metricsData, {
           'organization.id': orgId,

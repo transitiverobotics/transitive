@@ -69,6 +69,7 @@ class LogMonitor {
     ) || 0; // Get last log timestamp or default to 0
 
     this.rotateLogs();
+    // rotate all log files once a day at 1am
     new CronJob('0 0 1 * * *', this.rotateLogs.bind(this), null, true);
 
     this.watchLogs('@transitive-robotics/robot-agent');
@@ -260,6 +261,8 @@ class LogMonitor {
    * Retries failed uploads and updates the last log timestamp.
    */
   async uploadPendingLogs() {
+
+    if (this.pendingLogs.length == 0) return; // nothing to do
     if (this.uploading) return; // already running
     this.uploading = true;
 

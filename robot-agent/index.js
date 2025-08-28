@@ -31,9 +31,8 @@ if (!process.env.TR_USERID) {
 // --------------------------------------------------------------------------
 
 const {exec, execSync} = require('child_process');
-const {restartPackage, startPackage, rotateAllLogs,
-  upgradeNodejs, killAllPackages, getInstalledPackages
-} = require('./utils');
+const {restartPackage, startPackage, upgradeNodejs, killAllPackages,
+  getInstalledPackages } = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
 const localApi = require('./localApi');
 
@@ -145,10 +144,6 @@ const update = () => {
 
 setInterval(update, UPDATE_INTERVAL);
 
-// rotateAllLogs();
-// rotate all log files once a day at 1am
-// new CronJob('0 0 1 * * *', rotateAllLogs, null, true);
-
 update();
 
 // TODO: make this safer against self-destructing updates by only loading this
@@ -161,8 +156,3 @@ localApi.startServer();
 process.on('uncaughtException', (err) => {
   console.error(`**** Caught exception: ${err}:`, err.stack);
 });
-
-
-// #DEBUG
-// setTimeout(() => log.error('error test'), 5000);
-// setTimeout(() => log.warn('warn test'), 5000);

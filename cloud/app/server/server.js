@@ -466,6 +466,8 @@ class _robotAgent extends Capability {
       // publish error counts per package
       this.mqttSync.publish(`${this.prefix}/status/logs/errorCount/+`);
 
+      // #TODO: add a migration strategy for cloudSTatus and errorCount
+
       log.debug('resubscribing');
       this.data.subscribePathFlat(
         '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
@@ -525,12 +527,12 @@ class _robotAgent extends Capability {
         log.debug('ClickHouse integration enabled');
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
-          await this.telemetry.sendLogs({
+          await this.telemetry.sendLogs([{
             timestamp: Date.now(),
               module: log.name,
               level: 'DEBUG',
               message: 'Portal (re-)started'
-            }, {
+            }], {
               'service.name': 'portal',
             }
           );

@@ -1,5 +1,8 @@
-const { getLogger } = require('@transitive-sdk/utils');
+
+const _ = require('lodash');
 const { createClient } = require('@clickhouse/client');
+
+const { getLogger } = require('@transitive-sdk/utils');
 
 const log = getLogger('telemetry');
 log.setLevel('info');
@@ -15,9 +18,13 @@ const getSeverityNumber = (level) => {
     'fatal': 21
   };
   return levelMap[level] || levelMap['unspecified'];
-}
+};
 
+/** Convert timestamp (seconds since epoch) to TimeUnix */
+const timeToUnix = (time) =>
+    new Date(time).toISOString().replace('T', ' ').replace('Z', '');
 
+/** Class for sending logs and metrics to ClickHouse. */
 class TelemetryService {
 
   constructor() {
@@ -141,10 +148,6 @@ class TelemetryService {
   }
 
   sendLogs = async (logs, resourceAttributes = {}) => {
-    if (!Array.isArray(logs)) {
-      logs = [logs];
-    }
-
     if (logs.length === 0) {
       log.debug('No logs to send');
       return;
@@ -203,63 +206,58 @@ class TelemetryService {
   sendMetrics = async (metricsData, resourceAttributes = {}) => {
     log.debug('Sending metrics to ClickHouse...', metricsData);
 
-    // #TODO: update to new samples format and remove the things we removed
+    if (!metricsData?.time.length) return;
 
     const allMetrics = [];
-    if(!metricsData || !metricsData.samplesPerPackage || Object.keys(metricsData.samplesPerPackage).length === 0) {
-      log.debug('No metrics to send');
-      return;
-    }
-    for (const [packageName, samples] of Object.entries(metricsData.samplesPerPackage)) {
-      log.debug(`Processing metrics for package: ${packageName}`, samples);
-      // Prepare metrics for ClickHouse insertion
-      for (const [index, timestamp] of metricsData?.timestamps?.entries() || []) {
-        const timestampISO = new Date(timestamp).toISOString().replace('T', ' ').replace('Z', '');
-        const mergedResourceAttributes = {...resourceAttributes, 'service.name': packageName};
 
-        const sharedAttributes = {
-          TimeUnix: timestampISO,
+    // Add system metrics
+    for (const index in metricsData.time) {
+      const time = metricsData.time[index];
+      const packageName = '@transitive-robotics/robot-agent';
+
+      const sharedAttributes = {
+        TimeUnix: timeToUnix(time),
+        ServiceName: packageName,
+        ResourceAttributes: {...resourceAttributes, 'service.name': packageName}
+      };
+
+      const cpu = metricsData.system?.cpu?.[index];
+      cpu !== undefined && allMetrics.push({
+        ...sharedAttributes,
+        Value: cpu,
+        MetricName: 'system_cpu_usage_percent',
+        MetricDescription: 'System CPU usage percentage',
+        MetricUnit: '%',
+      });
+
+      const mem = metricsData.system?.mem?.[index];
+      mem !== undefined && allMetrics.push({
+        ...sharedAttributes,
+        Value: mem,
+        MetricName: 'system_memory_usage_percent',
+        MetricDescription: 'System memory usage percent',
+        MetricUnit: '%',
+      });
+    }
+
+    // Add per-package metrics
+    _.forEach(metricsData.packages, (samples, packageName) => {
+      log.debug(`Processing metrics for package: ${packageName}`, samples);
+
+      for (const index in metricsData.time) {
+        const time = metricsData.time[index];
+        const cpu = samples[index];
+        cpu !== undefined && allMetrics.push({
+          TimeUnix: timeToUnix(time),
           ServiceName: packageName,
-          ResourceAttributes: mergedResourceAttributes
-        };
-        // Add CPU usage metric
-        allMetrics.push({
-          ...sharedAttributes,
-          Value: samples?.cpu?.[index] || 0,
+          ResourceAttributes: {...resourceAttributes, 'service.name': packageName},
+          Value: cpu,
           MetricName: 'cpu_usage_percent',
           MetricDescription: 'CPU usage percentage',
           MetricUnit: '%',
         });
-
-        // Add memory usage metric
-        allMetrics.push({
-          ...sharedAttributes,
-          Value: samples?.memory?.[index] || 0,
-          MetricName: 'memory_usage_bytes',
-          MetricDescription: 'Memory usage in bytes',
-          MetricUnit: 'bytes',
-        });
-
-        // Add system metrics if available
-        if (samples.system) {
-          allMetrics.push({
-            ...sharedAttributes,
-            Value: samples.system?.cpu?.[index] || 0,
-            MetricName: 'system_cpu_usage_percent',
-            MetricDescription: 'System CPU usage percentage',
-            MetricUnit: '%',
-          });
-
-          allMetrics.push({
-            ...sharedAttributes,
-            Value: samples.system?.memory?.[index] || 0,
-            MetricName: 'system_memory_usage_bytes',
-            MetricDescription: 'System memory usage in bytes',
-            MetricUnit: 'bytes',
-          });
-        }
       }
-    }
+    });
 
     if (allMetrics.length === 0) {
       log.debug('No metrics to send');

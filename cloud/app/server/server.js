@@ -466,8 +466,6 @@ class _robotAgent extends Capability {
       // publish error counts per package
       this.mqttSync.publish(`${this.prefix}/status/logs/errorCount/+`);
 
-      // #TODO: add a migration strategy for cloudSTatus and errorCount
-
       log.debug('resubscribing');
       this.data.subscribePathFlat(
         '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/runningPackages/+scope/+capName/+version',

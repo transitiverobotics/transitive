@@ -133,7 +133,8 @@ class LogMonitor {
     this.watchedPackages[packageName].minLogLevelValue = minLogLevelValue;
 
     log.debug('Watching logs for package:', packageName, 'at path:', filePath,
-      ' with: ', { filePath, minLogLevel, minLogLevelValue }
+      ' with: ', { filePath, minLogLevel, minLogLevelValue }, 'since',
+      this.lastLogTimestamp
     );
 
     // First: read file on disk and ingest current lines newer than last sent

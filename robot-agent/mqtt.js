@@ -78,10 +78,10 @@ mqttClient.on('connect', function(connackPacket) {
 
   if (!mqttSync) {
     mqttSync = new MqttSync({mqttClient,
-      migrate: [{
-        topic: `${AGENT_PREFIX}/desiredPackages`,
-        newVersion: version
-      }],
+      migrate: [
+        { topic: `${AGENT_PREFIX}/desiredPackages`, newVersion: version },
+        { topic: `${AGENT_PREFIX}/cloudStatus`, newVersion: version, flat: true },
+      ],
       onReady: () => {
         log.info('migration complete');
 
@@ -100,8 +100,16 @@ mqttClient.on('connect', function(connackPacket) {
             mqttSync.data.subscribePath(`${AGENT_PREFIX}/desiredPackages`,
               (value, key) => ensureDesiredPackages(value));
             // ready to install packages
-            data.update(`${AGENT_PREFIX}/status/ready`, true);
+            mqttSync.data.update(`${AGENT_PREFIX}/status/ready`, true);
           });
+        });
+
+        mqttSync.subscribe(`${AGENT_PREFIX}/cloudStatus`, (err) => {
+          if (err) {
+            log.warn('Failed to subscribe to cloudStatus', err);
+            return;
+          }
+          mqttSync.waitForHeartbeatOnce(startMonitoring);
         });
 
         // subscribe to _fleet config
@@ -180,15 +188,6 @@ mqttClient.on('connect', function(connackPacket) {
 
       getGeoIP();
       executeSelfChecks(data);
-
-      mqttSync.subscribe(`${AGENT_PREFIX}/cloudStatus`, (err) => {
-        if (err) {
-          log.warn('Failed to subscribe to cloudStatus', err);
-          return;
-        }
-
-        mqttSync.waitForHeartbeatOnce(startMonitoring);
-      });
 
       initialized = true;
     });

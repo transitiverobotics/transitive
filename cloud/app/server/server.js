@@ -609,7 +609,7 @@ class _robotAgent extends Capability {
           const pkgPath = [...prefixPath, 'status', 'logs', 'errorCount',
             scope, name];
 
-          const newErrors = (_.filter(logLines, line => line.level == 'error')).length;
+          const newErrors = (_.filter(logs, line => line.level == 'error')).length;
           const currentErrorCount = this.mqttSync.data.get(pkgPath);
           if (!currentErrorCount || newErrors > 0) {
             this.mqttSync.data.update(pkgPath, (currentErrorCount || 0) + newErrors);

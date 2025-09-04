@@ -161,7 +161,10 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
     <Modal.Header closeButton>
       <Modal.Title>Log for {packageName}</Modal.Title>
     </Modal.Header>
-    <Modal.Body style={{background: 'hsl(240, 7%, 5%)'}}>
+    <Modal.Body style={{
+      background: 'hsl(240, 7%, 5%)',
+      color: '#eee',
+    }}>
       {/* {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>} */}
       { lines ?
         lines.map((line, i) => <AnsiHtml style={style} text={line} key={i}/>)

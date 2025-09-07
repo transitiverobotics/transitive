@@ -27,6 +27,6 @@ https://clickhouse.com/docs/operations/tips#using-less-than-16gb-of-ram
   <!-- From https://kb.altinity.com/altinity-kb-setup-and-maintenance/configure_clickhouse_for_low_mem_envs/ -->
 
 
-  <mlock_executable>false</mlock_executable>
+  <!-- <mlock_executable>false</mlock_executable> -->
 
 </clickhouse>

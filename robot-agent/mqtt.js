@@ -205,7 +205,6 @@ const startMonitoring = () => {
 
   const handlePackageStartStop = (value, topic, {scope, capName}) => {
     const pkgName = `${scope}/${capName}`;
-    log.info({value});
 
     if (!value || value === 'false') {
       log.info(`Package ${pkgName} stopped`);
@@ -261,6 +260,13 @@ const staticInfo = () => {
     info.isDocker = true;
   } catch (e) {
     info.isDocker = false;
+  }
+
+  // Read device model file if available. It is on most arm boards.
+  try {
+    info.deviceModel = fs.readFileSync('/proc/device-tree/model', 'utf8')?.trim();
+  } catch (e) {
+    log.debug('no device model file found');
   }
 
   // placeholder for geo info

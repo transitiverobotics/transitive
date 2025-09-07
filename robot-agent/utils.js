@@ -39,14 +39,14 @@ const getInstalledPackages = (expectedFile = 'package.json') => {
 };
 
 /**
- * Gets the process ID (PID) of a running package
- *
- * @param {string} pkgName - The name of the package to find the PID for
- */
+* Gets the process ID (PID) of a running package
+*
+* @param {string} pkgName - The name of the package to find the PID for
+*/
 const getPackagePid = (pkgName) =>{
   return new Promise((resolve, reject) => {
     const pgrep = spawn('pgrep',
-    ['-nf', `startPackage.sh ${pkgName}`, '-U', process.getuid()]);
+      ['-nf', `startPackage.sh ${pkgName}`, '-U', process.getuid()]);
     let pkgPid = null;
     pgrep.stdout.on('data', (data) => {
       const pid = parseInt(data.toString().trim());
@@ -100,7 +100,7 @@ const removePackage = (pkg) => {
 };
 
 /** update the config.json file for the package with the current global config
-  and the package specific config.*/
+and the package specific config.*/
 const updatePackageConfigFile = (packageName) => {
   const config = {
     global: global.config.global,      // global, shared config
@@ -114,7 +114,7 @@ const updatePackageConfigFile = (packageName) => {
 
 
 /** restart the named package by sending a SIGUSR1 to its startPackage.sh process
-  e.g., name = '@transitive-robotics/health-monitoring'
+e.g., name = '@transitive-robotics/health-monitoring'
 */
 const restartPackage = (name, startIfNotRunning = false) => {
   killPackage(name, 'SIGUSR1', (code) => {
@@ -122,7 +122,7 @@ const restartPackage = (name, startIfNotRunning = false) => {
       log.warn(`package ${name} not running`);
       startIfNotRunning && startPackage(name);
     } else if (code) {
-        log.warn(`restarting package ${name} failed (code: ${code})`)
+      log.warn(`restarting package ${name} failed (code: ${code})`)
     } else {
       log.debug(`package ${name} updated and restarted`)
     }
@@ -130,8 +130,8 @@ const restartPackage = (name, startIfNotRunning = false) => {
 };
 
 /** 'kill' package, i.e., send it the desired signal to the process group
-  leader. Also used for restarting packages via SIGUSR1, see the trap in
-  startPackage.sh */
+leader. Also used for restarting packages via SIGUSR1, see the trap in
+startPackage.sh */
 const killPackage = (name, signal = 'SIGTERM', cb = undefined) => {
   const args = [`-${signal}`, '-nf', `startPackage.sh ${name}`,
     '-U', process.getuid()];
@@ -183,9 +183,9 @@ const startPackage = (name) => {
 };
 
 /** Watch the status.json file of a package, and relay that info to mqtt.
- * If the file doesn't initially exist, create it and set the provided initial
- * status.
- */
+* If the file doesn't initially exist, create it and set the provided initial
+* status.
+*/
 const watchStatus = (name, status) => {
   const statusFile = `${os.homedir()}/.transitive/packages/${name}/status.json`;
 
@@ -270,7 +270,7 @@ const rotateAllLogs = () => {
 };
 
 /** A more reliable way to kill all running packages/capabilities, even when
-  * they are not cooperating */
+* they are not cooperating */
 const killAllPackages = () => {
   try {
     execSync("pkill -f '/home/bin/startPackage.sh @'");

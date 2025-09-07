@@ -54,27 +54,27 @@ const ensureRunning = async ({name, version}) => {
   //   await fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`))
   //   .json();
 
-  // fetch package.json for `name` from the registry corresponding to the scope
-  const localRegistry = 'http://registry:6000';
-  const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
-    localRegistry : 'https://registry.transitiverobotics.com';
-
-  const registry = (name.startsWith('@transitive-robotics/') ? trRegistry
-    : localRegistry);
-
-  let pkgInfo;
-  try {
-    pkgInfo =
-      await (await fetch(`${registry}/${encodeURIComponent(name)}`)).json();
-  } catch (e) {
-    log.error(`Failed to retrieve package info for ${name} from ${registry}`);
-    return;
-  }
-
   const list = await docker.listContainers();
   const tagName = getTagName({name, version});
   const isRunning = list.some(container => container.Image == tagName);
+
   if (!isRunning) {
+    // fetch package.json for `name` from the registry corresponding to the scope
+    const localRegistry = 'http://registry:6000';
+    const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
+      localRegistry : 'https://registry.transitiverobotics.com';
+    const registry = (name.startsWith('@transitive-robotics/') ? trRegistry
+      : localRegistry);
+
+    let pkgInfo;
+    try {
+      pkgInfo =
+        await (await fetch(`${registry}/${encodeURIComponent(name)}`)).json();
+    } catch (e) {
+      log.error(`Failed to retrieve package info for ${name} from ${registry}`);
+      return;
+    }
+
     await start({name, version, pkgInfo});
   }
 };

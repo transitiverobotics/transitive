@@ -171,7 +171,6 @@ const startPackage = (name) => {
             {
               TRPACKAGE: name,
               TR_ROS_RELEASES: config?.global?.rosReleases?.join(' '),
-              FORCE_COLOR: 1 // force chalk level 1 (color logging)
             })
         });
       subprocess.unref();

@@ -115,16 +115,17 @@ do
       echo "Config file $CONFIG_FILE is empty"
       export TRCONFIG="{}"
     fi
-  else    
+  else
     echo "Config file $CONFIG_FILE not found"
-     export TRCONFIG="{}"
+    export TRCONFIG="{}"
   fi
-  
+
   echo "TRCONFIG: $TRCONFIG"
 
   cd "$BASE/node_modules/$1"
   export PASSWORD=$(cat ../../../password)
-  npm start &
+  # setting FORCE_COLOR=1 to force ANSI colors in Chalk (for logging)
+  FORCE_COLOR=1 npm start &
   echo '{"status": "started"}' > $STATUS_FILE
   pid=$!
   echo "node process pid: $pid"

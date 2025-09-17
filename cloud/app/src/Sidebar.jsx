@@ -1,17 +1,32 @@
 import React, { useContext, useEffect, useState } from 'react';
 
 import { Link, useLocation } from "react-router-dom";
-import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge }
+import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge, Offcanvas }
   from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
-import { FaExclamationTriangle } from 'react-icons/fa';
+import { FaBars, FaExclamationTriangle } from 'react-icons/fa';
 import { Login, UserContext } from './Login.jsx';
 import { ActionLink } from './utils/index';
+import { grays } from './utils/colors';
+import { TransitiveLogo } from './TransitiveLogo.jsx';
 
 const F = React.Fragment;
 
 const styles = {
+  sidebar: {
+    margin: '0',
+    padding: '1em 0 0 1em',
+    flex: '1 0 10rem',
+    // background: 'linear-gradient(-90deg, #000, #012)',
+    background: '#1c1c20',
+    color: '#fff',
+    borderRight: `1px solid ${grays[12]}`,
+    position: 'relative',
+    height: '100vh',
+    fontSize: 'small',
+    paddingBottom: '2em',
+  },
   wrapper: {
     display: 'flex',
     flexDirection: 'column',
@@ -19,18 +34,6 @@ const styles = {
     width: '100%',
     height: '100%',
     color: '#bbb'
-  },
-  logo: {
-    height: '1.5em',
-    marginRight: '0.4em',
-    verticalAlign: 'text-bottom',
-    display: 'inline-block'
-  },
-  brand: {
-    color: 'inherit',
-    textDecorations: 'none',
-    textAlign: 'center',
-    fontSize: 'large'
   },
   views: {
     flexGrow: '1',
@@ -123,6 +126,13 @@ export const Sidebar = () => {
   const isLoggedIn = !!session;
 
   const [runningPackages, setRunningPackages] = useState({});
+  const [show, setShow] = useState(false);
+
+  const hideSidebar = () => setShow(false);
+  const showSidebar = () => setShow(true);
+
+  useEffect(hideSidebar, [useLocation().pathname]);
+
   useEffect(() => {
       fetch('/@transitive-robotics/_robot-agent/runningPackages').then(
         res => res.json()).then(running => {
@@ -197,26 +207,59 @@ export const Sidebar = () => {
     );
   };
 
-  return <div style={styles.wrapper} className='sidebar'>
-    <div style={styles.brand}>
-      <a href={location.origin.replace('portal.', '')}>
-        <img src='/logo.svg' title='Transitive Robotics' style={styles.logo} />
-      </a>
-      portal
-    </div>
+  const SidebarBody = () => {
+    return (
+      <F>
+        <div style={styles.views}>
+          <PageLink to='/'>Devices</PageLink>
+          <div style={styles.section}>Fleet Widgets</div>
+          <OtherFleetCaps />
+        </div>
 
-    <div style={styles.views}>
-      <PageLink to='/'>Devices</PageLink>
-      <div style={styles.section}>Fleet Widgets</div>
-      <OtherFleetCaps />
-    </div>
-
-    <div>
-      { isLoggedIn ?
-        <UserMenu />
-        :
-        <PageLink to="/login">Login</PageLink>
+        <div>
+          { isLoggedIn ?
+            <UserMenu />
+            :
+            <PageLink to="/login">Login</PageLink>
+          }
+        </div>
+      </F>
+    );
+  }
+  return <F>
+      {/* Desktop sidebar - hidden on small screens */}
+      <div style={styles.sidebar} className="d-none d-lg-block">
+        <div style={styles.wrapper} className='sidebar'>
+          <TransitiveLogo />
+          <SidebarBody />          
+        </div>
+      </div>
+      {/* Mobile toggle button - only visible on small screens */}
+      {!show && <Button 
+          className="d-lg-none position-fixed top-0 start-0 m-3 shadow-sm"
+          variant="dark"
+          size="sm"
+          onClick={showSidebar}
+          aria-label="Open menu"
+        >
+          <FaBars />
+        </Button>
       }
-    </div>
-  </div>;
-};
+      {/* Mobile sidebar - offcanvas for small screens */}
+      <Offcanvas 
+        show={show} 
+        onHide={hideSidebar}
+        className="d-lg-none bg-dark text-light"
+        style={{ fontSize: 'small' }}
+      >
+        <Offcanvas.Body className="p-3">
+           <div style={styles.wrapper} className='sidebar'>
+            <Offcanvas.Header closeButton>
+              <TransitiveLogo />
+            </Offcanvas.Header>
+            <SidebarBody />
+          </div>
+        </Offcanvas.Body>
+      </Offcanvas>
+    </F>;
+}

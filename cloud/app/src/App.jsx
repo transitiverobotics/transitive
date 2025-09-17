@@ -14,8 +14,8 @@ import { Security } from './Security.jsx';
 import { Admin } from './Admin.jsx';
 import { StandAloneComponent } from './StandAloneComponent.jsx';
 import { Embed } from './utils/Embed.jsx';
-import { scheme1, grays } from './utils/colors';
 import { ensureWebComponentIsLoaded } from './utils/utils';
+import { TransitiveLogo } from './TransitiveLogo.jsx';
 
 const log = getLogger('App.jsx');
 log.setLevel('debug');
@@ -30,23 +30,9 @@ const styles = {
     margin: '0px',
     display: 'flex',
   },
-  sidebar: {
-    margin: '0',
-    padding: '1em 0 0 1em',
-    flex: '1 0 10rem',
-    // background: 'linear-gradient(-90deg, #000, #012)',
-    background: '#1c1c20',
-    color: '#fff',
-    borderRight: `1px solid ${grays[12]}`,
-    position: 'relative',
-    height: '100vh',
-    fontSize: 'small',
-    paddingBottom: '2em',
-  },
   body: {
     margin: '0',
     flex: '10 1 20em',
-    padding: '2em',
     height: '100vh',
     overflow: 'auto',
     background: '#eee',
@@ -324,11 +310,12 @@ const Portal = () => {
   log.debug({session});
 
   return <div style={styles.wrapper}>
-    <div style={styles.sidebar}>
-      <Sidebar />
-    </div>
-
-    <div style={styles.body}>
+    <Sidebar />
+    <div style={styles.body} className="p-3 p-lg-4 pt-0">
+      {/* Branding on body for small screens */}
+      <div className="d-lg-none pt-3 pb-3">
+        <TransitiveLogo alignment='right'/>
+      </div>
       { msg && <Message msg={msg} session={session} /> }
 
       { session.delinquent && <Alert variant='danger'>

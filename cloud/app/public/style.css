@@ -31,6 +31,11 @@ a, .btn-link {
   background-color: #15362b !important;
 }
 
+/* Make Offcanvas close button white */
+.offcanvas .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 
 /* Moved to StandAloneComponent
 body {

@@ -49,7 +49,7 @@ If you really want to hack on the Transitive core, clone this repo and follow th
     - Ensure all required subdomains are set up, see [below](#setting-up-subdomains).
     - Go to http://portal.localhost
   - In *production*:
-    - `docker-compose build && docker-compose up -d`
+    - `docker compose build && docker compose up -d`
     - Add all required subdomains to your DNS records as CNAMES or using a wildcard.
     - Then go to http://portal.YOUR-DOMAIN.NAME
 

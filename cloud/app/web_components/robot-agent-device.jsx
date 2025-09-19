@@ -27,6 +27,7 @@ import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
 import SelfCheck from './self-check';
 import ResourceMetrics from './resource-metrics';
+import { CollapsibleButtonList } from './collapsibleButtonList';
 
 const F = React.Fragment;
 
@@ -226,7 +227,7 @@ const Capability = (props) => {
 
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
-      <Row>
+      <Row style={{position: 'relative'}}>
         <Col sm='3' style={styles.rowItem}>
           <div>{title}</div>
           <div style={styles.subText}>{name}</div>
@@ -264,48 +265,50 @@ const Capability = (props) => {
         </Col>
         <Col sm='4' style={styles.rowItem}>
           {!inactive && <div style={{textAlign: 'right'}}>
-            {
-              running && <Button variant='link'
-                onClick={() => runPkgCommand('restartPackage')}>
-                restart
-              </Button>
-            } {
-              running && <Button variant='link'
-                onClick={() => runPkgCommand('stopPackage')}>
-                stop
-              </Button>
-            } {
-              !running && <Button variant='link'
-                onClick={() => runPkgCommand('startPackage')}>
-                start
-              </Button>
-            } {
-              !disabled && <span
-                title={(preInstalled || !desired) ? 'pre-installed' : null}>
-                <Button variant='link'
-                  disabled={preInstalled || !desired}
-                  onClick={() => uninstall(name)}>
-                  uninstall
+            <CollapsibleButtonList dropdownClassName='position-absolute bottom-0 end-0'>
+              {
+                running && <Button variant='link'
+                  onClick={() => runPkgCommand('restartPackage')}>
+                  restart
                 </Button>
-              </span>
-            } {
-              disabled && <span
-                title={!canPay ? 'You need to add a payment method.' : null}>
-                <Button variant='link'
-                  disabled={!canPay}
-                  onClick={() => reinstall(name)}>
-                  reinstall
+              } {
+                running && <Button variant='link'
+                  onClick={() => runPkgCommand('stopPackage')}>
+                  stop
                 </Button>
-              </span>
-            } {
-              <LogButtonWithCounter
-                text="get log"
-                mqttSync={mqttSync}
-                versionPrefix={versionPrefix}
-                packageName={name}
-                errorCount={deviceData?.status?.logs?.errorCount?.[pkgScope]?.[pkgName]}
-              />
-            }
+              } {
+                !running && <Button variant='link'
+                  onClick={() => runPkgCommand('startPackage')}>
+                  start
+                </Button>
+              } {
+                !disabled && <span
+                  title={(preInstalled || !desired) ? 'pre-installed' : null}>
+                  <Button variant='link'
+                    disabled={preInstalled || !desired}
+                    onClick={() => uninstall(name)}>
+                    uninstall
+                  </Button>
+                </span>
+              } {
+                disabled && <span
+                  title={!canPay ? 'You need to add a payment method.' : null}>
+                  <Button variant='link'
+                    disabled={!canPay}
+                    onClick={() => reinstall(name)}>
+                    reinstall
+                  </Button>
+                </span>
+              } {
+                <LogButtonWithCounter
+                  text="get log"
+                  mqttSync={mqttSync}
+                  versionPrefix={versionPrefix}
+                  packageName={name}
+                  errorCount={deviceData?.status?.logs?.errorCount?.[pkgScope]?.[pkgName]}
+                />
+              }
+            </CollapsibleButtonList>
           </div>}
         </Col>
       </Row>
@@ -481,33 +484,44 @@ const Device = (props) => {
   return <div>
     <div style={styles.row}>
       <OSInfo info={latestVersionData?.info}/>
-      {latestVersionData.status?.heartbeat &&
-          <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
-      } <span style={styles.agentVersion} title='Transitive agent version'>
-        v{latestVersion}
-      </span>&nbsp;&nbsp; <ActionLink disabled={inactive}
-        onClick={() => runCommand('ping', {timestamp: Date.now()},
-          (time) => setToast({ title: 'Pong!',
-            body: `Server time: ${new Date(time)}`})
-        )}
-        onContextMenu={() => ping(10)} // hidden feature: right-click
-      >
-        Ping
-      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
-        Restart agent
-      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={
-          () => runCommand('stopAll', {}, log.debug)} disabled={inactive}>
-        Stop all capabilities
-      </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
-        explanation={explanation} question='Remove device?'>
-        Remove device
-      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter
-          text="Get log"
-          mqttSync={mqttSync}
-          versionPrefix={versionPrefix}
-          packageName='@transitive-robotics/robot-agent'
-          errorCount={latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent']}
-        />
+      <div className='d-flex align-items-baseline my-2 my-lg-0'>
+        <span className='d-flex align-items-center'>
+          {latestVersionData.status?.heartbeat &&
+              <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
+          } <span style={styles.agentVersion} title='Transitive agent version'>
+            v{latestVersion}
+          </span>
+        </span>
+        <CollapsibleButtonList dropdownClassName='ms-3 d-inline'>
+          <ActionLink disabled={inactive}
+            onClick={() => runCommand('ping', {timestamp: Date.now()},
+              (time) => setToast({ title: 'Pong!',
+                body: `Server time: ${new Date(time)}`})
+            )}
+            onContextMenu={() => ping(10)} // hidden feature: right-click
+          >
+            Ping
+          </ActionLink>
+          <ActionLink onClick={restartAgent} disabled={inactive}>
+            Restart agent
+          </ActionLink>
+          <ActionLink onClick={
+              () => runCommand('stopAll', {}, log.debug)} disabled={inactive}>
+            Stop all capabilities
+          </ActionLink>
+          <ConfirmedButton onClick={clear}
+            explanation={explanation} question='Remove device?'>
+            Remove device
+          </ConfirmedButton>
+          <LogButtonWithCounter
+              text="Get log"
+              mqttSync={mqttSync}
+              versionPrefix={versionPrefix}
+              packageName='@transitive-robotics/robot-agent'
+              errorCount={latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent']}
+            />
+        </CollapsibleButtonList>
+      </div>
 
       <div>
         <ResourceMetrics

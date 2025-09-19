@@ -167,7 +167,7 @@ const Capability = ({webComponent, capability, simple, jwtExtras = {}, ...props}
         bundle={bundle}
         />
     </div>}
-    <div style={styles.cap.body}>
+    <div style={styles.cap.body} className='px-0 px-lg-3'>
       {element}
     </div>
   </div>;

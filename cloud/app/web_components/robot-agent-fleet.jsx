@@ -73,7 +73,7 @@ const FleetDevice = ({status, info, device, device_url}) => {
       { /* list running packages */
         _.map(status.runningPackages,
           (scope, scopeName) => _.map(scope, (versions, name) =>
-            <span style={styles.cap} title={scopeName} key={name}>{name}
+            <span className='d-block d-lg-inline' style={styles.cap} title={scopeName} key={name}>{name}
               <span style={styles.version}> v{
                   Object.keys(_.pickBy(versions, running => running)).join(',')
                 }

@@ -2,7 +2,7 @@ import React, {forwardRef} from 'react';
 
 /** A link (anchor) that can be used as a button */
 export const ActionLink = forwardRef((props, ref) => {
-  const {onClick, onContextMenu, disabled, children} = props;
+  const {onClick, onContextMenu, disabled, children, as} = props;
 
   const style = {
     // verticalAlign: 'middle',
@@ -12,7 +12,8 @@ export const ActionLink = forwardRef((props, ref) => {
     opacity: '0.5'
   });
 
-  return <a href={disabled ? null : '#'} ref={ref}
+  const Comp = as || 'a';
+  return <Comp href={disabled ? null : '#'} ref={ref}
     className='btn btn-link'
     style={style}
     onClick={(e) => {
@@ -26,5 +27,6 @@ export const ActionLink = forwardRef((props, ref) => {
       onContextMenu?.();
       return false;
     }}
-    >{children}</a>;
+    >{children}      
+  </Comp>
 });

@@ -13,7 +13,7 @@ const _ = {
 };
 
 import { MdAdd } from 'react-icons/md';
-import { FaExclamationTriangle } from "react-icons/fa";
+import { FaEllipsisH, FaExclamationTriangle } from "react-icons/fa";
 
 import jsonLogic from '../src/utils/logic';
 import { ActionLink } from '../src/utils/index';
@@ -224,9 +224,11 @@ const Capability = (props) => {
     mqttSync.call(topic, {pkg: name}, cb);
   };
 
+  const errorCount = deviceData?.status?.logs?.errorCount?.[pkgScope]?.[pkgName] || 0;
+
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
-      <Row>
+      <Row style={{position: 'relative'}}>
         <Col sm='3' style={styles.rowItem}>
           <div>{title}</div>
           <div style={styles.subText}>{name}</div>
@@ -263,50 +265,65 @@ const Capability = (props) => {
           )}
         </Col>
         <Col sm='4' style={styles.rowItem}>
-          {!inactive && <div style={{textAlign: 'right'}}>
-            {
-              running && <Button variant='link'
-                onClick={() => runPkgCommand('restartPackage')}>
-                restart
-              </Button>
-            } {
-              running && <Button variant='link'
-                onClick={() => runPkgCommand('stopPackage')}>
-                stop
-              </Button>
-            } {
-              !running && <Button variant='link'
-                onClick={() => runPkgCommand('startPackage')}>
-                start
-              </Button>
-            } {
-              !disabled && <span
-                title={(preInstalled || !desired) ? 'pre-installed' : null}>
-                <Button variant='link'
-                  disabled={preInstalled || !desired}
-                  onClick={() => uninstall(name)}>
-                  uninstall
-                </Button>
-              </span>
-            } {
-              disabled && <span
-                title={!canPay ? 'You need to add a payment method.' : null}>
-                <Button variant='link'
-                  disabled={!canPay}
-                  onClick={() => reinstall(name)}>
-                  reinstall
-                </Button>
-              </span>
-            } {
-              <LogButtonWithCounter
-                text="get log"
-                mqttSync={mqttSync}
-                versionPrefix={versionPrefix}
-                packageName={name}
-                errorCount={deviceData?.status?.logs?.errorCount?.[pkgScope]?.[pkgName]}
-              />
-            }
-          </div>}
+          {!inactive && 
+            <Dropdown className={`position-absolute top-0 end-0 me-2 `}>
+              <Dropdown.Toggle variant='link' size='sm' bsPrefix='_' className='position-relative'>
+                <FaEllipsisH style={{ color: '#000' }}/>
+                {errorCount > 0 && <Badge pill bg='danger' className='position-absolute ms-1'
+                  style={{
+                    fontSize: '0.5em',
+                  }}
+                  title={`There are ${errorCount} errors.`}>
+                  {errorCount}
+                </Badge>}
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                {
+                  running && <Dropdown.Item as='button' variant='link'
+                    onClick={() => runPkgCommand('restartPackage')}>
+                    restart
+                  </Dropdown.Item>
+                } {
+                  running && <Dropdown.Item as='button' variant='link'
+                    onClick={() => runPkgCommand('stopPackage')}>
+                    stop
+                  </Dropdown.Item>
+                } {
+                  !running && <Dropdown.Item as='button' variant='link'
+                    onClick={() => runPkgCommand('startPackage')}>
+                    start
+                  </Dropdown.Item>
+                } {
+                  !disabled && <Dropdown.Item as='button' variant='link'
+                      disabled={preInstalled || !desired}
+                      onClick={() => uninstall(name)}>
+                        uninstall
+                        {(preInstalled || !desired) && 
+                          <Form.Text muted className='ms-2 d-block'>
+                            pre-installed
+                          </Form.Text>
+                        }
+                    </Dropdown.Item>   
+                } {
+                  disabled && <Dropdown.Item as='button' variant='link'
+                      disabled={!canPay}
+                      onClick={() => reinstall(name)}>
+                      reinstall
+                      {!canPay && <Form.Text muted className='ms-2 d-block'>
+                        You need to add a payment method
+                      </Form.Text>}
+                    </Dropdown.Item>
+                }
+                <LogButtonWithCounter
+                  text="get log"
+                  mqttSync={mqttSync}
+                  versionPrefix={versionPrefix}
+                  packageName={name}
+                  errorCount={errorCount}
+                  as={Dropdown.Item}
+                />
+              </Dropdown.Menu>
+            </Dropdown>}
         </Col>
       </Row>
     </Accordion.Body>
@@ -476,38 +493,66 @@ const Device = (props) => {
   //     // using console.log to get colors from escape sequences in output:
   //     console.log(response));
 
+  const errorCount = latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent'] || 0;
   log.debug({latestVersionData, packages, toast});
 
   return <div>
-    <div style={styles.row}>
+    <div style={styles.row} className='position-relative'>
       <OSInfo info={latestVersionData?.info}/>
-      {latestVersionData.status?.heartbeat &&
-          <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
-      } <span style={styles.agentVersion} title='Transitive agent version'>
-        v{latestVersion}
-      </span>&nbsp;&nbsp; <ActionLink disabled={inactive}
-        onClick={() => runCommand('ping', {timestamp: Date.now()},
-          (time) => setToast({ title: 'Pong!',
-            body: `Server time: ${new Date(time)}`})
-        )}
-        onContextMenu={() => ping(10)} // hidden feature: right-click
-      >
-        Ping
-      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={restartAgent} disabled={inactive}>
-        Restart agent
-      </ActionLink>&nbsp;&nbsp; <ActionLink onClick={
-          () => runCommand('stopAll', {}, log.debug)} disabled={inactive}>
-        Stop all capabilities
-      </ActionLink>&nbsp;&nbsp; <ConfirmedButton onClick={clear}
-        explanation={explanation} question='Remove device?'>
-        Remove device
-      </ConfirmedButton>&nbsp;&nbsp; <LogButtonWithCounter
-          text="Get log"
-          mqttSync={mqttSync}
-          versionPrefix={versionPrefix}
-          packageName='@transitive-robotics/robot-agent'
-          errorCount={latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent']}
-        />
+      <div className='d-flex align-items-baseline my-2 my-lg-0'>
+        <span className='d-flex align-items-center'>
+          {latestVersionData.status?.heartbeat &&
+              <Heartbeat heartbeat={latestVersionData.status.heartbeat}/>
+          } <span style={styles.agentVersion} title='Transitive agent version'>
+            v{latestVersion}
+          </span>
+        </span>
+        <Dropdown className={`position-absolute top-0 end-0 me-2`}>
+          <Dropdown.Toggle variant='link' size='sm' bsPrefix='_' className='position-relative'>
+            <FaEllipsisH style={{ color: '#000' }}/>
+            {errorCount > 0 && <Badge pill bg='danger' className='position-absolute ms-1'
+              style={{
+                fontSize: '0.5em',
+              }}
+              title={`There are ${errorCount} errors.`}>
+              {errorCount}
+            </Badge>}
+          </Dropdown.Toggle>
+          <Dropdown.Menu>
+            <ActionLink disabled={inactive}
+              onClick={() => runCommand('ping', {timestamp: Date.now()},
+                (time) => setToast({ title: 'Pong!',
+                  body: `Server time: ${new Date(time)}`})
+              )}
+              onContextMenu={() => ping(10)} // hidden feature: right-click
+              as={Dropdown.Item}
+            >
+              Ping
+            </ActionLink>
+            <ActionLink onClick={restartAgent} disabled={inactive} as={Dropdown.Item}>
+              Restart agent
+            </ActionLink>
+            <ActionLink onClick={
+                () => runCommand('stopAll', {}, log.debug)} disabled={inactive}
+                as={Dropdown.Item}>
+              Stop all capabilities
+            </ActionLink>
+            <ConfirmedButton onClick={clear}
+              explanation={explanation} question='Remove device?'
+              as={Dropdown.Item} >
+              Remove device
+            </ConfirmedButton>
+            <LogButtonWithCounter
+                text="Get log"
+                mqttSync={mqttSync}
+                versionPrefix={versionPrefix}
+                packageName='@transitive-robotics/robot-agent'
+                errorCount={errorCount}
+                as={Dropdown.Item}
+              />
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
 
       <div>
         <ResourceMetrics

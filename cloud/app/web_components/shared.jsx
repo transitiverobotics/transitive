@@ -183,10 +183,8 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
 
 /** Component that shows a log button with an error counter badge */
 export const LogButtonWithCounter = (props) => {
-  const { text, mqttSync, versionPrefix, packageName, errorCount } = props;
+  const { text, mqttSync, versionPrefix, packageName, errorCount, as} = props;
 
-  const [errorLogsCount, setErrorLogsCount] = useState(0);
-  const [lastError, setLastError] = useState(null);
   const [pkgLog, setPkgLog] = useState(null);
 
   const styles = {
@@ -198,8 +196,11 @@ export const LogButtonWithCounter = (props) => {
       cursor: 'default',
       fontSize: '0.5em',
       position: 'absolute',
+      marginLeft: '0.5em',
     }
   };
+
+  const Comp = as || Button;
 
   // Handle get log button click
   const handleGetLog = () => {
@@ -213,27 +214,16 @@ export const LogButtonWithCounter = (props) => {
     });
   };
 
-  // const formatLastError = (errorObj) => {
-  //   if (!errorObj) return 'No error details available';
-
-  //   const timestamp = errorObj.timestamp ? new Date(errorObj.timestamp).toISOString() : 'Unknown time';
-  //   const module = errorObj.module || 'Unknown module';
-  //   const message = errorObj.message || 'No message';
-
-  //   return `${timestamp} - ${module}: ${message}`;
-  // };
-
   return (
     <F>
-      <Button variant='link' style={styles.container}
+      <Comp variant='link' style={styles.container}
         onClick={handleGetLog}>
         {text}
         { errorCount > 0 && <Badge pill bg='danger' style={styles.errorCountBadge}
           title={`There are ${errorCount} errors.`}>
           {errorCount}
         </Badge>}
-      </Button>
-
+      </Comp>
       {pkgLog && <PkgLog
         response={pkgLog}
         mqttClient={mqttSync.mqtt}

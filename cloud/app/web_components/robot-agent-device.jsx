@@ -197,6 +197,14 @@ const Package = ({pkg, install, issues}) => {
   </Row>;
 };
 
+/** Reusable error badge */
+const ErrorBadge = ({errorCount}) =>
+  errorCount > 0 &&
+    <Badge pill bg='danger' className='position-absolute ms-1'
+      style={{ fontSize: '0.5em' }}
+      title={`There are ${errorCount} errors.`}>
+      {errorCount}
+    </Badge>;
 
 const Capability = (props) => {
 
@@ -265,17 +273,11 @@ const Capability = (props) => {
           )}
         </Col>
         <Col sm='4' style={styles.rowItem}>
-          {!inactive && 
+          {!inactive &&
             <Dropdown className={`position-absolute top-0 end-0 me-2 `}>
-              <Dropdown.Toggle variant='link' size='sm' bsPrefix='_' className='position-relative'>
+              <Dropdown.Toggle variant='link' size='sm' bsPrefix='_'>
                 <FaEllipsisH style={{ color: '#000' }}/>
-                {errorCount > 0 && <Badge pill bg='danger' className='position-absolute ms-1'
-                  style={{
-                    fontSize: '0.5em',
-                  }}
-                  title={`There are ${errorCount} errors.`}>
-                  {errorCount}
-                </Badge>}
+                <ErrorBadge errorCount={errorCount} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
                 {
@@ -298,18 +300,18 @@ const Capability = (props) => {
                       disabled={preInstalled || !desired}
                       onClick={() => uninstall(name)}>
                         uninstall
-                        {(preInstalled || !desired) && 
-                          <Form.Text muted className='ms-2 d-block'>
+                        {(preInstalled || !desired) &&
+                          <Form.Text muted className='d-block'>
                             pre-installed
                           </Form.Text>
                         }
-                    </Dropdown.Item>   
+                    </Dropdown.Item>
                 } {
                   disabled && <Dropdown.Item as='button' variant='link'
                       disabled={!canPay}
                       onClick={() => reinstall(name)}>
                       reinstall
-                      {!canPay && <Form.Text muted className='ms-2 d-block'>
+                      {!canPay && <Form.Text muted className='d-block'>
                         You need to add a payment method
                       </Form.Text>}
                     </Dropdown.Item>
@@ -493,7 +495,8 @@ const Device = (props) => {
   //     // using console.log to get colors from escape sequences in output:
   //     console.log(response));
 
-  const errorCount = latestVersionData?.status?.logs?.errorCount?.['@transitive-robotics']?.['robot-agent'] || 0;
+  const errorCount = latestVersionData?.status?.logs
+    ?.errorCount?.['@transitive-robotics']?.['robot-agent'] || 0;
   log.debug({latestVersionData, packages, toast});
 
   return <div>
@@ -507,17 +510,14 @@ const Device = (props) => {
             v{latestVersion}
           </span>
         </span>
-        <Dropdown className={`position-absolute top-0 end-0 me-2`}>
-          <Dropdown.Toggle variant='link' size='sm' bsPrefix='_' className='position-relative'>
+
+        <Dropdown autoClose='outside'
+          className={`position-absolute top-0 end-0 me-2`}>
+          <Dropdown.Toggle variant='link' size='sm' bsPrefix='_'>
             <FaEllipsisH style={{ color: '#000' }}/>
-            {errorCount > 0 && <Badge pill bg='danger' className='position-absolute ms-1'
-              style={{
-                fontSize: '0.5em',
-              }}
-              title={`There are ${errorCount} errors.`}>
-              {errorCount}
-            </Badge>}
+            <ErrorBadge errorCount={errorCount} />
           </Dropdown.Toggle>
+
           <Dropdown.Menu>
             <ActionLink disabled={inactive}
               onClick={() => runCommand('ping', {timestamp: Date.now()},
@@ -590,8 +590,9 @@ const Device = (props) => {
     <div style={styles.row}>
       <h5>Capabilities</h5>
       { hasDisabled && <Alert variant='danger'>
-        <FaExclamationTriangle /> Some capabilities have been disabled because your free trial has expired.
-        Please add a payment method in Billing and reinstall the capabilities.
+        <FaExclamationTriangle /> Some capabilities have been disabled because
+        your free trial has expired. Please add a payment method in Billing and
+        reinstall the capabilities.
       </Alert>}
 
       <Accordion defaultActiveKey={['0']} alwaysOpen>

@@ -210,8 +210,8 @@ const startMonitoring = () => {
       log.info(`Package ${pkgName} stopped`);
       resourceMonitor.stopMonitoring(pkgName);
       logMonitor.stopWatchingLogs(pkgName);
-      // TODO: stop watching status
-
+      // We do *not* want to stop watching the status, because the capability
+      // may just be restarting/upgrading.
     } else {
       log.info(`Package ${pkgName} started`);
       resourceMonitor.startMonitoring(pkgName);

@@ -173,40 +173,53 @@ const startPackage = (name) => {
               TR_ROS_RELEASES: config?.global?.rosReleases?.join(' '),
             })
         });
+
       subprocess.unref();
+      watchStatus(name, 'requested');
+
       log.debug(`Package ${name} started with PID: ${subprocess.pid}`);
+
     } else {
       log.debug(`Package ${name} is already running`);
     }
   });
 };
 
+const watchers = {}; // object to keep track of status-file watchers
+
 /** Watch the status.json file of a package, and relay that info to mqtt.
 * If the file doesn't initially exist, create it and set the provided initial
 * status.
 */
-const watchStatus = (name, status) => {
+const watchStatus = (name, status = undefined) => {
+  if (watchers[name]) {
+    log.info(`Already watching status file for ${name}`);
+    return;
+  }
+
   const statusFile = `${os.homedir()}/.transitive/packages/${name}/status.json`;
+  const statusTopic = `${global.AGENT_PREFIX}/status/package/${name}`;
 
   fs.access(statusFile, fs.constants.R_OK, (err) => {
     if (err) {
       fs.writeFileSync(statusFile, JSON.stringify({status}));
     }
 
-    const watcher = fs.watch(statusFile, {persistence: false},
+    watchers[name] = fs.watch(statusFile, {persistence: false},
       (eventType, filename) => {
-        // log.debug(`event type is: ${eventType}`);
+        log.debug(`event type is: ${eventType}`);
         if (filename) {
           fs.readFile(statusFile, {encoding: 'utf-8'}, (err, res) => {
             if (err) {
               // log.warn('Error reading package status', err);
-              global.data?.update(`${global.AGENT_PREFIX}/status/package/${name}`,
-                null);
+              global.data?.update(statusTopic, null);
+              // stop watching
+              watchers[name]?.close()
+              delete watchers[name];
             } else {
               try {
                 const json = JSON.parse(res);
-                global.data?.update(`${global.AGENT_PREFIX}/status/package/${name}`,
-                  json);
+                global.data?.update(statusTopic, json);
               } catch (e) {
                 log.warn('Error parsing status.json', e);
               }

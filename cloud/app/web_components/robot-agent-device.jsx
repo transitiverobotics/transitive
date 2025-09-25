@@ -206,6 +206,20 @@ const ErrorBadge = ({errorCount}) =>
       {errorCount}
     </Badge>;
 
+
+/** Get the right status badge for a capability based on its status */
+const StatusBadge = ({running, inactive, status, disabled}) =>
+  (running && !inactive ?
+    <Badge bg="success" title={Object.values(running).join(', ')}>
+      running: v{Object.keys(running).join(', ')}
+    </Badge>
+    : running && inactive ?
+    <Badge bg="secondary">installed: v{Object.keys(running).join(', ')}</Badge>
+    : !running && status ? <Badge bg="info">{status}</Badge>
+    : disabled ? <Badge bg="danger">disabled</Badge>
+    : <Badge bg="dark">stopped</Badge>
+  );
+
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
@@ -237,30 +251,20 @@ const Capability = (props) => {
   return <Accordion.Item eventKey="0" key={name}>
     <Accordion.Body>
       <Row style={{position: 'relative'}}>
-        <Col sm='3' style={styles.rowItem}>
-          <div>{title}</div>
-          <div style={styles.subText}>{name}</div>
+        <Col sm='5' style={styles.rowItem}>
+          {running && !inactive ?
+            <a href={`/device/${device}/${name}`}>
+              <div>{title}</div>
+              <div style={styles.subText}>{name}</div>
+            </a> :
+            <F>
+              <div>{title}</div>
+              <div style={styles.subText}>{name}</div>
+            </F>
+          }
         </Col>
         <Col sm='3' style={styles.rowItem}>
-          { running && !inactive && <div><Badge bg="success"
-                title={Object.values(running).join(', ')}>
-                running: v{Object.keys(running).join(', ')}
-              </Badge>
-              <Button variant='link' href={`/device/${device}/${name}`}>
-                view
-              </Button>
-            </div>
-          }
-          { running && inactive && <div><Badge bg="secondary">
-                installed: v{Object.keys(running).join(', ')}
-              </Badge></div>
-          }
-          { !running && status && <div><Badge bg="info">
-                {status}</Badge></div>
-          }
-          { disabled && <div><Badge bg="danger">
-                disabled</Badge></div>
-          }
+          <div><StatusBadge {...{running, inactive, status, disabled}} /></div>
         </Col>
         <Col sm='2' style={styles.rowItem}>
           {running && !inactive && (
@@ -272,7 +276,7 @@ const Capability = (props) => {
             />
           )}
         </Col>
-        <Col sm='4' style={styles.rowItem}>
+        <Col sm='2' style={styles.rowItem}>
           {!inactive &&
             <Dropdown className={`position-absolute top-0 end-0 me-2 `}>
               <Dropdown.Toggle variant='link' size='sm' bsPrefix='_'>

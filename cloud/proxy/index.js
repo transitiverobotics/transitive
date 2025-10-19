@@ -58,7 +58,7 @@ console.log('using routes', routingTable);
  */
 class RateLimiter {
 
-  ipRates = {}; // per IP: requests in the last minute
+  ipRates = {}; // per IP: requests in the preceding period
   rate = null; // max per minute
   name = null; // for debug output
 
@@ -84,8 +84,12 @@ class RateLimiter {
   /** check request and delay it if necessary */
   async limit(req) {
     const ip = req.socket.remoteAddress;
-    this.ipRates[ip] ||= [];
 
+    // never rate limit local requests; this includes those for which we don't
+    // have a remote IP, presumably because they come in through IPv6.
+    if (ip.startsWith('172.')) return false;
+
+    this.ipRates[ip] ||= [];
     let requests = this.ipRates[ip].length; // number of recent requests
 
     // Once the request exceed twice the limit, we just drop the requests to
@@ -135,7 +139,7 @@ const handleRequest = async (req, res) => {
 };
 
 // rate limit ws requests
-const wsRateLimiter = new RateLimiter(120, 600, 'ws');
+const wsRateLimiter = new RateLimiter(240, 720, 'ws');
 
 /** handler for web socket upgrade */
 const handleUpgrade = async (req, socket, head) => {

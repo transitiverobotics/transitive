@@ -134,8 +134,12 @@ const failsRequirements = (info, pkg) => {
 };
 
 /** display info from OS */
-const OSInfo = ({info}) => !info ? <div></div> :
-  <div>
+const OSInfo = ({info}) => {
+  if (!info) return <div></div>;
+
+  const geoInfo = [info.geo?.city, info.geo?.country].filter(Boolean).join(', ');
+
+  return <div>
     Device
     <h3>{info.os.hostname}</h3>
     <div>
@@ -146,9 +150,11 @@ const OSInfo = ({info}) => !info ? <div></div> :
     <Form.Text>
       {info.os.dpkgArch}, {info.os.lsb?.Description}
       {info.isDocker && <span> (Docker)</span>}
-      {info.geo && <span>, {info.geo.city}, {info.geo.country}</span>}
+      {info.deviceModel && <span>, {info.deviceModel}</span>}
+      {geoInfo && <span>, {geoInfo}</span>}
     </Form.Text>
   </div>;
+};
 
 /** given a package name, get it's human-readable title, e.g.,
 @transitive-robotics/remote-teleop => Remote Teleop

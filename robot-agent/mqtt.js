@@ -46,11 +46,6 @@ const versionNS = getPackageVersionNamespace();
 // TODO: get this from utils
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 
-let data;
-
-// timestamp of last $SYS heartbeat from upstream
-let upstreamHeartbeat;
-
 // prefix for all our mqtt topics, i.e., our namespace
 const PREFIX = `/${process.env.TR_USERID}/${process.env.TR_DEVICEID}`;
 const version = process.env.npm_package_version;
@@ -58,27 +53,71 @@ const CAP_NAME = '@transitive-robotics/_robot-agent'
 const AGENT_PREFIX = `${PREFIX}/${CAP_NAME}/${version}`; // not yet using versionNS!
 const FLEET_PREFIX = `/${process.env.TR_USERID}/_fleet/${CAP_NAME}/${versionNS}`;
 const MQTT_HOST = `mqtts://data.${process.env.TR_HOST.split(':')[0]}`;
+
 log.debug('using', {AGENT_PREFIX, MQTT_HOST});
 assert(version, 'env var npm_package_version is required');
 
 const subOptions = {rap: true};
+
+let data;
+
+// timestamp of last sign of life from upstream
+let upstreamHeartbeat;
+const KEEPALIVE = 10; // seconds
 
 // connect to upstream mqtt server
 const mqttClient = mqtt.connect(MQTT_HOST, {
   key: fs.readFileSync('certs/client.key'),
   cert: fs.readFileSync('certs/client.crt'),
   rejectUnauthorized: false,
-  protocolVersion: 5 // needed for the `rap` option, i.e., to get retain flags
+  protocolVersion: 5, // needed for the `rap` option, i.e., to get retain flags
+  keepalive: KEEPALIVE,
 });
 
 ['error', 'disconnect', 'reconnect', 'offline', 'close', 'end'].forEach(event =>
-  mqttClient.on(event, (...args) => log.info(`mqtt event: ${event}`, ...args)));
+  mqttClient.on(event, (eventData) =>
+    log.info(`mqtt event: ${event}${eventData ? ` (${eventData})` : ''}`)));
+
+mqttClient.on('packetreceive', () => {
+  // This triggers on *any* packet we receive, including `pingresp` ones. We can
+  // use this as a sign of life for the aggressiveReconnect logic.
+  upstreamHeartbeat = Date.now();
+});
+
+/** Regularly report on disconnects, perform aggressive reconnect if configured */
+setInterval(() => {
+    !mqttClient.connected && log.warn('not connected');
+
+    if (global.config?.global?.aggressiveReconnect) {
+      const timeDiff = Date.now() - upstreamHeartbeat;
+
+      if (timeDiff > KEEPALIVE * 2.5 * 1000) {
+        log.warn(`No packet from upstream for ${Math.round(timeDiff / 1000)} s.`);
+        log.warn('forcing reconnect');
+
+        if (mqttClient.connected) {
+          if (!mqttClient.reconnecting) {
+            log.info('connected; force-end connection, then reconnect');
+            mqttClient.end(true, () => {
+              log.info('ended; reconnecting');
+              mqttClient.reconnect();
+            });
+          }
+        } else {
+          log.info('not connected; reconnecting');
+          if (!mqttClient.reconnecting) {
+            mqttClient.reconnect();
+          }
+        }
+      }
+    }
+  }, 10e3);
+
 
 let initialized = false;
 let mqttSync;
 mqttClient.on('connect', function(connackPacket) {
   log.info(`${initialized ? 're-' : ''}connected to upstream mqtt broker`);
-  upstreamHeartbeat = Date.now(); // reconnects count as a sign of life from upstream
 
   if (!mqttSync) {
     mqttSync = new MqttSync({mqttClient,
@@ -97,6 +136,7 @@ mqttClient.on('connect', function(connackPacket) {
           }
 
           log.info('waiting for heartbeat from upstream');
+
           mqttSync.waitForHeartbeatOnce(() => {
             log.info('got heartbeat');
             ensureDesiredPackages(
@@ -161,7 +201,6 @@ mqttClient.on('connect', function(connackPacket) {
         // log.debug(`upstream mqtt, ${topic}:`, payload, packet.retain);
         // relay the upstream message to local
         if (topic == HEARTBEAT_TOPIC) {
-          upstreamHeartbeat = Date.now()
           // relay heartbeat locally:
           localBroker && localBroker.publish(packet, () => {});
         } else {
@@ -300,7 +339,8 @@ const getGeoIP = async () => {
       const ipData = await ipResponse.json();
       log.debug('got IP info:', ipData);
       if (ipData.ip) {
-      // use the IP address to get geo info
+        data.update(`${AGENT_PREFIX}/info/ip`, ipData.ip);
+        // use the IP address to get geo info
         const geoResponse = await fetch(`https://api.hackertarget.com/geoip/?q=${ipData.ip}&output=json`);
         if (geoResponse.ok) {
           const geo = await geoResponse.json();
@@ -337,28 +377,4 @@ const parseLsbRelease = (string) => {
 
 const heartbeat = () => {
   data.update(`${AGENT_PREFIX}/status/heartbeat`, new Date());
-
-  // also check liveness of upstream heartbeats:
-  const timeDiff = Date.now() - upstreamHeartbeat;
-  if (timeDiff > 65 * 1000) {
-    log.warn(`No heartbeat from upstream for ${Math.round(timeDiff / 1000)} s.`);
-
-    if (global.config?.global?.aggressiveReconnect) {
-      log.warn('forcing reconnect');
-      if (mqttClient.connected) {
-        log.info('connected, end, then reconnect');
-        if (!mqttClient.reconnecting) {
-          mqttClient.end(true, () => {
-            log.info('ended, reconnect');
-            mqttClient.reconnect();
-          });
-        }
-      } else {
-        log.info('not connected, reconnect');
-        if (!mqttClient.reconnecting) {
-          mqttClient.reconnect();
-        }
-      }
-    }
-  }
 };

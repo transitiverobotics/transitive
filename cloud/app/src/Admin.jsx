@@ -18,8 +18,9 @@ log.setLevel('debug');
 const styles = {
   user: {
     display: 'flex',
-    justifyContent: 'space-between',
+    // justifyContent: 'space-between',
     width: '100%',
+    alignItems: 'center'
   },
   toast: {
     position: 'absolute',
@@ -108,15 +109,17 @@ export const Admin = () => {
       selector: (row, i) => i + 1,
     },
     { name: 'Name',
-      grow: 3,
+      grow: 5,
       selector: row => row._id,
-      cell: row => <div style={styles.user}><b>{row._id}</b>
+      cell: row => <div style={styles.user}>
         <ActionLink onClick={() => {
           impersonate(row._id);
           setToast(`You are now ${row._id}`);
         }}>
           <PiUserSwitch title='impersonate'/>
-        </ActionLink></div>,
+        </ActionLink>
+        <b>{row._id}</b>
+        </div>,
       sortable: true,
     },
     {
@@ -134,18 +137,18 @@ export const Admin = () => {
         getHeartbeatSortValue(b.heartbeats)
     },
     { name: 'Email',
-      grow: 6,
+      grow: 5,
       selector: row => row.verified
     },
     { name: 'Joined',
-      grow: 7,
+      grow: 4,
       cell: row => row.created ? (new Date(row.created)).toLocaleString() : '',
       sortable: true,
       sortFunction: (a, b) => !a.created ? -1 : (!b.created ? 1 :
         ((new Date(a.created)).getTime() - (new Date(b.created)).getTime()))
     },
     { name: 'Balance',
-      grow: 2,
+      grow: 1,
       cell: row => row.stripeCustomer?.balance &&
         `\$${row.stripeCustomer.balance / -100}`,
       sortable: true,
@@ -153,14 +156,14 @@ export const Admin = () => {
         (b.stripeCustomer?.balance ?? 1)
     },
     { name: 'Free',
-      grow: 2,
+      grow: 1,
       cell: row => row.free && <Badge size='sm' bg='success'>free</Badge>,
       sortable: true,
       sortFunction: (a, b) => (a.free ? 1 : 0) - (b.free ? 1 : 0)
     },
     { /* Whether account has a payment method on file, and whether it is delinquent */
       name: 'Has card',
-      grow: 2,
+      grow: 1,
       cell: row => <span>
         {canPay(row) && <FaRegCreditCard />}
         {row.stripeCustomer?.delinquent &&

@@ -380,7 +380,7 @@ app.get('/running/:scope/:capName/*', (req, res) => {
     'transitiverobotics.com'
     : process.env.TR_HOST);
 
-  const registryUrl = `//registry.${host}/-/custom/files/${capability}`;
+  const registryUrl = `${process.env.TR_REGISTRY_IS_LOCAL || scope=='@local' ? '':'https:'}//registry.${host}/-/custom/files/${capability}`;
   if (version) {
     // redirect to registry URL to fetch package files directly
     res.redirect(`${registryUrl}/${version}/${filePath}`);
@@ -675,8 +675,8 @@ class _robotAgent extends Capability {
     const devices = {};
     _.each(org, (device, deviceId) => {
       if (deviceId.startsWith('_')) return; // not a device
-      const versions = device['@transitive-robotics']['_robot-agent'];
-      const merged = mergeVersions(versions, field);
+      const versions = device?.['@transitive-robotics']?.['_robot-agent'];
+      const merged = versions ? mergeVersions(versions, field) : {};
       if (!merged[field]) {
         log.warn(`No ${field} for device ${orgId}/${deviceId}:`, merged);
         return;
@@ -920,8 +920,8 @@ class _robotAgent extends Capability {
 
     // for each device, mergeVersions of _robot-agent, then get running
     _.each(org, (device, deviceId) => {
-      const versions = device['@transitive-robotics']['_robot-agent'];
-      const merged = mergeVersions(versions, 'status');
+      const versions = device?.['@transitive-robotics']?.['_robot-agent'];
+      const merged = versions ? mergeVersions(versions, 'status') : {};
       if (!merged.status) {
         log.warn(`no status for device ${organization}/${deviceId}:`, merged);
         return;

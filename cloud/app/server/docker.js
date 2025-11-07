@@ -10,6 +10,8 @@ const semver = require('semver');
 const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 
 const { getNextInRange } = require('./utils');
+const { setupCapabilityDB } = require('@transitive-sdk/clickhouse');
+const Mongo = require('@transitive-sdk/mongo');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 // const REGISTRY = process.env.TR_REGISTRY || '172.17.0.1:6000';
@@ -235,6 +237,17 @@ const start = async ({name, version, pkgInfo}) => {
     }
   }
 
+  const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
+  const {user, password} = await setupCapabilityDB({
+    url: process.env.CLICKHOUSE_URL,
+    dbName: capClickhouseDbName,
+    adminUser: process.env.CLICKHOUSE_USER,
+    adminPassword: process.env.CLICKHOUSE_PASSWORD,
+    mongoCredentialsCollection: Mongo.db.collection('clickhouse_users')
+  });
+
+  log.debug('ClickHouse user for cap:', user);
+
   docker.run(tagName, [], devNull, {
       name: getCointainerName({name, version}),
       Env: [
@@ -244,6 +257,10 @@ const start = async ({name, version, pkgInfo}) => {
         `MAX_PORT=${exposedPorts.max}`,
         `MONGO_DB=cap_${name.replace(/@/g, '').replace('/', '_')}`,
         'MONGO_URL=mongodb://mongodb',
+        `TR_CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,
+        `TR_CLICKHOUSE_DB=${capClickhouseDbName}`,
+        `TR_CLICKHOUSE_USER=${user}`,
+        `TR_CLICKHOUSE_PASSWORD=${password}`
       ],
       ExposedPorts,
       HostConfig,

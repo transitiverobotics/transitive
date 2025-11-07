@@ -24,6 +24,7 @@ const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
 const { TelemetryService } = require('./telemetry');
+const { ClickHouse, setupCapabilityDB } = require('@transitive-sdk/clickhouse');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -528,6 +529,25 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
+        // await waitForClickHouse();
+        log.debug('setting up ClickHouse DB and user for agent');
+        // Do the setup
+        await setupCapabilityDB({
+          url: process.env.CLICKHOUSE_URL,
+          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB,
+          adminUser: process.env.CLICKHOUSE_USER,
+          adminPassword: process.env.CLICKHOUSE_PASSWORD,
+          user: process.env.ROBOT_AGENT_CLICKHOUSE_USER,
+          password: process.env.ROBOT_AGENT_CLICKHOUSE_PASSWORD,
+          mongoCredentialsCollection: Mongo.db.collection('clickhouse_users')
+        });
+
+        ClickHouse.init({
+          url: process.env.CLICKHOUSE_URL,
+          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB,
+          user: process.env.ROBOT_AGENT_CLICKHOUSE_USER,
+          password: process.env.ROBOT_AGENT_CLICKHOUSE_PASSWORD
+        });
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
           await this.telemetry.sendLogs([{
@@ -1600,42 +1620,42 @@ class _robotAgent extends Capability {
   }
 };
 
-
-const robotAgent = new _robotAgent();
-// let robot agent capability handle it's own sub-path; enable the same for all
-// other, regular, capabilities as well?
-app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
-
-// routes used during the installation process of a new robot
-app.use('/install', installRouter);
-
-app.get('/admin/setLogLevel', (req, res) => {
-  if (!req.query.level) {
-    res.status(400).end('missing level');
-  } else {
-    log.setLevel(req.query.level);
-    const msg = `Set log level to ${req.query.level}`;
-    console.log(msg);
-    res.end(msg);
-  }
-});
-
-// to allow client-side routing:
-app.use('/*', (req, res) =>
-  res.sendFile(path.join(cwd, 'public', 'index.html')));
-
-const server = http.createServer(app);
-
-/** catch-all to be safe */
-process.on('uncaughtException', (err) => {
-  console.error(`**** Caught exception: ${err}:`, err.stack);
-});
-
 /** ---------------------------------------------------------------------------
   MAIN
 */
 log.info('Starting cloud app');
 Mongo.init(() => {
+  const robotAgent = new _robotAgent();
+  // let robot agent capability handle it's own sub-path; enable the same for all
+  // other, regular, capabilities as well?
+  app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
+
+  // routes used during the installation process of a new robot
+  app.use('/install', installRouter);
+
+  app.get('/admin/setLogLevel', (req, res) => {
+    if (!req.query.level) {
+      res.status(400).end('missing level');
+    } else {
+      log.setLevel(req.query.level);
+      const msg = `Set log level to ${req.query.level}`;
+      console.log(msg);
+      res.end(msg);
+    }
+  });
+
+  // to allow client-side routing:
+  app.use('/*', (req, res) =>
+    res.sendFile(path.join(cwd, 'public', 'index.html')));
+
+  const server = http.createServer(app);
+
+  /** catch-all to be safe */
+  process.on('uncaughtException', (err) => {
+    console.error(`**** Caught exception: ${err}:`, err.stack);
+  });
+
+
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
   process.env.TR_USER && process.env.TR_PASS &&

@@ -17,16 +17,36 @@ https://clickhouse.com/docs/operations/tips#using-less-than-16gb-of-ram
     <number_of_free_entries_in_pool_to_lower_max_size_of_merge>0</number_of_free_entries_in_pool_to_lower_max_size_of_merge> -->
   <!-- </merge_tree> -->
 
-
   <!-- From https://jamesoclaire.com/2024/12/20/clickhouse-in-less-than-2gb-ram-in-docker/ -->
   <!-- <cache_size_to_ram_max_ratio replace="replace">0.2</cache_size_to_ram_max_ratio>
   <max_server_memory_usage_to_ram_ratio replace="replace">2</max_server_memory_usage_to_ram_ratio> -->
 
-
-
   <!-- From https://kb.altinity.com/altinity-kb-setup-and-maintenance/configure_clickhouse_for_low_mem_envs/ -->
-
-
   <!-- <mlock_executable>false</mlock_executable> -->
+
+  <!--
+    Trying to reduce CPU usage, especially when idle.
+  -->
+
+  <!-- https://clickhouse.com/docs/knowledgebase/why_default_logging_verbose#change-the-log-level -->
+  <logger>
+    <level>warning</level>
+  </logger>
+
+  <!-- From https://github.com/ClickHouse/ClickHouse/issues/60016#issuecomment-1952936978 -->
+  <asynchronous_metrics_update_period_s>60</asynchronous_metrics_update_period_s>
+  <asynchronous_metric_log remove="1"/>
+  <metric_log remove="1"/>
+  <query_thread_log remove="1" />
+  <query_log remove="1" />
+  <query_views_log remove="1" />
+  <part_log remove="1"/>
+  <session_log remove="1"/>
+  <text_log remove="1" />
+  <trace_log remove="1"/>
+  <crash_log remove="1"/>
+  <opentelemetry_span_log remove="1"/>
+  <zookeeper_log remove="1"/>
+  <processors_profile_log remove="1"/>
 
 </clickhouse>

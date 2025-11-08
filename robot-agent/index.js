@@ -43,6 +43,10 @@ log.setLevel('debug');
 
 log.debug('@transitive-robotics/robot-agent started', new Date());
 
+log.debug(Object.keys(process.env).sort().map(k =>
+  `${k}: ${process.env[k]}`
+));
+
 // note that we here assume that we are run by the systemd user service that is
 // installed by this package during postinstall or inside a while loop
 const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour

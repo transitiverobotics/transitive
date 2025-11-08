@@ -36,7 +36,7 @@ https://clickhouse.com/docs/operations/tips#using-less-than-16gb-of-ram
   <!-- From https://github.com/ClickHouse/ClickHouse/issues/60016#issuecomment-1952936978 -->
   <asynchronous_metrics_update_period_s>60</asynchronous_metrics_update_period_s>
   <asynchronous_metric_log remove="1"/>
-  <metric_log remove="1"/>
+  <!-- <metric_log remove="1"/> -->
   <query_thread_log remove="1" />
   <query_log remove="1" />
   <query_views_log remove="1" />

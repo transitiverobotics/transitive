@@ -35,6 +35,8 @@ else
   tryToSourceROS galactic
   tryToSourceROS humble
   tryToSourceROS iron
+  tryToSourceROS jazzy
+  tryToSourceROS kilted
 fi
 
 TRANSITIVE_DIR=$HOME/.transitive

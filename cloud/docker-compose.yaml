@@ -17,8 +17,6 @@ x-cloud: &shared_cloud
       condition: service_started
     ensure_certs:
       condition: service_completed_successfully
-    clickhouse:
-      condition: service_healthy
   env_file:
     - .env
   ports:
@@ -218,12 +216,6 @@ services:
     networks:
       - default
       - caps
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     deploy:
       resources:
         limits:

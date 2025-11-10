@@ -9,8 +9,7 @@ const _ = require('lodash');
 const semver = require('semver');
 const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 
-const { getNextInRange } = require('./utils');
-const { setupCapabilityDB } = require('@transitive-sdk/clickhouse');
+const { getNextInRange, setupCapabilityDB } = require('./utils');
 const Mongo = require('@transitive-sdk/mongo');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
@@ -236,17 +235,28 @@ const start = async ({name, version, pkgInfo}) => {
       ExposedPorts[`${port}/udp`] = {};
     }
   }
+  const clickhouseEnvVars = [];
+  if (process.env.CLICKHOUSE_ENABLED === 'true') {
+    try {
+      const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
+      const {user, password} = await setupCapabilityDB({
+        url: process.env.CLICKHOUSE_URL,
+        dbName: capClickhouseDbName,
+      });
 
-  const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
-  const {user, password} = await setupCapabilityDB({
-    url: process.env.CLICKHOUSE_URL,
-    dbName: capClickhouseDbName,
-    adminUser: process.env.CLICKHOUSE_USER,
-    adminPassword: process.env.CLICKHOUSE_PASSWORD,
-    mongoCredentialsCollection: Mongo.db.collection('clickhouse_users')
-  });
-
-  log.debug('ClickHouse user for cap:', user);
+      log.debug('ClickHouse user for cap:', user);
+      clickhouseEnvVars.push(
+        `CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,
+        `CLICKHOUSE_DB=${capClickhouseDbName}`,
+        `CLICKHOUSE_USER=${user}`,
+        `CLICKHOUSE_PASSWORD=${password}`
+      );
+    } catch (e) {
+      log.error('Failed to setup ClickHouse for cap:', e);
+    }
+  } else {
+    log.debug('ClickHouse integration not enabled for cap');
+  }
 
   docker.run(tagName, [], devNull, {
       name: getCointainerName({name, version}),
@@ -257,10 +267,7 @@ const start = async ({name, version, pkgInfo}) => {
         `MAX_PORT=${exposedPorts.max}`,
         `MONGO_DB=cap_${name.replace(/@/g, '').replace('/', '_')}`,
         'MONGO_URL=mongodb://mongodb',
-        `TR_CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,
-        `TR_CLICKHOUSE_DB=${capClickhouseDbName}`,
-        `TR_CLICKHOUSE_USER=${user}`,
-        `TR_CLICKHOUSE_PASSWORD=${password}`
+        ...clickhouseEnvVars
       ],
       ExposedPorts,
       HostConfig,

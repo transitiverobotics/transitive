@@ -20,11 +20,12 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
+const { setupCapabilityDB, waitForClickHouse } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
 const { TelemetryService } = require('./telemetry');
-const { ClickHouse, setupCapabilityDB } = require('@transitive-sdk/clickhouse');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -529,25 +530,15 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
-        // await waitForClickHouse();
-        log.debug('setting up ClickHouse DB and user for agent');
-        // Do the setup
-        await setupCapabilityDB({
-          url: process.env.CLICKHOUSE_URL,
+        await waitForClickHouse();
+        const agentDbSettings = {
           dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB,
-          adminUser: process.env.CLICKHOUSE_USER,
-          adminPassword: process.env.CLICKHOUSE_PASSWORD,
           user: process.env.ROBOT_AGENT_CLICKHOUSE_USER,
           password: process.env.ROBOT_AGENT_CLICKHOUSE_PASSWORD,
-          mongoCredentialsCollection: Mongo.db.collection('clickhouse_users')
-        });
+        }
+        await setupCapabilityDB(agentDbSettings);
+        ClickHouse.init(agentDbSettings);
 
-        ClickHouse.init({
-          url: process.env.CLICKHOUSE_URL,
-          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB,
-          user: process.env.ROBOT_AGENT_CLICKHOUSE_USER,
-          password: process.env.ROBOT_AGENT_CLICKHOUSE_PASSWORD
-        });
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
           await this.telemetry.sendLogs([{

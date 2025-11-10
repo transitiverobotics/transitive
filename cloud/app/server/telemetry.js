@@ -1,7 +1,7 @@
 
 const _ = require('lodash');
 
-const { ClickHouse } = require('@transitive-sdk/clickhouse');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 const { getLogger } = require('@transitive-sdk/utils');
 
 const log = getLogger('telemetry');

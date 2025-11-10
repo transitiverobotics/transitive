@@ -548,6 +548,8 @@ class _robotAgent extends Capability {
               message: 'Portal (re-)started'
             }], {
               'service.name': 'portal',
+              'organization.id': 'transitive-robotics',
+              'device.id': 'portal'
             }
           );
           this.ingestLogs();

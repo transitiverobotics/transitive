@@ -31,7 +31,7 @@ class TelemetryService {
     // create logs and metrics tables if they do not exist
     try {
       log.info('Creating logs table if it does not exist');
-      ClickHouse.createMultitenantTable(
+      ClickHouse.createTable(
         'logs',
         [ 
           'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
@@ -69,7 +69,7 @@ class TelemetryService {
         ]
       );
 
-      ClickHouse.createMultitenantTable(
+      ClickHouse.createTable(
         'metrics',
         [
           'ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1))',
@@ -153,7 +153,7 @@ class TelemetryService {
       });
 
       // Use ClickHouse client to insert logs
-    ClickHouse.insertIntoMultitenantTable(
+    ClickHouse.insert(
       'logs',
       clickhouseLogs,
       resourceAttributes['organization.id'],
@@ -235,7 +235,7 @@ class TelemetryService {
     }
 
     // Use ClickHouse client to insert metrics
-    ClickHouse.insertIntoMultitenantTable(
+    ClickHouse.insert(
       'metrics',
       allMetrics,
       resourceAttributes['organization.id'],

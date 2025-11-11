@@ -1,5 +1,5 @@
 const semver = require('semver');
-
+const { MongoClient } = require('mongodb');
 const { createClient } = require('@clickhouse/client');
 
 const { parseMQTTTopic } = require('@transitive-sdk/utils');
@@ -166,5 +166,43 @@ const waitForClickHouse = async () => {
   throw new Error('Timeout waiting for ClickHouse to be healthy');
 };
 
+/* updates ClickHouse HyperDx connection credentials in mongodb */
+const updateHyperDxConnection = (username, password) => {
+  const url = process.env.MONGO_URL || 'mongodb://localhost';
+  const dbName = 'hyperdx';
 
-module.exports = { getNextInRange, getVersionRange, setupCapabilityDB, waitForClickHouse };
+  const client = new MongoClient(url, {useUnifiedTopology: true});
+  
+  // Run in background without blocking
+  (async () => {
+    try {
+      await client.connect();
+      const db = client.db(dbName);
+      log.debug(`Connected successfully to mongodb server ${url}, db: ${dbName}, waiting for HyperDx connection`);
+      const connectionCollection = db.collection('connections');
+      
+      // Poll indefinitely until "Local ClickHouse" connection exists
+      while (true) {
+        const existingConnection = await connectionCollection.findOne({ name: 'Local ClickHouse' });
+        
+        if (existingConnection) {
+          log.debug('Found Local ClickHouse connection, updating credentials');
+          await connectionCollection.updateOne(
+            { name: 'Local ClickHouse' },
+            { $set: { username: username, password: password } }
+          );
+          log.debug('HyperDx ClickHouse connection updated in mongodb');
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 10000));
+      }
+    } catch (err) {
+      console.error('Error updating HyperDx ClickHouse connection in mongodb', err);
+    } finally {
+      await client.close();
+    }
+  })();
+};
+
+module.exports = { getNextInRange, getVersionRange, setupCapabilityDB, waitForClickHouse, updateHyperDxConnection };

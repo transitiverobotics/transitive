@@ -20,7 +20,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
-const { setupCapabilityDB, waitForClickHouse } = require('./utils');
+const { setupCapabilityDB, waitForClickHouse, updateHyperDxConnection } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -531,13 +531,11 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
         await waitForClickHouse();
-        const agentDbSettings = {
-          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB,
-          user: process.env.ROBOT_AGENT_CLICKHOUSE_USER,
-          password: process.env.ROBOT_AGENT_CLICKHOUSE_PASSWORD,
-        }
-        await setupCapabilityDB(agentDbSettings);
-        ClickHouse.init(agentDbSettings);
+        const {user, password} = await setupCapabilityDB({dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB});
+        updateHyperDxConnection(user, password);
+        ClickHouse.init({
+          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB, user, password
+        });
 
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
@@ -550,7 +548,7 @@ class _robotAgent extends Capability {
               'service.name': 'portal',
               'organization.id': 'transitive-robotics',
               'device.id': 'portal'
-            }
+            } // TODO: add proper org and device ID
           );
           this.ingestLogs();
           this.forwardMetricsToClickhouse();

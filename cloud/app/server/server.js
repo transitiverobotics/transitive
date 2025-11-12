@@ -20,7 +20,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
-const { setupCapabilityDB, waitForClickHouse, updateHyperDxConnection } = require('./utils');
+const {  waitForClickHouse } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -531,11 +531,7 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
         await waitForClickHouse();
-        const {user, password} = await setupCapabilityDB({dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB});
-        updateHyperDxConnection(user, password);
-        ClickHouse.init({
-          dbName: process.env.ROBOT_AGENT_CLICKHOUSE_DB, user, password
-        });
+        ClickHouse.init();
 
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
@@ -544,11 +540,7 @@ class _robotAgent extends Capability {
               module: log.name,
               level: 'DEBUG',
               message: 'Portal (re-)started'
-            }], {
-              'service.name': 'portal',
-              'organization.id': 'transitive-robotics',
-              'device.id': 'portal'
-            } // TODO: add proper org and device ID
+            }], 'transitive-robotics', 'portal', 'portal',
           );
           this.ingestLogs();
           this.forwardMetricsToClickhouse();
@@ -632,11 +624,7 @@ class _robotAgent extends Capability {
           }
 
           // forward to ClickHouse
-          await this.telemetry.sendLogs(logs, {
-            'organization.id': organization,
-            'device.id': device,
-            'service.name': pkgName
-          });
+          await this.telemetry.sendLogs(logs,  organization, device, pkgName);
         });
       }
     });

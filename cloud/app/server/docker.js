@@ -240,7 +240,6 @@ const start = async ({name, version, pkgInfo}) => {
     try {
       const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
       const {user, password} = await setupCapabilityDB({
-        url: process.env.CLICKHOUSE_URL,
         dbName: capClickhouseDbName,
       });
 

@@ -116,11 +116,17 @@ class TelemetryService {
     }
   }
 
-  sendLogs = async (logs, resourceAttributes = {}) => {
+  sendLogs = async (logs, orgId, deviceId, serviceName = 'unknown-service') => {
     if (logs.length === 0) {
       log.debug('No logs to send');
       return;
     }
+
+    const resourceAttributes = {
+      'organization.id': orgId,
+      'device.id': deviceId,
+      'service.name': serviceName
+    };
 
     try {
       log.debug('Sending logs ClickHouse...', logs.length, 'logs to send');
@@ -137,7 +143,7 @@ class TelemetryService {
           TraceFlags: 0,
           SeverityText: levelLowercase,
           SeverityNumber: logObj.logLevelValue || getSeverityNumber(levelLowercase),
-          ServiceName: resourceAttributes['service.name'] || 'unknown-service',
+          ServiceName: serviceName,
           Body: (logObj.message || '').replace(/'/g, "''").replace(/\\/g, '\\\\'),
           ResourceSchemaUrl: '',
           ResourceAttributes: resourceAttributes,
@@ -156,8 +162,7 @@ class TelemetryService {
     ClickHouse.insert(
       'logs',
       clickhouseLogs,
-      resourceAttributes['organization.id'],
-      resourceAttributes['device.id']
+      orgId, deviceId
     ).then(() => {
         log.debug(`${clickhouseLogs.length} logs sent to ClickHouse successfully`);
       }).catch(err => {
@@ -173,12 +178,17 @@ class TelemetryService {
    * @param {Object} metricsData - Object containing package names as keys and arrays of samples as values
    * @param {Object} resourceAttributes - Resource attributes to add to all metrics
    */
-  sendMetrics = async (metricsData, resourceAttributes = {}) => {
+  sendMetrics = async (metricsData, orgId, deviceId) => {
     log.debug('Sending metrics to ClickHouse...', metricsData);
 
     if (!metricsData?.time.length) return;
 
     const allMetrics = [];
+
+    const resourceAttributes = {
+      'organization.id': orgId,
+      'device.id': deviceId,
+    };
 
     // Add system metrics
     for (const index in metricsData.time) {
@@ -188,7 +198,10 @@ class TelemetryService {
       const sharedAttributes = {
         TimeUnix: timeToUnix(time),
         ServiceName: packageName,
-        ResourceAttributes: {...resourceAttributes, 'service.name': packageName}
+        ResourceAttributes: {
+          ...resourceAttributes,
+          'service.name': packageName
+        }
       };
 
       const cpu = metricsData.system?.cpu?.[index];
@@ -220,7 +233,10 @@ class TelemetryService {
         cpu !== undefined && allMetrics.push({
           TimeUnix: timeToUnix(time),
           ServiceName: packageName,
-          ResourceAttributes: {...resourceAttributes, 'service.name': packageName},
+          ResourceAttributes: {
+            ...resourceAttributes,
+            'service.name': packageName
+          },
           Value: cpu,
           MetricName: 'cpu_usage_percent',
           MetricDescription: 'CPU usage percentage',
@@ -238,8 +254,7 @@ class TelemetryService {
     ClickHouse.insert(
       'metrics',
       allMetrics,
-      resourceAttributes['organization.id'],
-      resourceAttributes['device.id']
+      orgId, deviceId
     ).then(() => {
       log.debug(`${allMetrics.length} metrics sent to ClickHouse successfully`);
     }).catch(err => {

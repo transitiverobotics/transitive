@@ -6,13 +6,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node index.js",
-    "start": "node index.js"
+    "start": "while (true); do node index.js; sleep 2; done"
   },
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
     "greenlock-express": "^4.0.3",
-    "http-proxy-node16": "^1.0.3"
+    "http-proxy-node16": "^1.0.3",
+    "ip2location-nodejs": "^9.7.0"
   }
 }

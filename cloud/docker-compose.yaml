@@ -155,6 +155,7 @@ services:
     restart: always
     volumes:
       - ${TR_VAR_DIR:-.}/greenlock.d:/app/greenlock.d
+      - ${TR_VAR_DIR:-.}/proxy_persistent:/app/persistent
     env_file:
       - .env
     ports:

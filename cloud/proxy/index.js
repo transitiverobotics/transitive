@@ -1,6 +1,21 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
+const { Readable } = require('stream');
+const { execSync } = require('child_process');
+const { IP2Location } = require('ip2location-nodejs');
+
+/** country short codes that we need to block
+ * https://orpa.princeton.edu/export-controls/sanctioned-countries
+ * https://www.ip2location.com/reports/internet-ip-address-2025-report
+*/
+const BLOCKED_COUNTRIES = {
+  IR: true, // Iran,
+  RU: true, // Russia,
+  KP: true, // North Korea
+  CU: true, // Cuba
+};
 
 /** try parsing JSON, return null if unsuccessful */
 const tryJSONParse = (string) => {
@@ -21,6 +36,79 @@ if (!host) {
 
 console.log({host, production});
 
+/** download file at the given url */
+const downloadFile = async (url, fileName) => {
+  const resp = await fetch(url);
+
+  if (resp.ok && resp.body) {
+    console.log('Writing to file:', fileName);
+    const writer = fs.createWriteStream(fileName);
+
+    Readable.fromWeb(resp.body).pipe(writer);
+    return true;
+  } else {
+    console.warn('Failed to download', url);
+    return false;
+  }
+}
+
+const IP2LOCATION_DB = {
+  DIR: './persistent',
+  FILE: 'IP2LOCATION-LITE-DB11.IPV6.BIN',
+  CODE: 'DB11LITEBINIPV6',
+  BASEURL: 'https://www.ip2location.com/download'
+};
+const ip2locFile = path.join(IP2LOCATION_DB.DIR, IP2LOCATION_DB.FILE);
+
+/** fetch GeoIP database from ip2location if token provided */
+const fetchGeoIPDatabase = (callback) => {
+  if (!process.env.TR_IP2LOCATION_TOKEN) {
+    log.info('No IP2Location token provided, proceeding without geoIP resolution');
+    return;
+  }
+
+  fs.stat(ip2locFile, async (err, stats) => {
+    if (err || stats.ctimeMs < Date.now() - 33 * 24 * 60 * 60 * 1000) {
+      console.log('(Re-)fetching IP2location database');
+      const zipFile = 'ip2loc.zip';
+      const { DIR, FILE, CODE, BASEURL } = IP2LOCATION_DB;
+      const success = await downloadFile(
+        `${BASEURL}/?token=${process.env.TR_IP2LOCATION_TOKEN}&file=${CODE}`,
+       `${DIR}/zipFile`);
+      if (!success) return;
+
+      // unzip
+      try {
+        execSync(`unzip -o ${zipFile}`, {cwd: DIR, encoding: 'utf8'});
+        callback();
+      } catch (e) {
+        console.warn('Failed to unzip ip2location DB', e);
+      }
+    }
+  });
+}
+
+let ip2loc;
+fetchGeoIPDatabase(() => {
+  // we got the ip2loc db, now initialize the service (or reload DB)
+  ip2loc ||= new IP2Location();
+  ip2loc.open(ip2locFile);
+  ip2loc.ready == (ip2.getCountryShort('8.8.8.8') != 'MISSING_FILE');
+});
+
+setInterval(fetchGeoIPDatabase, 24 * 60 * 60 * 1000); // check once a day
+
+/** Resolve geo info for the given IP. */
+const resolveGeoIP = (ip) => {
+  const rtv = {};
+  if (ip2loc?.ready) {
+    const all = ip2loc.getAll(ip);
+    [ 'ip', 'countryShort', 'countryLong', 'region', 'city', 'zipCode',
+      'latitude', 'longitude', 'timeZone' ].forEach(key => rtv[key] = all[key]);
+  }
+  return rtv;
+};
+
 // ------------------------------------------------------------------
 
 const proxy = require('http-proxy-node16').createProxyServer({ xfwd: true });
@@ -36,6 +124,11 @@ proxy.on('error', function(err, req, res) {
 // Routing logic
 
 const routingTable = {
+  geoip: (req, res) => {
+    const ip = req.socket.remoteAddress;
+    console.log('geoip request', ip);
+    res.end(JSON.stringify(resolveGeoIP(ip)));
+  },
   registry: 'registry:6000', // npm registry
   portal: 'cloud:9000',
   data: 'cloud:9000',
@@ -116,7 +209,6 @@ class RateLimiter {
 }
 
 
-
 /** Given the request, return the target `service:port` to route to */
 const getTarget = (req) => {
   const subdomain = req.headers.host.split('.')[0];
@@ -129,30 +221,41 @@ const getTarget = (req) => {
 const handleRequest = async (req, res) => {
   // await httpRateLimiter.limit(req);
   const target = getTarget(req);
-  if (!target) {
+  if (target instanceof Function) {
+    target(req, res);
+    return;
+  } else if (!target) {
     res.statusCode = 404;
     res.end('Not found');
     return;
   }
+
+  const geoIP = resolveGeoIP(req.socket.remoteAddress);
+  if (geoIP?.countryShort && BLOCKED_COUNTRIES[geoIP?.countryShort]) {
+    console.warn(`Blocking request from ${geoIP?.countryShort}`);
+    res.statusCode = 403;
+    req.end();
+  }
+
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
   proxy.web(req, res, { target: `http://${target}` });
 };
 
 // rate limit ws requests
-const wsRateLimiter = new RateLimiter(240, 720, 'ws');
+// const wsRateLimiter = new RateLimiter(240, 720, 'ws');
 
 /** handler for web socket upgrade */
 const handleUpgrade = async (req, socket, head) => {
   console.log(`ws: ${req.socket.remoteAddress}: ${req.headers.host}${req.url}`);
-  const block = await wsRateLimiter.limit(req);
-  if (block) {
-    // the rate limiter wants us to drop this request
-    req.destroy();
-    return;
-  }
+  // const block = await wsRateLimiter.limit(req);
+  // if (block) {
+  //   // the rate limiter wants us to drop this request
+  //   req.destroy();
+  //   return;
+  // }
 
   const target = getTarget(req);
-  if (!target) {
+  if (!target || target instanceof Function) {
     req.destroy();
     return;
   }

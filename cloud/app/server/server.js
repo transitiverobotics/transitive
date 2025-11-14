@@ -20,10 +20,12 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
+const {  waitForClickHouse } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
 const { TelemetryService } = require('./telemetry');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
@@ -528,6 +530,9 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
+        await waitForClickHouse();
+        ClickHouse.init();
+
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(async () => {
           await this.telemetry.sendLogs([{
@@ -535,9 +540,7 @@ class _robotAgent extends Capability {
               module: log.name,
               level: 'DEBUG',
               message: 'Portal (re-)started'
-            }], {
-              'service.name': 'portal',
-            }
+            }], 'transitive-robotics', 'portal', 'portal',
           );
           this.ingestLogs();
           this.forwardMetricsToClickhouse();
@@ -621,11 +624,7 @@ class _robotAgent extends Capability {
           }
 
           // forward to ClickHouse
-          await this.telemetry.sendLogs(logs, {
-            'organization.id': organization,
-            'device.id': device,
-            'service.name': pkgName
-          });
+          await this.telemetry.sendLogs(logs, organization, device, pkgName);
         });
       }
     });
@@ -641,10 +640,8 @@ class _robotAgent extends Capability {
       async (metricsData, topic, { orgId, deviceId }) => {
         if (!metricsData) return;
         // Forward metrics to HyperDX
-        await this.telemetry.sendMetrics(metricsData, {
-          'organization.id': orgId,
-          'device.id': deviceId,
-        }).catch(error => {
+        await this.telemetry.sendMetrics(metricsData, orgId, deviceId
+        ).catch(error => {
           log.error('Failed to forward metrics to HyperDX:', error);
         });
       }
@@ -1600,42 +1597,42 @@ class _robotAgent extends Capability {
   }
 };
 
-
-const robotAgent = new _robotAgent();
-// let robot agent capability handle it's own sub-path; enable the same for all
-// other, regular, capabilities as well?
-app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
-
-// routes used during the installation process of a new robot
-app.use('/install', installRouter);
-
-app.get('/admin/setLogLevel', (req, res) => {
-  if (!req.query.level) {
-    res.status(400).end('missing level');
-  } else {
-    log.setLevel(req.query.level);
-    const msg = `Set log level to ${req.query.level}`;
-    console.log(msg);
-    res.end(msg);
-  }
-});
-
-// to allow client-side routing:
-app.use('/*', (req, res) =>
-  res.sendFile(path.join(cwd, 'public', 'index.html')));
-
-const server = http.createServer(app);
-
-/** catch-all to be safe */
-process.on('uncaughtException', (err) => {
-  console.error(`**** Caught exception: ${err}:`, err.stack);
-});
-
 /** ---------------------------------------------------------------------------
   MAIN
 */
 log.info('Starting cloud app');
 Mongo.init(() => {
+  const robotAgent = new _robotAgent();
+  // let robot agent capability handle it's own sub-path; enable the same for all
+  // other, regular, capabilities as well?
+  app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
+
+  // routes used during the installation process of a new robot
+  app.use('/install', installRouter);
+
+  app.get('/admin/setLogLevel', (req, res) => {
+    if (!req.query.level) {
+      res.status(400).end('missing level');
+    } else {
+      log.setLevel(req.query.level);
+      const msg = `Set log level to ${req.query.level}`;
+      console.log(msg);
+      res.end(msg);
+    }
+  });
+
+  // to allow client-side routing:
+  app.use('/*', (req, res) =>
+    res.sendFile(path.join(cwd, 'public', 'index.html')));
+
+  const server = http.createServer(app);
+
+  /** catch-all to be safe */
+  process.on('uncaughtException', (err) => {
+    console.error(`**** Caught exception: ${err}:`, err.stack);
+  });
+
+
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
   process.env.TR_USER && process.env.TR_PASS &&

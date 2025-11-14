@@ -9,7 +9,8 @@ const _ = require('lodash');
 const semver = require('semver');
 const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 
-const { getNextInRange } = require('./utils');
+const { getNextInRange, setupCapabilityDB } = require('./utils');
+const Mongo = require('@transitive-sdk/mongo');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
 // const REGISTRY = process.env.TR_REGISTRY || '172.17.0.1:6000';
@@ -234,6 +235,27 @@ const start = async ({name, version, pkgInfo}) => {
       ExposedPorts[`${port}/udp`] = {};
     }
   }
+  const clickhouseEnvVars = [];
+  if (process.env.CLICKHOUSE_ENABLED === 'true') {
+    try {
+      const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
+      const {user, password} = await setupCapabilityDB({
+        dbName: capClickhouseDbName,
+      });
+
+      log.debug('ClickHouse user for cap:', user);
+      clickhouseEnvVars.push(
+        `CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,
+        `CLICKHOUSE_DB=${capClickhouseDbName}`,
+        `CLICKHOUSE_USER=${user}`,
+        `CLICKHOUSE_PASSWORD=${password}`
+      );
+    } catch (e) {
+      log.error('Failed to setup ClickHouse for cap:', e);
+    }
+  } else {
+    log.debug('ClickHouse integration not enabled for cap');
+  }
 
   docker.run(tagName, [], devNull, {
       name: getCointainerName({name, version}),
@@ -244,6 +266,7 @@ const start = async ({name, version, pkgInfo}) => {
         `MAX_PORT=${exposedPorts.max}`,
         `MONGO_DB=cap_${name.replace(/@/g, '').replace('/', '_')}`,
         'MONGO_URL=mongodb://mongodb',
+        ...clickhouseEnvVars
       ],
       ExposedPorts,
       HostConfig,

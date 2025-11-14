@@ -624,7 +624,7 @@ class _robotAgent extends Capability {
           }
 
           // forward to ClickHouse
-          await this.telemetry.sendLogs(logs,  organization, device, pkgName);
+          await this.telemetry.sendLogs(logs, organization, device, pkgName);
         });
       }
     });
@@ -640,10 +640,8 @@ class _robotAgent extends Capability {
       async (metricsData, topic, { orgId, deviceId }) => {
         if (!metricsData) return;
         // Forward metrics to HyperDX
-        await this.telemetry.sendMetrics(metricsData, {
-          'organization.id': orgId,
-          'device.id': deviceId,
-        }).catch(error => {
+        await this.telemetry.sendMetrics(metricsData, orgId, deviceId
+        ).catch(error => {
           log.error('Failed to forward metrics to HyperDX:', error);
         });
       }

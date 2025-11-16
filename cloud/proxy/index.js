@@ -85,6 +85,8 @@ const fetchGeoIPDatabase = (callback) => {
       } catch (e) {
         console.warn('Failed to unzip ip2location DB', e);
       }
+    } else {
+      callback();
     }
   });
 }
@@ -95,6 +97,7 @@ fetchGeoIPDatabase(() => {
   ip2loc ||= new IP2Location();
   ip2loc.open(ip2locFile);
   ip2loc.ready = (ip2loc.getCountryShort('8.8.8.8') != 'MISSING_FILE');
+  console.log(ip2loc, ip2loc.getCountryShort('8.8.8.8'));
 });
 
 setInterval(fetchGeoIPDatabase, 24 * 60 * 60 * 1000); // check once a day
@@ -105,7 +108,9 @@ const resolveGeoIP = (ip) => {
   if (ip2loc?.ready) {
     const all = ip2loc.getAll(ip);
     [ 'ip', 'countryShort', 'countryLong', 'region', 'city', 'zipCode',
-      'latitude', 'longitude', 'timeZone' ].forEach(key => rtv[key] = all[key]);
+      'latitude', 'longitude', 'timeZone' ].forEach(key =>
+        all[key] != '-' && (rtv[key] = all[key])
+      );
   }
   return rtv;
 };
@@ -126,7 +131,7 @@ proxy.on('error', function(err, req, res) {
 
 const routingTable = {
   geoip: (req, res) => {
-    const ip = req.socket.remoteAddress;
+    const ip = req.headers.forceip || req.socket.remoteAddress;
     console.log('geoip request', ip);
     res.end(JSON.stringify(resolveGeoIP(ip)));
   },

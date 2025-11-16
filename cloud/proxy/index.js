@@ -68,13 +68,14 @@ const fetchGeoIPDatabase = (callback) => {
   }
 
   fs.stat(ip2locFile, async (err, stats) => {
+    console.warn('Error getting stat of ip2loc DB file:', err);
     if (err || stats.ctimeMs < Date.now() - 33 * 24 * 60 * 60 * 1000) {
-      console.log('(Re-)fetching IP2location database');
+      console.log('(Re-)fetching IP2location database', ip2locFile, stats);
       const zipFile = 'ip2loc.zip';
       const { DIR, FILE, CODE, BASEURL } = IP2LOCATION_DB;
       const success = await downloadFile(
         `${BASEURL}/?token=${process.env.TR_IP2LOCATION_TOKEN}&file=${CODE}`,
-       `${DIR}/zipFile`);
+        path.join(DIR, zipFile));
       if (!success) return;
 
       // unzip

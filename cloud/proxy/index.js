@@ -68,7 +68,7 @@ const fetchGeoIPDatabase = (callback) => {
   }
 
   fs.stat(ip2locFile, async (err, stats) => {
-    console.warn('Error getting stat of ip2loc DB file:', err);
+    err && console.warn('Error getting stat of ip2loc DB file:', err);
     if (err || stats.ctimeMs < Date.now() - 33 * 24 * 60 * 60 * 1000) {
       console.log('(Re-)fetching IP2location database', ip2locFile, stats);
       const zipFile = 'ip2loc.zip';
@@ -94,7 +94,7 @@ fetchGeoIPDatabase(() => {
   // we got the ip2loc db, now initialize the service (or reload DB)
   ip2loc ||= new IP2Location();
   ip2loc.open(ip2locFile);
-  ip2loc.ready == (ip2.getCountryShort('8.8.8.8') != 'MISSING_FILE');
+  ip2loc.ready == (ip2loc.getCountryShort('8.8.8.8') != 'MISSING_FILE');
 });
 
 setInterval(fetchGeoIPDatabase, 24 * 60 * 60 * 1000); // check once a day

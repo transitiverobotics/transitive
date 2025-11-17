@@ -60,7 +60,7 @@ const getVersionRange = (version, type) => {
  */
 const setupCapabilityDB = async (capName) => {
   const dbName = `cap_${capName.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`;
-  log.debug(`Setting up ClickHouse database: ${dbName} at ${url}`);
+  log.debug(`Setting up ClickHouse database: ${dbName}`);
 
   await ClickHouse.client.exec({
     query: `CREATE DATABASE IF NOT EXISTS ${dbName}`

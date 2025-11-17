@@ -236,23 +236,18 @@ const start = async ({name, version, pkgInfo}) => {
     }
   }
   const clickhouseEnvVars = [];
-  if (process.env.CLICKHOUSE_ENABLED === 'true') {
-    try {
-      const capClickhouseDbName = `cap_${name.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`
-      const {user, password} = await setupCapabilityDB({
-        dbName: capClickhouseDbName,
-      });
-
+  if (process.env.CLICKHOUSE_ENABLED === 'true') {   
+    setupCapabilityDB(name).then(({dbName, user, password}) => {
       log.debug('ClickHouse user for cap:', user);
       clickhouseEnvVars.push(
         `CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,
-        `CLICKHOUSE_DB=${capClickhouseDbName}`,
+        `CLICKHOUSE_DB=${dbName}`,
         `CLICKHOUSE_USER=${user}`,
         `CLICKHOUSE_PASSWORD=${password}`
       );
-    } catch (e) {
-      log.error('Failed to setup ClickHouse for cap:', e);
-    }
+    }).catch((error) => {
+      log.error('Failed to setup ClickHouse DB for cap:', error);
+    });
   } else {
     log.debug('ClickHouse integration not enabled for cap');
   }

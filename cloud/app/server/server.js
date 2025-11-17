@@ -530,22 +530,17 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
-        await waitForClickHouse();
         ClickHouse.init();
-
-        this.telemetry = new TelemetryService();
-        this.telemetry.init().then(async () => {
-          await this.telemetry.sendLogs([{
-            timestamp: Date.now(),
-              module: log.name,
-              level: 'DEBUG',
-              message: 'Portal (re-)started'
-            }], 'transitive-robotics', 'portal', 'portal',
-          );
-          this.ingestLogs();
-          this.forwardMetricsToClickhouse();
+        waitForClickHouse().then(() => {
+          this.telemetry = new TelemetryService();
+          this.telemetry.init().then(() => {
+            this.ingestLogs();
+            this.forwardMetricsToClickhouse();
+          }).catch((error) => {
+            log.error('Failed to initialize TelemetryService:', error);
+          });
         }).catch((error) => {
-          log.error('Failed to initialize TelemetryService:', error);
+          log.error('ClickHouse not available:', error);
         });
       } else {
         log.debug('ClickHouse integration disabled');
@@ -610,7 +605,7 @@ class _robotAgent extends Capability {
 
         const packageLogs = _.groupBy(logLines, line => line.package);
 
-        _.forEach(packageLogs, async (logs, pkgName) => {
+        _.forEach(packageLogs, (logs, pkgName) => {
           const [scope, name] = pkgName.split('/');
 
           // update the error count
@@ -624,7 +619,9 @@ class _robotAgent extends Capability {
           }
 
           // forward to ClickHouse
-          await this.telemetry.sendLogs(logs, organization, device, pkgName);
+          this.telemetry.sendLogs(logs, organization, device, pkgName).catch(error => {
+            log.error('Failed to forward logs to HyperDX:', error);
+          });
         });
       }
     });
@@ -637,10 +634,9 @@ class _robotAgent extends Capability {
 
     this.data.subscribePath(
       '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
-      async (metricsData, topic, { orgId, deviceId }) => {
+      (metricsData, topic, { orgId, deviceId }) => {
         if (!metricsData) return;
-        // Forward metrics to HyperDX
-        await this.telemetry.sendMetrics(metricsData, orgId, deviceId
+        this.telemetry.sendMetrics(metricsData, orgId, deviceId
         ).catch(error => {
           log.error('Failed to forward metrics to HyperDX:', error);
         });

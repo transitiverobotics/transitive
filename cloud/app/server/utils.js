@@ -58,7 +58,7 @@ const getVersionRange = (version, type) => {
  * @param {string} capName - capability name
  * @returns {Object} - {dbName, user, password}
  */
-const setupCapabilityDB = async (capName) => {
+const ensureCapabilityDB = async (capName) => {
   const dbName = `cap_${capName.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`;
   log.debug(`Setting up ClickHouse database: ${dbName}`);
 
@@ -126,4 +126,4 @@ const waitForClickHouse = async () => {
   throw new Error('Timeout waiting for ClickHouse to be healthy');
 };
 
-module.exports = { getNextInRange, getVersionRange, setupCapabilityDB, waitForClickHouse };
+module.exports = { getNextInRange, getVersionRange, ensureCapabilityDB, waitForClickHouse };

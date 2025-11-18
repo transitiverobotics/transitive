@@ -9,7 +9,7 @@ const _ = require('lodash');
 const semver = require('semver');
 const { getLogger, tryJSONParse } = require('@transitive-sdk/utils');
 
-const { getNextInRange, setupCapabilityDB } = require('./utils');
+const { getNextInRange, ensureCapabilityDB } = require('./utils');
 const Mongo = require('@transitive-sdk/mongo');
 
 const RUN_DIR = `/run/user/${process.getuid()}/transitive/caps`;
@@ -237,7 +237,7 @@ const start = async ({name, version, pkgInfo}) => {
   }
   const clickhouseEnvVars = [];
   if (process.env.CLICKHOUSE_ENABLED === 'true') {   
-    setupCapabilityDB(name).then(({dbName, user, password}) => {
+    ensureCapabilityDB(name).then(({dbName, user, password}) => {
       log.debug('ClickHouse user for cap:', user);
       clickhouseEnvVars.push(
         `CLICKHOUSE_URL=${process.env.CLICKHOUSE_URL}`,

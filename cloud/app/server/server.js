@@ -19,13 +19,13 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 
 const {  waitForClickHouse } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
 const { TelemetryService } = require('./telemetry');
-const ClickHouse = require('@transitive-sdk/clickhouse');
 const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword

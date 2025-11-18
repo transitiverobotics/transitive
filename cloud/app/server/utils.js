@@ -112,14 +112,14 @@ const setupCapabilityDB = async (capName) => {
 
 const waitForClickHouse = async () => {
   const start = Date.now();
-  const timeout = 2 * 60 * 1000; // 2 minutes
+  const timeout = 2 * 60 * 1000; // 2 minutes before giving up
   while (Date.now() - start < timeout) {
+    log.debug('Waiting for ClickHouse to be ready...');
     try {
       await ClickHouse.client.query({ query: 'SELECT 1' });
       log.debug('ClickHouse is ready');
       return;
     } catch (err) {
-      log.debug('Waiting for ClickHouse to be ready...');
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }

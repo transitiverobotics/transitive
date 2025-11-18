@@ -1,8 +1,8 @@
 const semver = require('semver');
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
+const { getLogger, getRandomId } = require('@transitive-sdk/utils');
 
-const { getLogger } = require('@transitive-sdk/utils');
 const log = getLogger('utils');
 
 log.setLevel('debug');
@@ -86,7 +86,7 @@ const ensureCapabilityDB = async (capName) => {
   }
 
   // Generate new password if user doesn't exist
-  const password = Math.random().toString(36).slice(-12);
+  const password = getRandomId(15);
 
   // store user and password in mongo
   await mongoCredentialsCollection.updateOne(

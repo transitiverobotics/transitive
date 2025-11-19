@@ -6,6 +6,6 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.9.5"
+    "@transitive-sdk/utils": "^0.14.7"
   }
 }

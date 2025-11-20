@@ -1,6 +1,11 @@
 const semver = require('semver');
+const Mongo = require('@transitive-sdk/mongo');
+const ClickHouse = require('@transitive-sdk/clickhouse');
+const { getLogger, getRandomId } = require('@transitive-sdk/utils');
 
-const { parseMQTTTopic } = require('@transitive-sdk/utils');
+const log = getLogger('utils');
+
+log.setLevel('debug');
 
 /** given a list of used numbers, find the next contiguous range of ports in the
 * given range that is not yet used */
@@ -47,4 +52,78 @@ const getVersionRange = (version, type) => {
   return range.format();
 };
 
-module.exports = { getNextInRange, getVersionRange };
+
+/** Ensure ClickHouse database and user exist for a capability
+ * Only used with admin ClickHouse user credentials.
+ * @param {string} capName - capability name
+ * @returns {Object} - {dbName, user, password}
+ */
+const ensureCapabilityDB = async (capName) => {
+  const dbName = `cap_${capName.replace(/@/g, '').replace('/', '_').replace(/-/g, '')}`;
+  log.debug(`Setting up ClickHouse database: ${dbName}`);
+
+  await ClickHouse.client.exec({
+    query: `CREATE DATABASE IF NOT EXISTS ${dbName}`
+  });
+
+  const user = `${dbName}_user`;
+  log.debug(`ensuring clickhouse user ${user} for database ${dbName}`);
+  // Check if user exists
+  const userExists = await ClickHouse.client.query({
+    query: `SELECT name FROM system.users WHERE name = '${user}'`,
+    format: 'JSONEachRow'
+  });
+
+  const users = await userExists.json();
+  const mongoCredentialsCollection = Mongo.db.collection('clickhouse_users')
+  if (users.length > 0) {
+    // retrieve password from mongo
+    const userDoc = await mongoCredentialsCollection.findOne({ user: user, db: dbName });
+    if (userDoc) {
+      log.debug(`ClickHouse user ${user} for database ${dbName} already exists`);
+      return { dbName, user, password: userDoc.password }
+    }
+  }
+
+  // Generate new password if user doesn't exist
+  const password = getRandomId(15);
+
+  // store user and password in mongo
+  await mongoCredentialsCollection.updateOne(
+    { user: user, db: dbName },
+    { $set: { password: password } },
+    { upsert: true }
+  );
+
+  // create database user if needed
+  await ClickHouse.client.exec({
+    query: `CREATE USER IF NOT EXISTS ${user} IDENTIFIED WITH plaintext_password BY '${password}'`
+  });
+
+  // grant all privileges on the cap database to the user
+  await ClickHouse.client.exec({
+    query: `GRANT ALL ON ${dbName}.* TO ${user}`
+  });
+
+  log.debug(`ClickHouse user ${user} for database ${dbName} created`);
+
+  return { dbName, user, password };
+}
+
+const waitForClickHouse = async () => {
+  const start = Date.now();
+  const timeout = 2 * 60 * 1000; // 2 minutes before giving up
+  while (Date.now() - start < timeout) {
+    log.debug('Waiting for ClickHouse to be ready...');
+    try {
+      await ClickHouse.client.query({ query: 'SELECT 1' });
+      log.debug('ClickHouse is ready');
+      return;
+    } catch (err) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+  throw new Error('Timeout waiting for ClickHouse to be healthy');
+};
+
+module.exports = { getNextInRange, getVersionRange, ensureCapabilityDB, waitForClickHouse };

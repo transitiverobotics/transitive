@@ -61,7 +61,7 @@ const IP2LOCATION_DB = {
 const ip2locFile = path.join(IP2LOCATION_DB.DIR, IP2LOCATION_DB.FILE);
 
 /** fetch GeoIP database from ip2location if token provided */
-const fetchGeoIPDatabase = (callback) => {
+const fetchGeoIPDatabase = (callback = undefined) => {
   if (!process.env.TR_IP2LOCATION_TOKEN) {
     log.info('No IP2Location token provided, proceeding without geoIP resolution');
     return;
@@ -81,12 +81,12 @@ const fetchGeoIPDatabase = (callback) => {
       // unzip
       try {
         execSync(`unzip -o ${zipFile}`, {cwd: DIR, encoding: 'utf8'});
-        callback();
+        callback?.();
       } catch (e) {
         console.warn('Failed to unzip ip2location DB', e);
       }
     } else {
-      callback();
+      callback?.();
     }
   });
 }
@@ -240,7 +240,7 @@ const handleRequest = async (req, res) => {
   if (geoIP?.countryShort && BLOCKED_COUNTRIES[geoIP?.countryShort]) {
     console.warn(`Blocking request from ${geoIP?.countryShort}`);
     res.statusCode = 403;
-    req.end();
+    res.end();
   }
 
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
@@ -362,3 +362,12 @@ if (production) {
   server.listen(port);
   console.log(`listening on port ${port}`)
 }
+
+
+/** Catch all otherwise uncaught errors */
+process.on('uncaughtException', (err) => {
+  console.error(`**** Caught exception: ${err}:`, err.stack);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('**** Caught unhandled rejection:', promise, 'reason:', reason);
+});

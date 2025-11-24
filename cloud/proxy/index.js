@@ -6,6 +6,14 @@ const { Readable } = require('stream');
 const { execSync } = require('child_process');
 const { IP2Location } = require('ip2location-nodejs');
 
+/** Catch all otherwise uncaught errors */
+process.on('uncaughtException', (err) => {
+  console.error(`**** Caught exception: ${err}:`, err.stack);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('**** Caught unhandled rejection:', promise, 'reason:', reason);
+});
+
 /** country short codes that we need to block
  * https://orpa.princeton.edu/export-controls/sanctioned-countries
  * https://www.ip2location.com/reports/internet-ip-address-2025-report
@@ -63,7 +71,7 @@ const ip2locFile = path.join(IP2LOCATION_DB.DIR, IP2LOCATION_DB.FILE);
 /** fetch GeoIP database from ip2location if token provided */
 const fetchGeoIPDatabase = (callback = undefined) => {
   if (!process.env.TR_IP2LOCATION_TOKEN) {
-    log.info('No IP2Location token provided, proceeding without geoIP resolution');
+    console.warn('No IP2Location token provided, proceeding without geoIP resolution');
     return;
   }
 
@@ -363,11 +371,3 @@ if (production) {
   console.log(`listening on port ${port}`)
 }
 
-
-/** Catch all otherwise uncaught errors */
-process.on('uncaughtException', (err) => {
-  console.error(`**** Caught exception: ${err}:`, err.stack);
-});
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('**** Caught unhandled rejection:', promise, 'reason:', reason);
-});

@@ -21,7 +21,10 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse } = require('./utils');
+const { waitForClickHouse, ensureClickHouseOrgUser,
+  ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup,
+  ensureHyperDXAdminSetup, changeServicePassword }
+  = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -46,6 +49,9 @@ const log = getLogger('server');
 log.setLevel('debug');
 
 const cwd = process.cwd();
+
+// 'https://' in production, else 'http://'
+const httpProtocol = `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://`;
 
 const versionNS = getPackageVersionNamespace();
 
@@ -531,7 +537,9 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
         ClickHouse.init();
-        waitForClickHouse().then(() => {
+        waitForClickHouse().then(async () => {
+          await ensureClickouseDefaultPermissions();
+          await ensureHyperDXAdminSetup();
           this.telemetry = new TelemetryService();
           this.telemetry.init().then(() => {
             this.ingestLogs();
@@ -1036,7 +1044,7 @@ class _robotAgent extends Capability {
       const config = {
         authRequired: false,
         auth0Logout: true,
-        baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
+        baseURL: `${httpProtocol}portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
         clientID: account.openId.clientId,
         issuerBaseURL: ensureHTTPs(account.openId.domain),
         secret: account.openId.secret,
@@ -1421,8 +1429,15 @@ class _robotAgent extends Capability {
       res.json(this.getCapabilitiesInUse());
     });
 
+    /** Route to provide the details needed for the Security page */
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
+
+      if (process.env.CLICKHOUSE_ENABLED) {
+        const { user, password } = await ensureClickHouseOrgUser(req.session.user._id);
+        await ensureHyperDXOrgSetup(req.session.user._id, user, password);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
@@ -1430,15 +1445,35 @@ class _robotAgent extends Capability {
         delete account.capTokens[token].password;
       }
 
+      const hyperDXHost = `hyperdx.${process.env.TR_HOST}`;
+      const clickhouseHost = `clickhouse.${process.env.TR_HOST}`;
+
+      // Build ClickHouse play URL with embedded credentials
+      const clickhouseUser = account.clickhouseCredentials?.user || '';
+      const clickhousePassword = account.clickhouseCredentials?.password || '';
+      const clickhousePlayUrl = clickhouseUser && clickhousePassword
+        ? `${httpProtocol}${clickhouseHost}/play?user=${encodeURIComponent(clickhouseUser)}`
+        : `${httpProtocol}${clickhouseHost}/play`;
+
+
       res.json({
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
         cap_usage: account.cap_usage || {},
         openId: account.openId || {},
         googleDomain: account.googleDomain || undefined,
+        clickhouseCredentials: {
+          ...account.clickhouseCredentials || {},
+          url: clickhousePlayUrl
+        },
+        hyperDXCredentials: {
+          ...account.hyperdxCredentials || {},
+          url: `${httpProtocol}${hyperDXHost}/login`
+        }
       });
     });
 
+    /** Route used to update some of the details on the Security page. */
     this.router.post('/security', requireLogin, async (req, res) => {
 
       if (!req.session.user._id) {
@@ -1470,6 +1505,41 @@ class _robotAgent extends Capability {
       res.json({status: 'ok', result});
     });
 
+    /** route to change password for other services like ClickHouse and HyperDX */
+    this.router.post('/changeServicePassword/:service', requireLogin, async (req, res) => {
+      const user = req.session.user._id;
+      const service = req.params.service;
+      const newPassword = req.body?.newPassword;
+
+      log.debug(`change password for user ${user} in service ${service}`);
+      if (!user) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'ClickHouse is not enabled'});
+        return;
+      }
+
+      if (!changeServicePassword[service]) {
+        res.status(400).json({error: `Unknown service ${service}`});
+        return;
+      }
+
+      try {
+        await changeServicePassword[service](user, newPassword);
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error(`Failed to change %{service} password:`, error);
+        res.status(500).json({error: error.message});
+      }
+    });
 
     // Admin tools
 

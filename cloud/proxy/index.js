@@ -151,7 +151,7 @@ const routingTable = {
   repo: 'cloud:9000/repo', // binaries we host for packages, may go away
   mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
   hyperdx: `hyperdx:8080`,
-  // clickhouse: 'clickhouse:8123',  // direct clickhouse access (dev only for now)
+  clickhouse: 'clickhouse:8123',  // direct clickhouse access
   // parse env var that may list additional hosts to add
   ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
 };

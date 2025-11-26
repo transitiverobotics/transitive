@@ -226,7 +226,7 @@ services:
         #   memory: 4096M
 
   hyperdx:
-    image: docker.hyperdx.io/hyperdx/hyperdx:2
+    image: docker.hyperdx.io/hyperdx/hyperdx:2.8.0
     env_file:
       - .env
     environment:
@@ -237,60 +237,6 @@ services:
       OPAMP_PORT: 4320
       OTEL_SERVICE_NAME: 'hdx-oss-api'
       USAGE_STATS_ENABLED: ${USAGE_STATS_ENABLED:-true}
-      DEFAULT_CONNECTIONS: |
-        [
-          {
-            "name": "Local ClickHouse",
-            "host": "${CLICKHOUSE_URL:-http://clickhouse:8123}",
-            "username": "${CLICKHOUSE_USER:-default}",
-            "password": "${CLICKHOUSE_PASSWORD:-}"
-          }
-        ]
-      DEFAULT_SOURCES: |
-        [
-          {
-            "from": {
-              "databaseName": "default",
-              "tableName": "logs"
-            },
-            "kind": "log",
-            "timestampValueExpression": "TimestampTime",
-            "name": "Logs",
-            "displayedTimestampValueExpression": "Timestamp",
-            "implicitColumnExpression": "Body",
-            "serviceNameExpression": "ServiceName",
-            "bodyExpression": "Body",
-            "eventAttributesExpression": "LogAttributes",
-            "resourceAttributesExpression": "ResourceAttributes",
-            "defaultTableSelectExpression": "Timestamp,ServiceName,SeverityText,Body",
-            "severityTextExpression": "SeverityText",
-            "traceIdExpression": "TraceId",
-            "spanIdExpression": "SpanId",
-            "connection": "Local ClickHouse",
-            "traceSourceId": "Traces",
-            "sessionSourceId": "Sessions",
-            "metricSourceId": "Metrics"
-          },
-          {
-            "from": {
-              "databaseName": "default",
-              "tableName": ""
-            },
-            "kind": "metric",
-            "timestampValueExpression": "TimeUnix",
-            "name": "Metrics",
-            "resourceAttributesExpression": "ResourceAttributes",
-            "metricTables": {
-              "gauge": "metrics",
-              "_id": "682586a8b1f81924e628e808",
-              "id": "682586a8b1f81924e628e808"
-            },
-            "connection": "Local ClickHouse",
-            "logSourceId": "Logs",
-            "traceSourceId": "Traces",
-            "sessionSourceId": "Sessions"
-          }
-        ]
     networks:
       - default
     restart: always

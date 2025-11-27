@@ -998,10 +998,6 @@ class _robotAgent extends Capability {
         // on purpose not disclosing that the account doesn't exist
       }
 
-      if (process.env.CLICKHOUSE_ENABLED) {
-        await ensureClickHouseOrgUser(account._id);
-      }
-
       const valid = await bcrypt.compare(req.body.password, account.bcryptPassword);
       if (!valid) {
         log.info('wrong password for account', req.body.name);
@@ -1428,6 +1424,11 @@ class _robotAgent extends Capability {
 
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
+
+      if (process.env.CLICKHOUSE_ENABLED) {
+        await ensureClickHouseOrgUser(account._id);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 

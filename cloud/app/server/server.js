@@ -1426,7 +1426,7 @@ class _robotAgent extends Capability {
       log.debug('get profile/security data for', req.session.user._id);
 
       if (process.env.CLICKHOUSE_ENABLED) {
-        await ensureClickHouseOrgUser(account._id);
+        await ensureClickHouseOrgUser(req.session.user._id);
       }
 
       const accounts = Mongo.db.collection('accounts');

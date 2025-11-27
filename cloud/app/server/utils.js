@@ -380,10 +380,20 @@ const createHyperDXSetup = async (config) => {
  * @param {string} orgClickhousePassword - ClickHouse password for the organization
  */
 const ensureHyperDXOrgSetup = async (orgId, orgClickhouseUser, orgClickhousePassword) => {
+  const userEmail = `org_${orgId}@hyperdx.local`;
+  const userPassword = getRandomId(12);
+
+  // save HDX credentials in account document
+  const accountsCollection = Mongo.db.collection('accounts');
+  await accountsCollection.updateOne(
+    { _id: orgId },
+    { $set: { hyperdxCredentials: { email: userEmail, password: userPassword } } }
+  );
+
   await createHyperDXSetup({
     teamName: `org_${orgId}_team`,
-    userEmail: `org_${orgId}@hyperdx.local`,
-    userPassword: orgClickhousePassword,
+    userEmail: userEmail,
+    userPassword: userPassword,
     connectionName: `org_${orgId}_clickhouse`,
     clickhouseUser: orgClickhouseUser,
     clickhousePassword: orgClickhousePassword,

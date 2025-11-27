@@ -1426,6 +1426,11 @@ class _robotAgent extends Capability {
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
 
+      if (process.env.CLICKHOUSE_ENABLED) {
+        const { user, password } = await ensureClickHouseOrgUser(req.session.user._id);
+        await ensureHyperDXOrgSetup(req.session.user._id, user, password);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
@@ -1433,18 +1438,8 @@ class _robotAgent extends Capability {
         delete account.capTokens[token].password;
       }
 
-      if (process.env.CLICKHOUSE_ENABLED) {
-        const { user, password } = await ensureClickHouseOrgUser(account._id);
-        await ensureHyperDXOrgSetup(account._id, user, password);
-      }
-
-      const hyperDXHost = tryJSONParse(process.env.PRODUCTION) 
-        ? 'hyperdx.transitiverobotics.com'
-        : `hyperdx.${process.env.TR_HOST}`;
-
-      const clickhouseHost = tryJSONParse(process.env.PRODUCTION)
-        ? 'clickhouse.transitiverobotics.com'
-        : `clickhouse.${process.env.TR_HOST}`;
+      const hyperDXHost = `hyperdx.${process.env.TR_HOST}`;
+      const clickhouseHost = `clickhouse.${process.env.TR_HOST}`;
 
       // Build ClickHouse play URL with embedded credentials
       const clickhouseUser = account.clickhouseCredentials?.user || '';
@@ -1452,6 +1447,7 @@ class _robotAgent extends Capability {
       const clickhousePlayUrl = clickhouseUser && clickhousePassword
         ? `http://${clickhouseHost}/play?user=${encodeURIComponent(clickhouseUser)}`
         : `http://${clickhouseHost}/play`;
+
 
       res.json({
         jwtSecret: account.jwtSecret,
@@ -1464,8 +1460,7 @@ class _robotAgent extends Capability {
           playUrl: clickhousePlayUrl
         },
         hyperDXCredentials: {
-          email: `org_${req.session.user._id}@hyperdx.local`,
-          password: account.clickhouseCredentials?.password || '',
+          ...account.hyperdxCredentials || {},
           url: `http://${hyperDXHost}/login`
         }
       });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { Form, Row, Col, ListGroup } from 'react-bootstrap';
-import { FaTrashAlt } from 'react-icons/fa';
+import { FaTrashAlt, FaCopy, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 import _ from 'lodash';
 
@@ -17,6 +17,80 @@ const styles = {
     margin: 'auto',
     marginTop: '2em'
   },
+};
+
+/** Component for displaying a credential field with copy and show/hide password */
+const CredentialField = ({ label, value, type = 'text' }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value || '');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for older browsers or insecure contexts
+        const textarea = document.createElement('textarea');
+        textarea.value = value || '';
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      // Still show copied feedback even if it might have failed
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const displayValue = (type === 'password' && !showPassword) 
+    ? '•'.repeat(value?.length || 0) 
+    : value || 'Not configured';
+
+  return (
+    <Form.Group as={Row} controlId={`credential-${label}`}>
+      <Form.Label column sm="2">
+        {label}
+      </Form.Label>
+      <Col sm="10">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Form.Control 
+            plaintext 
+            readOnly 
+            value={displayValue}
+            style={{ flex: 1, marginBottom: 0 }}
+          />
+          {type === 'password' && value && (
+            <span 
+              style={{ cursor: 'pointer', fontSize: '1.2rem', color: '#6c757d' }}
+              onClick={() => setShowPassword(!showPassword)}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </span>
+          )}
+          {value && (
+            <span 
+              style={{ cursor: 'pointer', fontSize: '1.2rem', color: '#6c757d' }}
+              onClick={handleCopy}
+              title={copied ? 'Copied!' : 'Copy to clipboard'}
+            >
+              {copied ? '✓' : <FaCopy />}
+            </span>
+          )}
+        </div>
+      </Col>
+    </Form.Group>
+  );
 };
 
 /** list cap tokens and allow deleting them */
@@ -126,6 +200,74 @@ export const Security = () => {
         <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
       </Col>
     </Form.Group>
+
+    <hr/>
+
+    <h5>HyperDX Observability</h5>
+
+    <Form.Text>
+      Your organization has access to HyperDX for logs and metrics observability.
+      Use these credentials to log in to the HyperDX dashboard.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="hyperdx-url">
+      <Form.Label column sm="2">
+        Dashboard
+      </Form.Label>
+      <Col sm="10">
+        <a href={account?.hyperDXCredentials?.url} target="_blank" rel="noopener noreferrer">
+          Open HyperDX Dashboard
+        </a>
+      </Col>
+    </Form.Group>
+
+    <CredentialField 
+      label="Email" 
+      value={account?.hyperDXCredentials?.email} 
+      type="text"
+    />
+
+    <CredentialField 
+      label="Password" 
+      value={account?.hyperDXCredentials?.password} 
+      type="password"
+    />
+
+    <hr/>
+
+    <h5>ClickHouse Database</h5>
+
+    <Form.Text>
+      Your organization has a dedicated ClickHouse user with access to your data.
+      These credentials can be used to query your data directly via the ClickHouse API.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="clickhouse-url">
+      <Form.Label column sm="2">
+        ClickHouse Play
+      </Form.Label>
+      <Col sm="10">
+        <a href={account?.clickhouseCredentials?.playUrl} target="_blank" rel="noopener noreferrer">
+          Open ClickHouse Play
+        </a>
+        <br/>
+        <Form.Text>
+          Interactive SQL console for querying your data.
+        </Form.Text>
+      </Col>
+    </Form.Group>
+
+    <CredentialField 
+      label="Username" 
+      value={account?.clickhouseCredentials?.user} 
+      type="text"
+    />
+
+    <CredentialField 
+      label="Password" 
+      value={account?.clickhouseCredentials?.password} 
+      type="password"
+    />
 
     <hr/>
 

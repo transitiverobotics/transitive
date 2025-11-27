@@ -21,7 +21,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse, ensureClickHouseOrgUser, setupClickousePermissions } = require('./utils');
+const { waitForClickHouse, ensureClickHouseOrgUser, ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup, ensureHyperDXAdminSetup } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -532,7 +532,8 @@ class _robotAgent extends Capability {
         log.debug('ClickHouse integration enabled');
         ClickHouse.init();
         waitForClickHouse().then(async () => {
-          await setupClickousePermissions();
+          await ensureClickouseDefaultPermissions();
+          await ensureHyperDXAdminSetup();
           this.telemetry = new TelemetryService();
           this.telemetry.init().then(() => {
             this.ingestLogs();
@@ -1425,10 +1426,6 @@ class _robotAgent extends Capability {
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
 
-      if (process.env.CLICKHOUSE_ENABLED) {
-        await ensureClickHouseOrgUser(req.session.user._id);
-      }
-
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
@@ -1436,12 +1433,41 @@ class _robotAgent extends Capability {
         delete account.capTokens[token].password;
       }
 
+      if (process.env.CLICKHOUSE_ENABLED) {
+        const { user, password } = await ensureClickHouseOrgUser(account._id);
+        await ensureHyperDXOrgSetup(account._id, user, password);
+      }
+
+      const hyperDXHost = tryJSONParse(process.env.PRODUCTION) 
+        ? 'hyperdx.transitiverobotics.com'
+        : `hyperdx.${process.env.TR_HOST}`;
+
+      const clickhouseHost = tryJSONParse(process.env.PRODUCTION)
+        ? 'clickhouse.transitiverobotics.com'
+        : `clickhouse.${process.env.TR_HOST}`;
+
+      // Build ClickHouse play URL with embedded credentials
+      const clickhouseUser = account.clickhouseCredentials?.user || '';
+      const clickhousePassword = account.clickhouseCredentials?.password || '';
+      const clickhousePlayUrl = clickhouseUser && clickhousePassword
+        ? `http://${clickhouseHost}/play?user=${encodeURIComponent(clickhouseUser)}`
+        : `http://${clickhouseHost}/play`;
+
       res.json({
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
         cap_usage: account.cap_usage || {},
         openId: account.openId || {},
         googleDomain: account.googleDomain || undefined,
+        clickhouseCredentials: {
+          ...account.clickhouseCredentials || {},
+          playUrl: clickhousePlayUrl
+        },
+        hyperDXCredentials: {
+          email: `org_${req.session.user._id}@hyperdx.local`,
+          password: account.clickhouseCredentials?.password || '',
+          url: `http://${hyperDXHost}/login`
+        }
       });
     });
 

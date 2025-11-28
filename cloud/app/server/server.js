@@ -539,6 +539,44 @@ class _robotAgent extends Capability {
           }).catch((error) => {
             log.error('Failed to initialize TelemetryService:', error);
           });
+          
+          ClickHouse.createTable(
+            'heartbeats',
+            [
+              'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))'
+            ],
+            [
+              'ENGINE = MergeTree',
+              'PARTITION BY toYYYYMMDD(Timestamp)',
+              'PRIMARY KEY (Timestamp, DeviceId)',
+              'ORDER BY (Timestamp, DeviceId)',
+              'SETTINGS index_granularity = 8192'
+            ]
+          ).then(() => {
+            log.debug('ClickHouse heartbeats table is ready');
+             this.data.subscribePathFlat(
+              '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/heartbeat',
+              async (value, topic, matched, tags) => {
+                if (!value) return;
+
+                // Make sure the docker container for this cap is running
+                const {orgId, deviceId} = matched;
+                log.debug(`heartbeat from ${orgId}/${deviceId}`);
+
+                // store heartbeat in ClickHouse
+                const timestamp = new Date(value).toISOString();
+                ClickHouse.insert('heartbeats',
+                  [{ Timestamp: timestamp } ],
+                  orgId, deviceId
+                ).catch((error) => {
+                  log.error('Failed to insert heartbeat into ClickHouse:', error);
+                });
+              }
+            );
+          }).catch((error) => {
+            log.error('Failed to create ClickHouse heartbeats table:', error);
+          });
+
         }).catch((error) => {
           log.error('ClickHouse not available:', error);
         });

@@ -216,6 +216,7 @@ services:
     restart: always
     networks:
       - default
+      - caps
     deploy:
       resources:
         limits:
@@ -236,52 +237,6 @@ services:
       OPAMP_PORT: 4320
       OTEL_SERVICE_NAME: 'hdx-oss-api'
       USAGE_STATS_ENABLED: ${USAGE_STATS_ENABLED:-true}
-      DEFAULT_CONNECTIONS: '[{"name":"Local ClickHouse","host":"http://clickhouse:8123","username":"default","password":""}]'
-      DEFAULT_SOURCES: |
-        [
-          {
-            "from": {
-              "databaseName": "default",
-              "tableName": "logs"
-            },
-            "kind": "log",
-            "timestampValueExpression": "TimestampTime",
-            "name": "Logs",
-            "displayedTimestampValueExpression": "Timestamp",
-            "implicitColumnExpression": "Body",
-            "serviceNameExpression": "ServiceName",
-            "bodyExpression": "Body",
-            "eventAttributesExpression": "LogAttributes",
-            "resourceAttributesExpression": "ResourceAttributes",
-            "defaultTableSelectExpression": "Timestamp,ServiceName,SeverityText,Body",
-            "severityTextExpression": "SeverityText",
-            "traceIdExpression": "TraceId",
-            "spanIdExpression": "SpanId",
-            "connection": "Local ClickHouse",
-            "traceSourceId": "Traces",
-            "sessionSourceId": "Sessions",
-            "metricSourceId": "Metrics"
-          },
-          {
-            "from": {
-              "databaseName": "default",
-              "tableName": ""
-            },
-            "kind": "metric",
-            "timestampValueExpression": "TimeUnix",
-            "name": "Metrics",
-            "resourceAttributesExpression": "ResourceAttributes",
-            "metricTables": {
-              "gauge": "metrics",
-              "_id": "682586a8b1f81924e628e808",
-              "id": "682586a8b1f81924e628e808"
-            },
-            "connection": "Local ClickHouse",
-            "logSourceId": "Logs",
-            "traceSourceId": "Traces",
-            "sessionSourceId": "Sessions"
-          }
-        ]
     networks:
       - default
     restart: always

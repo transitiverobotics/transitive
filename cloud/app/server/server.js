@@ -19,7 +19,9 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
   mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
   getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 
+const { waitForClickHouse, ensureClickHouseOrgUser, ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup, ensureHyperDXAdminSetup, changeClickHousePassword, changeHyperDXPassword } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -528,21 +530,19 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
-        this.telemetry = new TelemetryService();
-        this.telemetry.init().then(async () => {
-          await this.telemetry.sendLogs([{
-            timestamp: Date.now(),
-              module: log.name,
-              level: 'DEBUG',
-              message: 'Portal (re-)started'
-            }], {
-              'service.name': 'portal',
-            }
-          );
-          this.ingestLogs();
-          this.forwardMetricsToClickhouse();
+        ClickHouse.init();
+        waitForClickHouse().then(async () => {
+          await ensureClickouseDefaultPermissions();
+          await ensureHyperDXAdminSetup();
+          this.telemetry = new TelemetryService();
+          this.telemetry.init().then(() => {
+            this.ingestLogs();
+            this.forwardMetricsToClickhouse();
+          }).catch((error) => {
+            log.error('Failed to initialize TelemetryService:', error);
+          });
         }).catch((error) => {
-          log.error('Failed to initialize TelemetryService:', error);
+          log.error('ClickHouse not available:', error);
         });
       } else {
         log.debug('ClickHouse integration disabled');
@@ -607,7 +607,7 @@ class _robotAgent extends Capability {
 
         const packageLogs = _.groupBy(logLines, line => line.package);
 
-        _.forEach(packageLogs, async (logs, pkgName) => {
+        _.forEach(packageLogs, (logs, pkgName) => {
           const [scope, name] = pkgName.split('/');
 
           // update the error count
@@ -621,10 +621,8 @@ class _robotAgent extends Capability {
           }
 
           // forward to ClickHouse
-          await this.telemetry.sendLogs(logs, {
-            'organization.id': organization,
-            'device.id': device,
-            'service.name': pkgName
+          this.telemetry.sendLogs(logs, organization, device, pkgName).catch(error => {
+            log.error('Failed to forward logs to HyperDX:', error);
           });
         });
       }
@@ -638,13 +636,10 @@ class _robotAgent extends Capability {
 
     this.data.subscribePath(
       '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
-      async (metricsData, topic, { orgId, deviceId }) => {
+      (metricsData, topic, { orgId, deviceId }) => {
         if (!metricsData) return;
-        // Forward metrics to HyperDX
-        await this.telemetry.sendMetrics(metricsData, {
-          'organization.id': orgId,
-          'device.id': deviceId,
-        }).catch(error => {
+        this.telemetry.sendMetrics(metricsData, orgId, deviceId
+        ).catch(error => {
           log.error('Failed to forward metrics to HyperDX:', error);
         });
       }
@@ -1430,6 +1425,12 @@ class _robotAgent extends Capability {
 
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
+
+      if (process.env.CLICKHOUSE_ENABLED) {
+        const { user, password } = await ensureClickHouseOrgUser(req.session.user._id);
+        await ensureHyperDXOrgSetup(req.session.user._id, user, password);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
@@ -1437,12 +1438,31 @@ class _robotAgent extends Capability {
         delete account.capTokens[token].password;
       }
 
+      const hyperDXHost = `hyperdx.${process.env.TR_HOST}`;
+      const clickhouseHost = `clickhouse.${process.env.TR_HOST}`;
+
+      // Build ClickHouse play URL with embedded credentials
+      const clickhouseUser = account.clickhouseCredentials?.user || '';
+      const clickhousePassword = account.clickhouseCredentials?.password || '';
+      const clickhousePlayUrl = clickhouseUser && clickhousePassword
+        ? `http://${clickhouseHost}/play?user=${encodeURIComponent(clickhouseUser)}`
+        : `http://${clickhouseHost}/play`;
+
+
       res.json({
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
         cap_usage: account.cap_usage || {},
         openId: account.openId || {},
         googleDomain: account.googleDomain || undefined,
+        clickhouseCredentials: {
+          ...account.clickhouseCredentials || {},
+          playUrl: clickhousePlayUrl
+        },
+        hyperDXCredentials: {
+          ...account.hyperdxCredentials || {},
+          url: `http://${hyperDXHost}/login`
+        }
       });
     });
 
@@ -1475,6 +1495,62 @@ class _robotAgent extends Capability {
       });
 
       res.json({status: 'ok', result});
+    });
+
+    this.router.post('/changeClickHousePassword', requireLogin, async (req, res) => {
+      log.debug('changeClickHousePassword for', req.session.user._id);
+      if (!req.session.user._id) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!req.body.newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'ClickHouse is not enabled'});
+        return;
+      }
+
+      try {
+        await changeClickHousePassword(
+          req.session.user._id, 
+          req.body.newPassword
+        );
+        
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error('Failed to change ClickHouse password:', error);
+        res.status(500).json({error: error.message});
+      }
+    });
+
+    this.router.post('/changeHyperDXPassword', requireLogin, async (req, res) => {
+      log.debug('changeHyperDXPassword for', req.session.user._id);
+      if (!req.session.user._id) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!req.body.newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'HyperDX is not enabled'});
+        return;
+      }
+
+      try {
+        await changeHyperDXPassword(req.session.user._id, req.body.newPassword);
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error('Failed to change HyperDX password:', error);
+        res.status(500).json({error: error.message});
+      }
     });
 
 
@@ -1600,42 +1676,42 @@ class _robotAgent extends Capability {
   }
 };
 
-
-const robotAgent = new _robotAgent();
-// let robot agent capability handle it's own sub-path; enable the same for all
-// other, regular, capabilities as well?
-app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
-
-// routes used during the installation process of a new robot
-app.use('/install', installRouter);
-
-app.get('/admin/setLogLevel', (req, res) => {
-  if (!req.query.level) {
-    res.status(400).end('missing level');
-  } else {
-    log.setLevel(req.query.level);
-    const msg = `Set log level to ${req.query.level}`;
-    console.log(msg);
-    res.end(msg);
-  }
-});
-
-// to allow client-side routing:
-app.use('/*', (req, res) =>
-  res.sendFile(path.join(cwd, 'public', 'index.html')));
-
-const server = http.createServer(app);
-
-/** catch-all to be safe */
-process.on('uncaughtException', (err) => {
-  console.error(`**** Caught exception: ${err}:`, err.stack);
-});
-
 /** ---------------------------------------------------------------------------
   MAIN
 */
 log.info('Starting cloud app');
 Mongo.init(() => {
+  const robotAgent = new _robotAgent();
+  // let robot agent capability handle it's own sub-path; enable the same for all
+  // other, regular, capabilities as well?
+  app.use('/@transitive-robotics/_robot-agent', robotAgent.router);
+
+  // routes used during the installation process of a new robot
+  app.use('/install', installRouter);
+
+  app.get('/admin/setLogLevel', (req, res) => {
+    if (!req.query.level) {
+      res.status(400).end('missing level');
+    } else {
+      log.setLevel(req.query.level);
+      const msg = `Set log level to ${req.query.level}`;
+      console.log(msg);
+      res.end(msg);
+    }
+  });
+
+  // to allow client-side routing:
+  app.use('/*', (req, res) =>
+    res.sendFile(path.join(cwd, 'public', 'index.html')));
+
+  const server = http.createServer(app);
+
+  /** catch-all to be safe */
+  process.on('uncaughtException', (err) => {
+    console.error(`**** Caught exception: ${err}:`, err.stack);
+  });
+
+
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.
   process.env.TR_USER && process.env.TR_PASS &&

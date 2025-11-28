@@ -77,7 +77,7 @@ const ensureCapabilityDB = async (capName) => {
   });
 
   const users = await userExists.json();
-  const capabilitiesCollection = Mongo.db.collection('capabilities')
+  const capabilitiesCollection = Mongo.db.collection('capabilities');
   if (users.length > 0) {
     // retrieve password from mongo
     const capabilityDoc = await capabilitiesCollection.findOne({ name: capName });
@@ -324,7 +324,7 @@ const createHyperDXMetricSource = (metricSourceId, teamId, connectionId, logSour
  * @param {string} config.clickhousePassword - ClickHouse password
  * @param {string} config.logContext - Context string for logging
  */
-const createHyperDXSetup = async (config) => {
+const ensureHyperDXSetup = async (config) => {
   const hyperDXDb = Mongo.client.db('hyperdx');
   const teamsCollection = hyperDXDb.collection('teams');
   const usersCollection = hyperDXDb.collection('users');
@@ -335,7 +335,7 @@ const createHyperDXSetup = async (config) => {
   const existingTeam = await teamsCollection.findOne({ name: config.teamName });
   if (existingTeam) {
     log.debug(`HyperDX team ${config.teamName} already exists`);
-    return;
+    return false;
   }
 
   const teamId = new ObjectId();
@@ -372,6 +372,8 @@ const createHyperDXSetup = async (config) => {
     createHyperDXMetricSource(metricSourceId, teamId, connectionId, logSourceId)
   );
   log.debug(`Created HyperDX metric source ${config.logContext}: ${metricSourceId}`);
+
+  return true; // indicates new setup was created
 };
 
 /** Create HyperDX team, user, connection and data sources for an organization
@@ -383,14 +385,7 @@ const ensureHyperDXOrgSetup = async (orgId, orgClickhouseUser, orgClickhousePass
   const userEmail = `org_${orgId}@hyperdx.local`;
   const userPassword = getRandomId(12);
 
-  // save HDX credentials in account document
-  const accountsCollection = Mongo.db.collection('accounts');
-  await accountsCollection.updateOne(
-    { _id: orgId },
-    { $set: { hyperdxCredentials: { email: userEmail, password: userPassword } } }
-  );
-
-  await createHyperDXSetup({
+  if (await ensureHyperDXSetup({
     teamName: `org_${orgId}_team`,
     userEmail: userEmail,
     userPassword: userPassword,
@@ -398,13 +393,22 @@ const ensureHyperDXOrgSetup = async (orgId, orgClickhouseUser, orgClickhousePass
     clickhouseUser: orgClickhouseUser,
     clickhousePassword: orgClickhousePassword,
     logContext: `for organization ${orgId}`
-  });
+  })) {
+    // save HDX credentials in account document in transitive.accounts
+    await Mongo.db.collection('accounts').updateOne(
+      { _id: orgId },
+      { $set: { hyperdxCredentials: { email: userEmail, password: userPassword } } }
+    );
+    log.debug(`Completed HyperDX setup for organization ${orgId}`);
+  } else {
+    log.debug(`HyperDX setup for organization ${orgId} already exists, no changes made`);
+  }
 };
 
 /** Create HyperDX admin team, user, connection and data sources with full access
  */
 const ensureHyperDXAdminSetup = async () => {
-  await createHyperDXSetup({
+  await ensureHyperDXSetup({
     teamName: 'admin_team',
     userEmail: 'admin@hyperdx.local',
     userPassword: process.env.CLICKHOUSE_PASSWORD || '',
@@ -415,6 +419,84 @@ const ensureHyperDXAdminSetup = async () => {
   });
 };
 
+/** Change ClickHouse password for an organization
+ * @param {string} orgId - organization ID
+ * @param {string} newPassword - new password
+ * @returns {Object} - {user, password}
+ */
+const changeClickHousePassword = async (orgId, newPassword) => {
+  const orgUser = `org_${orgId}_user`;
+  const hyperDXDb = Mongo.client.db('hyperdx');
+  const connectionsCollection = hyperDXDb.collection('connections');
+  const teamsCollection = hyperDXDb.collection('teams');
+
+  log.debug(`Changing ClickHouse password for organization ${orgId}`);
+
+  // Update password in ClickHouse
+  await ClickHouse.client.exec({
+    query: `ALTER USER ${orgUser} IDENTIFIED WITH plaintext_password BY '${newPassword}'`
+  });
+
+  // Update password in MongoDB transitive.accounts
+  await Mongo.db.collection('accounts').updateOne(
+    { _id: orgId },
+    { $set: { 'clickhouseCredentials.password': newPassword } }
+  );
+
+  // Update HyperDX connection password
+  const team = await teamsCollection.findOne({ name: `org_${orgId}_team` });
+  if (team) {
+    await connectionsCollection.updateOne(
+      { team: team._id },
+      { $set: { password: newPassword, updatedAt: new Date() } }
+    );
+    log.debug(`Updated HyperDX connection password for organization ${orgId}`);
+  }
+
+  log.debug(`Changed ClickHouse password for organization ${orgId}`);
+
+  return {
+    user: orgUser,
+    password: newPassword
+  };
+};
+
+/** Change HyperDX password for an organization
+ * @param {string} orgId - organization ID
+ * @param {string} newPassword - new password
+ */
+const changeHyperDXPassword = async (orgId, newPassword) => {
+  const hyperDXDb = Mongo.client.db('hyperdx');
+  const usersCollection = hyperDXDb.collection('users');
+
+  log.debug(`Changing HyperDX password for organization ${orgId}`);
+
+  // Find the user
+  const userEmail = `org_${orgId}@hyperdx.local`;
+  const user = await usersCollection.findOne({ email: userEmail });
+  if (!user) {
+    throw new Error(`HyperDX user for organization ${orgId} not found`);
+  }
+
+  // Hash the new password
+  const salt = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.pbkdf2Sync(newPassword, salt, 25000, 512, 'sha256').toString('hex');
+
+  // Update user in HyperDX
+  await usersCollection.updateOne(
+    { _id: user._id },
+    { $set: { salt, hash, updatedAt: new Date() } }
+  );
+
+  // Update stored credentials in transitive.accounts collection
+  await Mongo.db.collection('accounts').updateOne(
+    { _id: orgId },
+    { $set: { 'hyperdxCredentials.password': newPassword } }
+  );
+
+  log.debug(`Changed HyperDX password for organization ${orgId}`);
+};
+
 module.exports = { 
   getNextInRange, 
   getVersionRange, 
@@ -423,5 +505,7 @@ module.exports = {
   ensureClickouseDefaultPermissions, 
   ensureClickHouseOrgUser,
   ensureHyperDXOrgSetup,
-  ensureHyperDXAdminSetup
+  ensureHyperDXAdminSetup,
+  changeClickHousePassword,
+  changeHyperDXPassword
 };

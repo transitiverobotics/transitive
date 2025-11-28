@@ -21,7 +21,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse, ensureClickHouseOrgUser, ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup, ensureHyperDXAdminSetup } = require('./utils');
+const { waitForClickHouse, ensureClickHouseOrgUser, ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup, ensureHyperDXAdminSetup, changeClickHousePassword, changeHyperDXPassword } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -1495,6 +1495,62 @@ class _robotAgent extends Capability {
       });
 
       res.json({status: 'ok', result});
+    });
+
+    this.router.post('/changeClickHousePassword', requireLogin, async (req, res) => {
+      log.debug('changeClickHousePassword for', req.session.user._id);
+      if (!req.session.user._id) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!req.body.newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'ClickHouse is not enabled'});
+        return;
+      }
+
+      try {
+        await changeClickHousePassword(
+          req.session.user._id, 
+          req.body.newPassword
+        );
+        
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error('Failed to change ClickHouse password:', error);
+        res.status(500).json({error: error.message});
+      }
+    });
+
+    this.router.post('/changeHyperDXPassword', requireLogin, async (req, res) => {
+      log.debug('changeHyperDXPassword for', req.session.user._id);
+      if (!req.session.user._id) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!req.body.newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'HyperDX is not enabled'});
+        return;
+      }
+
+      try {
+        await changeHyperDXPassword(req.session.user._id, req.body.newPassword);
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error('Failed to change HyperDX password:', error);
+        res.status(500).json({error: error.message});
+      }
     });
 
 

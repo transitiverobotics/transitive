@@ -216,6 +216,7 @@ services:
     restart: always
     networks:
       - default
+      - caps
     deploy:
       resources:
         limits:
@@ -236,7 +237,15 @@ services:
       OPAMP_PORT: 4320
       OTEL_SERVICE_NAME: 'hdx-oss-api'
       USAGE_STATS_ENABLED: ${USAGE_STATS_ENABLED:-true}
-      DEFAULT_CONNECTIONS: '[{"name":"Local ClickHouse","host":"http://clickhouse:8123","username":"default","password":""}]'
+      DEFAULT_CONNECTIONS: |
+        [
+          {
+            "name": "Local ClickHouse",
+            "host": "${CLICKHOUSE_URL:-http://clickhouse:8123}",
+            "username": "${CLICKHOUSE_USER:-default}",
+            "password": "${CLICKHOUSE_PASSWORD:-}"
+          }
+        ]
       DEFAULT_SOURCES: |
         [
           {

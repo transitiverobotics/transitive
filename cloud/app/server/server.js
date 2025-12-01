@@ -636,10 +636,10 @@ class _robotAgent extends Capability {
       '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/status/metrics',
       (metricsData, topic, { orgId, deviceId }) => {
         if (!metricsData) return;
-        this.telemetry.sendMetrics(metricsData, orgId, deviceId
-        ).catch(error => {
-          log.error('Failed to forward metrics to HyperDX:', error);
-        });
+        this.telemetry.sendMetrics(metricsData, orgId, deviceId)
+          .catch(error => {
+            log.error('Failed to forward metrics to HyperDX:', error);
+          });
       }
     );
   }

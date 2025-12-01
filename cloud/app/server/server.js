@@ -1597,8 +1597,9 @@ class _robotAgent extends Capability {
   MAIN
 */
 log.info('Starting cloud app');
+let robotAgent
 Mongo.init(() => {
-  const robotAgent = new _robotAgent();
+  robotAgent = new _robotAgent();
   // let robot agent capability handle it's own sub-path; enable the same for all
   // other, regular, capabilities as well?
   app.use('/@transitive-robotics/_robot-agent', robotAgent.router);

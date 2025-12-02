@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext, useCallback } from 'react';
-import { Form, Row, Col, ListGroup } from 'react-bootstrap';
-import { FaTrashAlt } from 'react-icons/fa';
+import { Form, Row, Col, ListGroup, Button, Alert, Modal } from 'react-bootstrap';
+import { FaTrashAlt, FaCopy, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 import _ from 'lodash';
 
@@ -17,6 +17,197 @@ const styles = {
     margin: 'auto',
     marginTop: '2em'
   },
+};
+
+/** Component for changing passwords in a dialog */
+const PasswordChangeDialog = ({ show, onHide, label, endpoint, onSuccess }) => {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (show) {
+      setNewPassword('');
+      setConfirmPassword('');
+      setError('');
+      setSuccess('');
+      setLoading(false);
+    }
+  }, [show]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!newPassword) {
+      setError('Password is required');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await fetchJson(endpoint, 
+        (err, res) => {
+          setLoading(false);
+          if (err) {
+            log.error(err);
+            setError(err.error || 'Failed to change password');
+          } else {
+            setSuccess('Password changed successfully');
+            setNewPassword('');
+            setConfirmPassword('');
+            onSuccess && onSuccess();
+            // Close dialog after a short delay to show success message
+            setTimeout(() => onHide(), 1500);
+          }
+        },
+        { body: { newPassword } }
+      );
+    } catch (err) {
+      setLoading(false);
+      setError('Failed to change password');
+      log.error(err);
+    }
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Change {label} Password</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>New Password</Form.Label>
+            <Form.Control
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+              disabled={loading}
+              autoFocus
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Confirm Password</Form.Label>
+            <Form.Control
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              disabled={loading}
+            />
+          </Form.Group>
+
+          {error && <Alert variant="danger">{error}</Alert>}
+          {success && <Alert variant="success">{success}</Alert>}
+
+          <div className="d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={onHide} disabled={loading}>
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="primary" 
+              disabled={loading || !newPassword || !confirmPassword}
+            >
+              {loading ? 'Changing...' : 'Change Password'}
+            </Button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+
+/** Component for displaying a credential field with copy and show/hide password */
+const CredentialField = ({ label, value, type = 'text' }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value || '');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for older browsers or insecure contexts
+        const textarea = document.createElement('textarea');
+        textarea.value = value || '';
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      // Still show copied feedback even if it might have failed
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const displayValue = (type === 'password' && !showPassword) 
+    ? '•'.repeat(value?.length || 0) 
+    : value || 'Not configured';
+
+  return (
+    <Form.Group as={Row} controlId={`credential-${label}`}>
+      <Form.Label column sm="2">
+        {label}
+      </Form.Label>
+      <Col sm="10">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Form.Control 
+            plaintext 
+            readOnly 
+            value={displayValue}
+            style={{ flex: 1, marginBottom: 0 }}
+          />
+          {type === 'password' && value && (
+            <span 
+              style={{ cursor: 'pointer', fontSize: '1.2rem', color: '#6c757d' }}
+              onClick={() => setShowPassword(!showPassword)}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </span>
+          )}
+          {value && (
+            <span 
+              style={{ cursor: 'pointer', fontSize: '1.2rem', color: '#6c757d' }}
+              onClick={handleCopy}
+              title={copied ? 'Copied!' : 'Copy to clipboard'}
+            >
+              {copied ? '✓' : <FaCopy />}
+            </span>
+          )}
+        </div>
+      </Col>
+    </Form.Group>
+  );
 };
 
 /** list cap tokens and allow deleting them */
@@ -64,6 +255,8 @@ export const Security = () => {
   const [forceUpdate, setForceUpdate] = useState(0);
   const [account, setAccount] = useState();
   const [saved, setSaved] = useState(true);
+  const [showHyperDXDialog, setShowHyperDXDialog] = useState(false);
+  const [showClickHouseDialog, setShowClickHouseDialog] = useState(false);
 
   useEffect(() => {
       session && fetchJson('/@transitive-robotics/_robot-agent/security',
@@ -128,6 +321,7 @@ export const Security = () => {
     </Form.Group>
 
     <hr/>
+
 
     <h5>Sign in with Google</h5>
 
@@ -217,6 +411,115 @@ export const Security = () => {
           </Form.Text>
         </Col>
       </Form.Group>}
+
+    <hr/>
+
+
+    <h5>HyperDX Observability</h5>
+
+    <Form.Text>
+      Your organization has access to HyperDX for logs and metrics observability.
+      Use these credentials to log in to the HyperDX dashboard.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="hyperdx-url">
+      <Form.Label column sm="2">
+        Dashboard
+      </Form.Label>
+      <Col sm="10">
+        <a href={account?.hyperDXCredentials?.url} target="_blank" rel="noopener noreferrer">
+          Open HyperDX Dashboard
+        </a>
+      </Col>
+    </Form.Group>
+
+    <CredentialField 
+      label="Email" 
+      value={account?.hyperDXCredentials?.email} 
+      type="text"
+    />
+
+    <CredentialField 
+      label="Password" 
+      value={account?.hyperDXCredentials?.password} 
+      type="password"
+    />
+
+    <Form.Group as={Row} className="mt-3">
+      <Col sm={{ span: 10, offset: 2 }}>
+        <Button 
+          variant="primary" 
+          size="sm"
+          onClick={() => setShowHyperDXDialog(true)}
+        >
+          Change HyperDX Password
+        </Button>
+      </Col>
+    </Form.Group>
+
+    <PasswordChangeDialog
+      show={showHyperDXDialog}
+      onHide={() => setShowHyperDXDialog(false)}
+      label="HyperDX"
+      endpoint="/@transitive-robotics/_robot-agent/changeHyperDXPassword"
+      onSuccess={() => setForceUpdate(f => f + 1)}
+    />
+
+    <hr/>
+
+    <h5>ClickHouse Database</h5>
+
+    <Form.Text>
+      Your organization has a dedicated ClickHouse user with access to your data.
+      These credentials can be used to query your data directly via the ClickHouse API.
+    </Form.Text>
+
+    <Form.Group as={Row} controlId="clickhouse-url">
+      <Form.Label column sm="2">
+        ClickHouse Play
+      </Form.Label>
+      <Col sm="10">
+        <a href={account?.clickhouseCredentials?.playUrl} target="_blank" rel="noopener noreferrer">
+          Open ClickHouse Play
+        </a>
+        <br/>
+        <Form.Text>
+          Interactive SQL console for querying your data.
+        </Form.Text>
+      </Col>
+    </Form.Group>
+
+    <CredentialField 
+      label="Username" 
+      value={account?.clickhouseCredentials?.user} 
+      type="text"
+    />
+
+    <CredentialField 
+      label="Password" 
+      value={account?.clickhouseCredentials?.password} 
+      type="password"
+    />
+
+    <Form.Group as={Row} className="mt-3">
+      <Col sm={{ span: 10, offset: 2 }}>
+        <Button 
+          variant="primary" 
+          size="sm"
+          onClick={() => setShowClickHouseDialog(true)}
+        >
+          Change ClickHouse Password
+        </Button>
+      </Col>
+    </Form.Group>
+
+    <PasswordChangeDialog
+      show={showClickHouseDialog}
+      onHide={() => setShowClickHouseDialog(false)}
+      label="ClickHouse"
+      endpoint="/@transitive-robotics/_robot-agent/changeClickHousePassword"
+      onSuccess={() => setForceUpdate(f => f + 1)}
+    />
 
     <hr/>
 

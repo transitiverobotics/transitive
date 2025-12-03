@@ -21,7 +21,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse } = require('./utils');
+const { waitForClickHouse, ensureClickHouseOrgUser, setupClickousePermissions } = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -531,7 +531,8 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
         ClickHouse.init();
-        waitForClickHouse().then(() => {
+        waitForClickHouse().then(async () => {
+          await setupClickousePermissions();
           this.telemetry = new TelemetryService();
           this.telemetry.init().then(() => {
             this.ingestLogs();
@@ -1423,6 +1424,11 @@ class _robotAgent extends Capability {
 
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
+
+      if (process.env.CLICKHOUSE_ENABLED) {
+        await ensureClickHouseOrgUser(req.session.user._id);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 

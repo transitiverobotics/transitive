@@ -561,7 +561,8 @@ class _robotAgent extends Capability {
               'PARTITION BY toYYYYMMDD(Timestamp)',
               'PRIMARY KEY (Timestamp, DeviceId)',
               'ORDER BY (Timestamp, DeviceId)',
-              'SETTINGS index_granularity = 8192'
+              'TTL toDateTime(Timestamp) + toIntervalDay(14)',
+              'SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1'
             ]
           ).then(() => {
             log.debug('ClickHouse heartbeats table is ready');

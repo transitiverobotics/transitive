@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "prestart": "if [ -e caps ]; then chmod a+w caps; fi",
     "start": "while (true); do node index.js; sleep 2; done"
   },
   "keywords": [],

@@ -17,7 +17,8 @@ const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
   mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
-  getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
+  getPackageVersionNamespace, toFlatObject, registerCatchAll }
+  = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
@@ -47,6 +48,8 @@ const RESET_VALIDITY = 1 * 60 * 60 * 1000;
 const log = getLogger('server');
 // log.setLevel('info');
 log.setLevel('debug');
+
+registerCatchAll();
 
 const cwd = process.cwd();
 
@@ -384,11 +387,11 @@ app.get('/running/:scope/:capName/*', (req, res) => {
   log.debug(`${userId}/${deviceId} running ${scope}/${capName}: ${version}`);
 
   // determine which registry to redirect to
-  const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL ?
-    'transitiverobotics.com'
-    : process.env.TR_HOST);
+  const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL
+    ? 'https://registry.transitiverobotics.com'
+    : `//registry.${process.env.TR_HOST}`);
+  const registryUrl = `${host}/-/custom/files/${capability}`;
 
-  const registryUrl = `//registry.${host}/-/custom/files/${capability}`;
   if (version) {
     // redirect to registry URL to fetch package files directly
     res.redirect(`${registryUrl}/${version}/${filePath}`);
@@ -1445,16 +1448,12 @@ class _robotAgent extends Capability {
         delete account.capTokens[token].password;
       }
 
-      const hyperDXHost = `hyperdx.${process.env.TR_HOST}`;
-      const clickhouseHost = `clickhouse.${process.env.TR_HOST}`;
-
       // Build ClickHouse play URL with embedded credentials
-      const clickhouseUser = account.clickhouseCredentials?.user || '';
-      const clickhousePassword = account.clickhouseCredentials?.password || '';
-      const clickhousePlayUrl = clickhouseUser && clickhousePassword
-        ? `${httpProtocol}${clickhouseHost}/play?user=${encodeURIComponent(clickhouseUser)}`
-        : `${httpProtocol}${clickhouseHost}/play`;
-
+      let clickhousePlayUrl = `${httpProtocol}clickhouse.${process.env.TR_HOST}/play`;
+      if (account.clickhouseCredentials) {
+        const params = new URLSearchParams(account.clickhouseCredentials);
+        clickhousePlayUrl += `?${params.toString()}`;
+      }
 
       res.json({
         jwtSecret: account.jwtSecret,
@@ -1468,7 +1467,7 @@ class _robotAgent extends Capability {
         },
         hyperDXCredentials: {
           ...account.hyperdxCredentials || {},
-          url: `${httpProtocol}${hyperDXHost}/login`
+          url: `${httpProtocol}hyperdx.${process.env.TR_HOST}/login`
         }
       });
     });
@@ -1693,12 +1692,6 @@ Mongo.init(() => {
     res.sendFile(path.join(cwd, 'public', 'index.html')));
 
   const server = http.createServer(app);
-
-  /** catch-all to be safe */
-  process.on('uncaughtException', (err) => {
-    console.error(`**** Caught exception: ${err}:`, err.stack);
-  });
-
 
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.

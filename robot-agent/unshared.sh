@@ -81,7 +81,7 @@ ln -s /home $TRHOME/$REALUSER/.transitive
 # for when running as root:
 ln -sf /home /root/.transitive
 
-# fonts
+# fonts: TODO: revisit
 rm -f /$HOME/.fonts
 ln -sf /home/usr/share/fonts /$HOME/.fonts
 

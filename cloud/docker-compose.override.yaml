@@ -51,7 +51,7 @@ services:
       - ./registry/index.js:/app/index.js
       # In dev we allow serving local dev files for capability bundles. This
       # assumes a specific directory layout.
-      - /tmp/caps:/app/caps:ro
+      - /tmp/caps:/app/caps
 
   # Once the registry is up, republish the robot-agent to it, in case it changed
   publish_prod:

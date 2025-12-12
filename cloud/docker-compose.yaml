@@ -40,8 +40,8 @@ x-mosquitto: &shared_mosquitto
   depends_on:
     ensure_certs:
       condition: service_completed_successfully
-  env_file:
-    - .env
+  # env_file:
+  #   - .env
   volumes:
     - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
     - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence

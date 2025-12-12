@@ -657,10 +657,10 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data,
   system("ipset flush");
 
   // example code for getting opts and env vars
-  printf("init message plugin, %d %s\n", opt_count, getenv("TR_BILLING_SERVICE"));
-  for (int i = 0; i < opt_count; i++) {
-    printf("option: %s = %s\n", opts[i].key, opts[i].value);
-  }
+  // printf("init message plugin, %d %s\n", opt_count, getenv("TR_BILLING_SERVICE"));
+  // for (int i = 0; i < opt_count; i++) {
+  //   printf("option: %s = %s\n", opts[i].key, opts[i].value);
+  // }
 
   refetchUsers();
 

@@ -117,13 +117,14 @@ const compareHeartbeat = (a, b) =>
   heartbeatLevel(a.status?.heartbeat) - heartbeatLevel(b.status?.heartbeat);
 
 const attribution = [
-    '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a>',
-    '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
+    // '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a>',
+    // '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     'contributors'
   ].join(' ');
-const tilesUrl =
-  'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}';
+// const tilesUrl =
+//   'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}';
+const tilesUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 /** map from heartbeat levels to icon leaflet marker classname */
 const heartbeatIconClassNames = ['icon-green', 'icon-red', 'icon-grey'];

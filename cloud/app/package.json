@@ -38,6 +38,7 @@
     "react-data-table-component": "^7.5.4",
     "react-dom": "^18.3.1",
     "react-icons": "^4.11.0",
+    "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.2.1",
     "react-sparklines": "^1.7.0",
     "react-web-component-style-loader": "^0.1.4-alpha",

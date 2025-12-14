@@ -21,8 +21,6 @@ import { Fold } from '../src/utils/Fold';
 import { Delayed } from '../src/utils/Delayed';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 
-import './styles.css';
-
 const log = getLogger('robot-agent-fleet');
 log.setLevel('debug');
 

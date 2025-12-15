@@ -60,10 +60,10 @@ const styles = {
     gap: '2em',
   },
   map: {
-    flex: '3 1 25em',
+    flex: '1.5 1 25em',
     minHeight: '20em',
     height: 'calc(80vh - 15em)',
-    maxHeight: '50em'
+    maxHeight: '40em'
   },
   list: {
     flex: '1 1 20em',
@@ -126,7 +126,7 @@ const attribution = [
 const tilesUrl =
 //   'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}';
   // 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
 /** map from heartbeat levels to icon leaflet marker classname */
 const heartbeatIconClassNames = ['icon-green', 'icon-red', 'icon-grey'];
@@ -261,9 +261,10 @@ const Fleet = (props) => {
         .icon-red { filter: hue-rotate(140deg); }
         .icon-grey { filter: saturate(0); }
         .leaflet-layer {
-          filter: brightness(1.5);
+          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
         `}
+        {/* brightness(1.5); */}
     </style>
     <div >
       <h4>Devices</h4>
@@ -318,9 +319,10 @@ const Fleet = (props) => {
         {!empty && devicesWithLocations.length > 0 && <div style={styles.map}>
           <MapContainer style={{width: '100%', height: '100%'}}
             bounds={[[bounds.min.x, bounds.min.y], [bounds.max.x, bounds.max.y]]}
+            key={JSON.stringify(bounds)}
           >
             <TileLayer url={tilesUrl} attribution={attribution}
-             	minZoom={0}	maxZoom={10} ext='png' />
+             	minZoom={2}	maxZoom={8} ext='png' />
 
             { _.map(locationGroups, (list, i) => {
               const {status, info, deviceId} = list[0];

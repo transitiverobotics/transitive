@@ -119,12 +119,14 @@ const compareHeartbeat = (a, b) =>
 const attribution = [
     // '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a>',
     // '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    'contributors'
+    // '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    // 'contributors'
+     '&copy; <a href="https://carto.com/attributions">CARTO</a>'
   ].join(' ');
-// const tilesUrl =
+const tilesUrl =
 //   'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}';
-const tilesUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  // 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
 /** map from heartbeat levels to icon leaflet marker classname */
 const heartbeatIconClassNames = ['icon-green', 'icon-red', 'icon-grey'];
@@ -258,6 +260,9 @@ const Fleet = (props) => {
         .icon-green { filter: hue-rotate(240deg); }
         .icon-red { filter: hue-rotate(140deg); }
         .icon-grey { filter: saturate(0); }
+        .leaflet-layer {
+          filter: brightness(1.5);
+        }
         `}
     </style>
     <div >

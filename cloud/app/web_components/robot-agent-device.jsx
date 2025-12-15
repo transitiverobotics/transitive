@@ -3,14 +3,16 @@ import { Badge, Col, Row, Button, ListGroup, DropdownButton, Dropdown, Form,
     Accordion, Alert, Toast, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
-const _ = {
-  map: require('lodash/map'),
-  some: require('lodash/some'),
-  forEach: require('lodash/forEach'),
-  keyBy: require('lodash/keyBy'),
-  filter: require('lodash/filter'),
-  get: require('lodash/get'),
-};
+import _ from 'lodash';
+
+// const _ = {
+//   map: require('lodash/map'),
+//   some: require('lodash/some'),
+//   forEach: require('lodash/forEach'),
+//   keyBy: require('lodash/keyBy'),
+//   filter: require('lodash/filter'),
+//   get: require('lodash/get'),
+// };
 
 import { MdAdd } from 'react-icons/md';
 import { FaEllipsisH, FaExclamationTriangle } from "react-icons/fa";
@@ -169,9 +171,11 @@ const mapSorted = (obj, fn) =>
   Object.keys(obj).sort().map(key => fn(obj[key], key));
 
 /** Price as displayed in package list */
-const Price = ({price}) => <span style={{float: 'right', marginLeft: '2em'}}>
-    {price?.perMonth ? `\$${price.perMonth}/month` : 'free'}
-  </span>;
+const Price = ({price}) => <span>
+  {price?.perMonth
+    ? <span>${price.perMonth}/month</span>
+    : 'free'}
+</span>;
 
 /** a package as shown in the install dropdown */
 const Package = ({pkg, install, issues}) => {
@@ -179,20 +183,21 @@ const Package = ({pkg, install, issues}) => {
   const host = location.host.replace('portal.', '');
 
   return <Row>
-    <Col sm='4' style={styles.rowItem}>
-      {title} <span
-        style={{ opacity: 0.5, fontSize: 'small' }}>{pkg._id} v{pkg.version}</span>
-    </Col>
-    <Col sm='2' style={styles.rowItem}>
+    <Col sm='2'>
       <a href={`//${host}/caps/${pkg.name.slice(1)}`}>
-        Details
-      </a>
+        {title}</a><br/>
+      <span style={{ opacity: 0.5, fontSize: 'small' }}>
+        v{pkg.version} ({(new Date(pkg.date)).toLocaleDateString()})
+      </span>
     </Col>
-    <Col sm='2' style={styles.rowItem}>
+    <Col sm='6'>
+      {pkg.description}
+    </Col>
+    <Col sm='2' style={{textAlign: 'center'}}>
       <Price price={price} />
     </Col>
-    <Col sm='4' style={styles.rowItem}>
-      <Button variant="outline-primary"
+    <Col sm='2' style={styles.rowItem}>
+      <Button variant='primary'
         onClick={() => install(pkg)}
         disabled={issues.length > 0}>
         Add
@@ -507,7 +512,7 @@ const Device = (props) => {
 
   const errorCount = latestVersionData?.status?.logs
     ?.errorCount?.['@transitive-robotics']?.['robot-agent'] || 0;
-  log.debug({latestVersionData, packages, toast});
+  log.debug({latestVersionData, packages, toast, canBeInstalledPkgs});
 
   return <div>
     <div style={styles.row} className='position-relative'>
@@ -605,7 +610,7 @@ const Device = (props) => {
         reinstall the capabilities.
       </Alert>}
 
-      <Accordion defaultActiveKey={['0']} alwaysOpen>
+      <Accordion defaultActiveKey={['0', '1']} alwaysOpen>
         { Object.keys(packages).length > 0 ?
           mapSorted(packages, ({preInstalled, running, desired, status, disabled}, name) =>
             <Capability key={name} {...{
@@ -623,20 +628,20 @@ const Device = (props) => {
             <Accordion.Item eventKey="1">
               <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
             </Accordion.Item>
-            {mapSorted(canBeInstalledPkgs, pkg => {
-                const issues = failsRequirements(info, pkg);
+            {_.sortBy(canBeInstalledPkgs, pkg => new Date(pkg.date)).reverse().map(pkg => {
+                  const issues = failsRequirements(info, pkg);
 
-                const price = pkg.versions?.[0].transitiverobotics?.price;
-                if (price && !canPay) {
-                  issues.push('Please add a payment method in Billing.');
-                }
+                  const price = pkg.versions?.[0].transitiverobotics?.price;
+                  if (price && !canPay) {
+                    issues.push('Please add a payment method in Billing.');
+                  }
 
-                return <Accordion.Item eventKey="1" key={pkg._id}>
-                  <Accordion.Body>
-                    <Package {...{pkg, install, issues}} />
-                  </Accordion.Body>
-                </Accordion.Item>
-              })
+                  return <Accordion.Item eventKey="1" key={pkg._id}>
+                    <Accordion.Body>
+                      <Package {...{pkg, install, issues}} />
+                    </Accordion.Body>
+                  </Accordion.Item>
+                })
             }
           </F>
           : !inactive && <Accordion.Item eventKey="0">

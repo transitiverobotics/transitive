@@ -5,7 +5,7 @@ import { Navbar, Button, Nav, NavDropdown, Dropdown, NavItem, Badge, Offcanvas }
   from 'react-bootstrap';
 // import { useAccount } from './hooks';
 import _ from "lodash";
-import { FaBars, FaExclamationTriangle } from 'react-icons/fa';
+import { FaBars, FaExclamationTriangle, FaRegCreditCard } from 'react-icons/fa';
 import { Login, UserContext } from './Login.jsx';
 import { ActionLink } from './utils/index';
 import { grays } from './utils/colors';
@@ -170,7 +170,7 @@ export const Sidebar = () => {
           ><FaExclamationTriangle />
           </span>
           : session.has_payment_method
-            && <span style={styles.checkmark}>✓</span>
+            && <span><span style={styles.checkmark}>✓</span> <FaRegCreditCard/></span>
         } {
           session.free && <Badge size='sm' bg='success'
             title='You are currently on our invite-only free plan'>
@@ -231,11 +231,11 @@ export const Sidebar = () => {
       <div style={styles.sidebar} className="d-none d-lg-block">
         <div style={styles.wrapper} className='sidebar'>
           <TransitiveLogo />
-          <SidebarBody />          
+          <SidebarBody />
         </div>
       </div>
       {/* Mobile toggle button - only visible on small screens */}
-      {!show && <Button 
+      {!show && <Button
           className="d-lg-none position-fixed top-0 start-0 m-3 shadow-sm"
           variant="dark"
           size="sm"
@@ -246,8 +246,8 @@ export const Sidebar = () => {
         </Button>
       }
       {/* Mobile sidebar - offcanvas for small screens */}
-      <Offcanvas 
-        show={show} 
+      <Offcanvas
+        show={show}
         onHide={hideSidebar}
         className="d-lg-none bg-dark text-light"
         style={{ fontSize: 'small' }}

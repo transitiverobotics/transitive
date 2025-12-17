@@ -152,6 +152,7 @@ const routingTable = {
   mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
   hyperdx: `hyperdx:8080`,
   clickhouse: 'clickhouse:8123',  // direct clickhouse access
+  grafana: 'grafana:3000',
   // parse env var that may list additional hosts to add
   ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
 };

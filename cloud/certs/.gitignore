@@ -2,3 +2,5 @@
 *.csr
 *.key
 *.srl
+node_modules
+*.jwk*

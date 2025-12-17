@@ -1,0 +1,8 @@
+{
+  "name": "generate_jwks",
+  "version": "1.0.0",
+  "keywords": [],
+  "author": "Christian Fritz",
+  "license": "Apache-2.0",
+  "description": "Generates JWKS for Grafana auth"
+}

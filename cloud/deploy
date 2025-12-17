@@ -47,13 +47,16 @@ else
 
   curl -sO https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/sample.env
 
-  # generate some secrets
-  TR_PASS_SECRET=$(getSecret 20)
-  TR_BOT_TOKEN_SECRET=$(getSecret 60)
-  TR_SESSION_SECRET=$(getSecret 60)
-  TR_CAPSESSION_SECRET=$(getSecret 60)
+  # find all env vars in sample.env that are secrets:
+  VARS=$(grep -oP '(?<!\w)\$\{?\K[A-Z_][A-Z0-9_]+' sample.env | sort -u | grep _SECRET)
+
+  # generate secrets for all these env vars
+  for n in $VARS; do
+    echo Generating secret for $n;
+    export $n=$(getSecret 20)
+  done
+
   RANDOM_SUBDOMAIN=$(getSecret 10)
-  CLICKHOUSE_PASSWORD_SECRET=$(getSecret 20)
 
   # fill in ENV vars in sample.env to generate .env
   cat sample.env | while read -r L; do

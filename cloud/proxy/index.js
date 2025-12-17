@@ -152,6 +152,7 @@ const routingTable = {
   mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
   hyperdx: `hyperdx:8080`,
   clickhouse: 'clickhouse:8123',  // direct clickhouse access
+  grafana: 'grafana:3000',
   deploy: 'https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/deploy',
   // parse env var that may list additional hosts to add
   ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
@@ -252,6 +253,10 @@ const handleRequest = async (req, res) => {
     res.statusCode = 403;
     res.end();
   }
+
+  // delete any X-WEBAUTH-USER headers, used internally to authenticate requests
+  // to Grafana
+  delete req.headers['x-webauth-user'];
 
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
 

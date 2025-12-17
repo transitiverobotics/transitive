@@ -351,6 +351,21 @@ const ensureHyperDXAdminSetup = async () => {
   });
 };
 
+/** Ensure the mqtt-history-reader user exists in ClickHouse, for use by Grafana */
+const ensureClickHouseMQTTHistoryUser = async () => {
+  if (!process.env.GRAFANA_MQTT_HISTORY_PASSWORD) {
+    log.warn('Env var GRAFANA_MQTT_HISTORY_PASSWORD not set, not creating user');
+    return;
+  }
+
+  for (let query of [
+    `CREATE USER IF NOT EXISTS mqtt_history_reader IDENTIFIED WITH plaintext_password
+    BY '${process.env.GRAFANA_MQTT_HISTORY_PASSWORD}'`,
+    `GRANT SELECT ON mqtt_history to mqtt_history_reader`,
+    `CREATE ROW POLICY IF NOT EXISTS mqtt_history_reader_policy ON mqtt_history USING 1
+    TO mqtt_history_reader`,
+  ]) await ClickHouse.client.command({ query });
+};
 
 /** Change ClickHouse password for an organization
  * @param {string} orgId - organization ID
@@ -433,5 +448,6 @@ module.exports = {
   ensureClickHouseOrgUser,
   ensureHyperDXOrgSetup,
   ensureHyperDXAdminSetup,
+  ensureClickHouseMQTTHistoryUser,
   changeServicePassword
 };

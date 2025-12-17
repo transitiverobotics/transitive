@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -24,7 +25,7 @@ const ClickHouse = require('@transitive-sdk/clickhouse');
 
 const { waitForClickHouse, ensureClickHouseOrgUser,
   ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup,
-  ensureHyperDXAdminSetup, changeServicePassword }
+  ensureHyperDXAdminSetup, changeServicePassword, ensureClickHouseMQTTHistoryUser }
   = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
@@ -185,8 +186,15 @@ const verifyJWT = async (token) => {
     };
   }
 
-  await jwt.verify(token, account.jwtSecret);
-  log.debug('verified token');
+  try {
+    await jwt.verify(token, account.jwtSecret);
+    log.debug('verified token');
+  } catch (e) {
+    return {
+      valid: false,
+      error: `Unable to verify JWT: ${e.message}`
+    };
+  }
 
   if (!payload.validity || (payload.iat + payload.validity) * 1e3 < Date.now()) {
     // The token is expired
@@ -220,6 +228,28 @@ const parseJWTCookie = async (cookie) => {
   return {};
 };
 
+/** Check for the three authorization mechanisms we support: cookie,
+* authorization header, or jwt query parameter. */
+const getAuthPayload = async (req) => {
+  const token = (req.headers.authorization?.startsWith('Bearer ') &&
+    req.headers.authorization.slice('Bearer '.length))
+    || req.query.jwt;
+
+  if (token) {
+    const {valid, error, payload} = await verifyJWT(token);
+    if (valid) {
+      return payload;
+    } else {
+      log.debug('getAuthPayload, error verifying JWT:', error);
+    }
+  }
+
+  if (req.cookies?.[TOKEN_COOKIE]) {
+    return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
+  }
+};
+
+
 /** Get package info for the named package (e.g., @transitive-robotics/terminal)
  * from registry.
  */
@@ -251,6 +281,7 @@ app.use('/caps', capsRouter);
 // Needs to come *after* capsRouter, to allow per-capability servers to parse
 // the body when it arrives there.
 app.use(express.json());
+
 
 const addCapsRoutes = () => {
   log.debug('adding caps router');
@@ -334,33 +365,12 @@ const addCapsRoutes = () => {
     // (cloud_caps is the name of the docker network)
     const {scope, capName, version} = req.params;
     const host = `${scope}.${capName}.${version}.cloud_caps`;
-    log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
-
-    /** Check for the three authorization mechanisms we support: cookie,
-    * authorization header, or jwt query parameter. */
-    const getAuthPayload = async (req) => {
-      const token = (req.headers.authorization?.startsWith('Bearer ') &&
-        req.headers.authorization.slice('Bearer '.length))
-        || req.query.jwt;
-
-      if (token) {
-        const {valid, error, payload} = await verifyJWT(token);
-        if (valid) {
-          return payload;
-        } else {
-          log.debug('getAuthPayload, error verifying JWT:', error);
-        }
-      }
-
-      if (req.cookies[TOKEN_COOKIE]) {
-        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
-      }
-    };
 
     const payload = await getAuthPayload(req);
     const headers = payload ? {'jwt-payload': JSON.stringify(payload)} : {};
 
+    log.debug('proxying to', host);
     capsProxy.web(req, res, { target: `http://${host}:8085`, headers },
       (err) => {
         const msg = `${scope}/${capName}/${version} does not run a web server, ${
@@ -372,6 +382,140 @@ const addCapsRoutes = () => {
   });
 };
 
+/** Import JWK for Grafana auth */
+const grafanaJWKPath = '/jwks/private.jwk';
+let grafanaPrivateJWK;
+fs.readFile(grafanaJWKPath, {encoding: 'utf8'},
+  async (err, data) => {
+    if (err) {
+      log.warn(`Failed to load Grafana JWK from ${grafanaJWKPath}`);
+      return;
+    }
+
+    let json;
+    try {
+      json = JSON.parse(data);
+    } catch (e) {
+      log.warn('Failed to parse Grafana JWK', data);
+      return;
+    }
+
+    // must match the one used in ensure_certs/generate_jwks.js
+    const algorithm = {
+      name: 'ECDSA',
+      namedCurve: 'P-384',
+    };
+
+    grafanaPrivateJWK = await crypto.subtle.importKey(
+      'jwk', json, algorithm, false, ['sign']);
+  });
+
+/** A route that accepts a JWT and responds with a new JWT for Grafana, signed
+ * with the system-wide JWKS, but with a payload that limits its autorization
+ * to just that user and device. */
+// app.get('/getGrafanaJWT', async (req, res) => {
+app.get('/grafanaMQTTHistory/*', async (req, res) => {
+
+  if (!grafanaPrivateJWK) {
+    res.status(500).end('No JWK for Grafana, cannot generate JWTs');
+    return;
+  }
+
+  const payload = await getAuthPayload(req);
+  if (!payload) {
+    res.status(401).end('Unable to verify provided JWT');
+    return;
+  }
+
+  const token = jwt.sign({
+      // user to log in: limits visible data to just this namespace of history
+      sub: `${payload.id}/${payload.device}/${payload.capability}`,
+      // role: 'Viewer',
+      // orgs: [payload.id],
+      // use same expiration as the provided JWT:
+      exp: payload.iat + payload.validity,
+    }, grafanaPrivateJWK, {algorithm: 'ES384'});
+
+  const host = `http://grafana.${process.env.TR_HOST}`;
+  const dashboard = 'd/mqtthistory/history'; // see /cloud/grafana/provisioning/files
+  const params = new URLSearchParams();
+  params.append('kiosk', true);
+  params.append('var-subtopic', req.path.slice('/grafanaMQTTHistory/'.length));
+  params.append('auth_token', token);
+
+  // redirect to our Grafana instance with JWT auth enabled, using this token
+  res.redirect(`${host}/${dashboard}?${params}`);
+});
+
+
+/** http proxy for reverse proxying to Grafana, doing authentication */
+const grafanaRouter = express.Router();
+const grafanaAuthProxy = HttpProxy.createProxyServer({
+  xfwd: true,
+  ws: true,
+  // selfHandleResponse: true
+});
+// app.use('/grafana', grafanaRouter);
+
+// grafanaAuthProxy.on('proxyRes', function (proxyRes, req, res) {
+//   // res.cookie(TOKEN_COOKIE, JSON.stringify({token: req.query.jwt})); // #DEBUG
+//   const cookiedRes = res.cookie(TOKEN_COOKIE, JSON.stringify({token: req.query.jwt}),
+//     {secure: true, sameSite: 'None'}); // #DEBUG
+//   proxyRes.pipe(cookiedRes);
+//   // res.end();
+// });
+
+// grafanaRouter.use('/', async (req, res, next) => {
+// app.use('/grafana', async (req, res, next) => {
+//   // if (!payload) {
+//   //   res.status(401).end('Missing jwt');
+//   //   return;
+//   // }
+
+//   const headers = {};
+
+//   // handle /login body
+//   if (req.url.startsWith('/login')) {
+//     /* log our user `id` in on Grafana (auth_proxy):
+//     See https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/
+//     */
+//     const payload = await getAuthPayload(req);
+//     if (payload) {
+//       // login via JWT
+//       headers['x-webauth-user'] = payload.id;
+
+//     } else if (req.body) {
+//       // Regular login from UI: Manually check credentials using API. Not sure
+//       // why this is necessary, but without this the login just hangs if
+//       // auth_proxy is enabled.
+//       const { user, password } = req.body;
+//       if (user && password) {
+//         // headers['x-webauth-user'] = user;
+//         const result = await fetch(`http://${user}:${password}@grafana:3000/api/org`);
+//         log.debug('api response', result);
+//         if (result.ok) {
+//           headers['x-webauth-user'] = user;
+//         }
+//       }
+//     }
+//   }
+
+//   // #DEBUG
+//   headers['x-webauth-user'] = 'admin';
+
+
+//   log.debug('/grafana:', req.method, req.url, headers);
+//   grafanaAuthProxy.web(req, res, { target: `http://grafana:3000`, headers },
+//     (err) => {
+//       const msg = `Unable to proxy to Grafana, is it running?`;
+//       log.debug(msg);
+//       res.status(404).end(msg);
+//     }
+//   );
+// });
+
+// ---------------------------------------------------------------------------
+// Main Routes
 
 /** Serve the js bundles of capabilities */
 app.use('/running/@transitive-robotics/_robot-agent',
@@ -547,6 +691,8 @@ class _robotAgent extends Capability {
         }
         await ClickHouse.ensureDefaultPermissions();
         await ensureHyperDXAdminSetup();
+        await ensureClickHouseMQTTHistoryUser();
+
         this.telemetry = new TelemetryService();
         this.telemetry.init().then(() => {
           this.ingestLogs();
@@ -1695,8 +1841,15 @@ Mongo.init(() => {
   });
 
   // to allow client-side routing:
-  app.use('/*', (req, res) =>
-    res.sendFile(path.join(cwd, 'public', 'index.html')));
+  app.use('/*', (req, res) => {
+    // not working yet; trying to force redirect to portal.TR_HOST
+    // log.debug('*', req.hostname);
+    // if (!req.hostname.endsWith(process.env.TR_HOST)) {
+    //   res.redirect(`http://portal.${process.env.TR_HOST}`);
+    //   return;
+    // }
+    res.sendFile(path.join(cwd, 'public', 'index.html'));
+  });
 
   const server = http.createServer(app);
 

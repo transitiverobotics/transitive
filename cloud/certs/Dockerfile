@@ -1,8 +1,7 @@
-FROM alpine:latest
+FROM node:24
 
-RUN apk add openssl
-COPY . /certs
-VOLUME /generated
-WORKDIR /generated
+RUN apt-get update && apt-get install -y openssl
+COPY . /app
 
-CMD sh ../certs/generate.sh
+WORKDIR /
+CMD sh ../app/generate.sh

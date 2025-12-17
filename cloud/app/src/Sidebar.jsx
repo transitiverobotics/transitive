@@ -243,7 +243,6 @@ export const Sidebar = () => {
       }
       {/* Mobile sidebar - offcanvas for small screens */}
       <Offcanvas
-        data-bs-theme={darkMode ? 'dark' : 'light'}
         show={show}
         onHide={hideSidebar}
         className="d-lg-none bg-dark text-light"

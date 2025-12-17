@@ -1,6 +1,12 @@
+#!/bin/bash
+
+DIR=$(dirname $0)
+WORKDIR=$(pwd)
 
 # get the uid and gid of the owner of the current folder
 OWNER=$(stat -c '%u:%g' .)
+
+cd $WORKDIR/generated
 
 # SSL: generate CA and server certificates if not present
 # see https://mosquitto.org/man/mosquitto-tls-7.html
@@ -43,3 +49,15 @@ if [ ! -e client.crt ]; then
 else
   echo "Client certificate already exist, not regenerating"
 fi
+
+
+# Gnerate JWKS for Grafana authentication
+mkdir -p jwks
+if [ ! -e $WORKDIR/jwks/private.jwk ]; then
+  echo "Generating JWKS"
+  cd $WORKDIR/jwks
+  node $DIR/generate_jwks.js
+else
+  echo "JWKS already exist, not regenerating";
+fi
+

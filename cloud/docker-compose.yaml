@@ -25,6 +25,10 @@ x-cloud: &shared_cloud
     - default
     - caps
     - shared
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
+    - ${TR_VAR_DIR:-.}/jwks/private.jwk:/jwks/private.jwk
   logging:
     driver: local
   deploy:
@@ -99,6 +103,7 @@ services:
     image: transitiverobotics/ensure_certs:latest
     volumes:
       - ${TR_VAR_DIR:-.}/certs:/generated
+      - ${TR_VAR_DIR:-.}/jwks:/jwks
 
   # MongoDB with replset, required to watch for changes
   mongodb:
@@ -130,25 +135,16 @@ services:
     <<: *shared_mosquitto
     profiles:
       - dev
-    volumes:
-      - ${TR_VAR_DIR:-.}/certs:/mosquitto/certs
-      - ${TR_VAR_DIR:-.}/mqtt_persistence:/persistence
 
   cloud_prod:
     <<: *shared_cloud
     profiles:
       - prod
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
 
   cloud_dev:
     <<: *shared_cloud
     profiles:
       - dev
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${TR_VAR_DIR:-.}/certs:/etc/mosquitto/certs
 
   proxy:
     image: transitiverobotics/proxy:latest
@@ -245,3 +241,23 @@ services:
       - clickhouse
       - mongodb
 
+  grafana:
+    image: transitiverobotics/grafana:latest
+    networks:
+      - default
+    restart: always
+    user: 'root'
+    env_file:
+      - .env
+    environment:
+      # http in dev, https in prod
+      GF_SERVER_ROOT_URL: http${PRODUCTION:+s}://grafana.${TR_HOST:-localhost}/
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ${TR_VAR_DIR:-.}/grafana:/var/lib/grafana
+      - ${TR_VAR_DIR:-.}/jwks/public.jwks:/jwks/public.jwks
+    depends_on:
+      clickhouse:
+        condition: service_started
+      ensure_certs:
+        condition: service_completed_successfully

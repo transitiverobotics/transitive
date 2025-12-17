@@ -8,7 +8,7 @@ import _ from "lodash";
 import { FaBars, FaExclamationTriangle, FaRegCreditCard } from 'react-icons/fa';
 import { Login, UserContext } from './Login.jsx';
 import { ActionLink } from './utils/index';
-import { grays } from './utils/colors';
+// import { grays } from './utils/colors';
 import { TransitiveLogo } from './TransitiveLogo.jsx';
 
 const F = React.Fragment;
@@ -18,10 +18,8 @@ const styles = {
     margin: '0',
     padding: '1em 0 0 1em',
     flex: '1 0 10rem',
-    // background: 'linear-gradient(-90deg, #000, #012)',
-    background: '#1c1c20',
-    color: '#fff',
-    borderRight: `1px solid ${grays[12]}`,
+    background: 'var(--bs-secondary-bg-subtle)',
+    // borderRight: `1px solid ${grays[12]}`,
     position: 'relative',
     height: '100vh',
     fontSize: 'small',
@@ -33,7 +31,7 @@ const styles = {
     justifyContent: 'space-between',
     width: '100%',
     height: '100%',
-    color: '#bbb'
+    color: 'var(--bs-body-color)'
   },
   views: {
     flexGrow: '1',
@@ -56,7 +54,6 @@ const styles = {
   pageLinkActive: {
     background: '#404048a0',
     // background: 'linear-gradient(45deg, #23559c25, #18901335)',
-    color: '#fff',
     fontWeight: 'bold'
   },
   loggedIn: {
@@ -95,7 +92,7 @@ const PageLink = ({to, children}) => {
   // <Button as={Link} to={to} style={style}>
   //   {children}
   // </Button>
-  return <div className='d-grid'>
+  return <div className='d-grid nav'>
     <Nav.Item style={style}>
       <Nav.Link as={Link} to={to} style={styles.link}>
         {children}
@@ -207,25 +204,22 @@ export const Sidebar = () => {
     );
   };
 
-  const SidebarBody = () => {
-    return (
-      <F>
-        <div style={styles.views}>
-          <PageLink to='/'>Devices</PageLink>
-          <div style={styles.section}>Fleet Widgets</div>
-          <OtherFleetCaps />
-        </div>
+  const SidebarBody = () => <F>
+    <div style={styles.views}>
+      <PageLink to='/'>Devices</PageLink>
+      <div style={styles.section}>Fleet Widgets</div>
+      <OtherFleetCaps />
+    </div>
 
-        <div>
-          { isLoggedIn ?
-            <UserMenu />
-            :
-            <PageLink to="/login">Login</PageLink>
-          }
-        </div>
-      </F>
-    );
-  }
+    <div>
+      { isLoggedIn ?
+        <UserMenu />
+        :
+        <PageLink to="/login">Login</PageLink>
+      }
+    </div>
+  </F>;
+
   return <F>
       {/* Desktop sidebar - hidden on small screens */}
       <div style={styles.sidebar} className="d-none d-lg-block">

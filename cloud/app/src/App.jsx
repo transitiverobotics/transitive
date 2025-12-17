@@ -23,6 +23,8 @@ log.setLevel('debug');
 
 const F = React.Fragment;
 
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
+
 const styles = {
   wrapper: {
     width: '100%',
@@ -35,13 +37,14 @@ const styles = {
     flex: '10 1 20em',
     height: '100vh',
     overflow: 'auto',
-    background: '#eee',
+    background: 'var(--bs-secondary-bg)',
+    color: 'var(--bs-body-color)'
   },
   cap: {
     wrapper: {
-      background: '#fff',
+      background: 'var(--bs-body-bg)',
       borderRadius: '6px',
-      border: '1px solid #ddd',
+      border: '1px solid var(--bs-border-color)',
       padding: '0em 1em 1em 1em',
     },
     embed: {
@@ -309,7 +312,7 @@ const Portal = () => {
   const {session} = useContext(UserContext);
   log.debug({session});
 
-  return <div style={styles.wrapper}>
+  return <div style={styles.wrapper} data-bs-theme={darkMode ? 'dark' : 'light'}>
     <Sidebar />
     <div style={styles.body} className="p-3 p-lg-4 pt-0">
       {/* Branding on body for small screens */}

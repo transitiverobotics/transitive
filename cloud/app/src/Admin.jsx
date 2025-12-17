@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 
 import { Col, Row, Form, Badge, Toast } from 'react-bootstrap';
-import DataTable from 'react-data-table-component';
+import DataTable, { createTheme } from 'react-data-table-component';
 import { FaRegCreditCard, FaExclamationTriangle } from 'react-icons/fa';
 import { PiUserSwitch } from 'react-icons/pi';
 import _ from 'lodash';
@@ -32,6 +32,25 @@ const styles = {
     marginLeft: '0.25em'
   }
 }
+
+
+// Create custom DataTable theme from bootstrap CSS variables (so it works for
+// both light and dark mode).
+createTheme('bootstrap',
+  {
+    text: {
+      primary: 'var(--bs-body-color)',
+      secondary: 'var(--bs-secondary-color)',
+    },
+    background: {
+      default: 'var(--bs-body-bg)',
+    },
+    context: {
+      background: 'var(--bs-info-bg-subtle)',
+    },
+  },
+  'dark',
+);
 
 const MyToast = ({text, close}) =>
   <Toast delay={3000} autohide style={styles.toast}
@@ -186,7 +205,7 @@ export const Admin = () => {
       defaultSortFieldId={'heartbeats'}
       defaultSortAsc={false}
       dense
+      theme='bootstrap'
       />
-
     </div>;
 };

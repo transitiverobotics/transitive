@@ -5,15 +5,6 @@ import Spinner from 'react-bootstrap/Spinner';
 
 import _ from 'lodash';
 
-// const _ = {
-//   map: require('lodash/map'),
-//   some: require('lodash/some'),
-//   forEach: require('lodash/forEach'),
-//   keyBy: require('lodash/keyBy'),
-//   filter: require('lodash/filter'),
-//   get: require('lodash/get'),
-// };
-
 import { MdAdd } from 'react-icons/md';
 import { FaEllipsisH, FaExclamationTriangle } from "react-icons/fa";
 
@@ -58,12 +49,8 @@ const styles = {
     transition: 'height 1s ease'
   },
   toast: {
-    // position: 'absolute',
-    // top: '1em',
-    // right: '1em',
     margin: '1em',
     width: 'fit-content',
-    backgroundColor: '#def'
   }
 };
 
@@ -291,7 +278,7 @@ const Capability = (props) => {
           {!inactive &&
             <Dropdown className={`position-absolute top-0 end-0 me-2 `}>
               <Dropdown.Toggle variant='link' size='sm' bsPrefix='_'>
-                <FaEllipsisH style={{ color: '#000' }}/>
+                <FaEllipsisH style={{ color: 'initial' }}/>
                 <ErrorBadge errorCount={errorCount} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
@@ -529,7 +516,7 @@ const Device = (props) => {
         <Dropdown autoClose='outside'
           className={`position-absolute top-0 end-0 me-2`}>
           <Dropdown.Toggle variant='link' size='sm' bsPrefix='_'>
-            <FaEllipsisH style={{ color: '#000' }}/>
+            <FaEllipsisH style={{ color: 'initial' }}/>
             <ErrorBadge errorCount={errorCount} />
           </Dropdown.Toggle>
 

@@ -35,7 +35,7 @@
     "prompt": "^1.2.1",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
-    "react-data-table-component": "^7.5.4",
+    "react-data-table-component": "^7.7.0",
     "react-dom": "^18.3.1",
     "react-icons": "^4.11.0",
     "react-leaflet": "^4.2.1",

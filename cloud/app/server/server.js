@@ -550,6 +550,13 @@ class _robotAgent extends Capability {
           }).catch((error) => {
             log.error('Failed to initialize TelemetryService:', error);
           });
+
+          try {
+            this.storeDevicesHostnames();
+          } catch (error) {
+            log.error('Failed to initialize device hostname storage:', error);
+          }
+          
         }).catch((error) => {
           log.error('ClickHouse not available:', error);
         });
@@ -557,6 +564,66 @@ class _robotAgent extends Capability {
         log.debug('ClickHouse integration disabled');
       }
     });
+  }
+
+  /** Subscribe to device info updates and maintain the device_registry table.
+   */
+  storeDevicesHostnames() {
+    // Create device_registry table for mapping DeviceId to hostname
+    // Uses ReplacingMergeTree to automatically deduplicate by primary key
+    ClickHouse.createTable(
+      'device_registry',
+      [
+        'hostname String CODEC(ZSTD(1))'
+      ],
+      [
+        'ENGINE = ReplacingMergeTree()',
+        'PRIMARY KEY (OrgId, DeviceId)',
+        'ORDER BY (OrgId, DeviceId)'
+      ]
+    ).then(() => {
+      log.debug('ClickHouse device_registry table is ready');
+    }).catch((error) => {
+      log.error('Failed to create ClickHouse device_registry table:', error);
+      throw error;
+    });
+    log.debug('Subscribing to device info for device_registry');
+
+    const update = (orgId, deviceId, hostname) => {
+      ClickHouse.insert('device_registry',
+        [{ hostname }],
+        orgId, deviceId
+      ).catch((error) => {
+        log.error('Failed to update device_registry:', error);
+      });
+    };
+
+    const infoPath = '/+orgId/+deviceId/@transitive-robotics/_robot-agent/+/info';
+
+    const handleInfo = (info, topic, matched) => {
+      if (!info?.os?.hostname) return;
+      const { orgId, deviceId } = matched;
+      const hostname = info.os.hostname;
+      update(orgId, deviceId, hostname);
+    };
+
+    // Process existing device info on startup, using mergeVersions to get
+    // the latest info across all agent versions
+    const org = this.data.get();
+    _.forEach(org, (orgData, orgId) => {
+      _.forEach(orgData, (deviceData, deviceId) => {
+        if (deviceId.startsWith('_')) return; // skip _fleet
+        const agentData = deviceData?.['@transitive-robotics']?.['_robot-agent'];
+        if (!agentData) return;
+        const merged = mergeVersions(agentData, 'info');
+        if (merged.info?.os?.hostname) {
+          update(orgId, deviceId, merged.info.os.hostname);
+        }
+      });
+    });
+
+    // Subscribe to new updates
+    this.data.subscribePathFlat(infoPath, handleInfo);
   }
 
   /** Subscribe to log messages sent by robot agents and:

@@ -253,6 +253,10 @@ const handleRequest = async (req, res) => {
     res.end();
   }
 
+  // delete any X-WEBAUTH-USER headers, used internally to authenticate requests
+  // to Grafana
+  delete req.headers['x-webauth-user'];
+
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
   proxy.web(req, res, { target: `http://${target}` });
 };

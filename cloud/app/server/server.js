@@ -220,6 +220,28 @@ const parseJWTCookie = async (cookie) => {
   return {};
 };
 
+/** Check for the three authorization mechanisms we support: cookie,
+* authorization header, or jwt query parameter. */
+const getAuthPayload = async (req) => {
+  const token = (req.headers.authorization?.startsWith('Bearer ') &&
+    req.headers.authorization.slice('Bearer '.length))
+    || req.query.jwt;
+
+  if (token) {
+    const {valid, error, payload} = await verifyJWT(token);
+    if (valid) {
+      return payload;
+    } else {
+      log.debug('getAuthPayload, error verifying JWT:', error);
+    }
+  }
+
+  if (req.cookies[TOKEN_COOKIE]) {
+    return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
+  }
+};
+
+
 /** Get package info for the named package (e.g., @transitive-robotics/terminal)
  * from registry.
  */
@@ -334,33 +356,12 @@ const addCapsRoutes = () => {
     // (cloud_caps is the name of the docker network)
     const {scope, capName, version} = req.params;
     const host = `${scope}.${capName}.${version}.cloud_caps`;
-    log.debug('proxying to', host);
     // log.debug('cookies', req.cookies, req.cookies[TOKEN_COOKIE]);
-
-    /** Check for the three authorization mechanisms we support: cookie,
-    * authorization header, or jwt query parameter. */
-    const getAuthPayload = async (req) => {
-      const token = (req.headers.authorization?.startsWith('Bearer ') &&
-        req.headers.authorization.slice('Bearer '.length))
-        || req.query.jwt;
-
-      if (token) {
-        const {valid, error, payload} = await verifyJWT(token);
-        if (valid) {
-          return payload;
-        } else {
-          log.debug('getAuthPayload, error verifying JWT:', error);
-        }
-      }
-
-      if (req.cookies[TOKEN_COOKIE]) {
-        return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
-      }
-    };
 
     const payload = await getAuthPayload(req);
     const headers = payload ? {'jwt-payload': JSON.stringify(payload)} : {};
 
+    log.debug('proxying to', host);
     capsProxy.web(req, res, { target: `http://${host}:8085`, headers },
       (err) => {
         const msg = `${scope}/${capName}/${version} does not run a web server, ${
@@ -372,6 +373,37 @@ const addCapsRoutes = () => {
   });
 };
 
+
+const grafanaRouter = express.Router();
+/** http proxy for reverse proxying to Grafana, doing authentication */
+const grafanaAuthProxy = HttpProxy.createProxyServer({ xfwd: true });
+app.use('/grafana', grafanaRouter);
+grafanaRouter.use('/', async (req, res, next) => {
+  const payload = await getAuthPayload(req);
+
+  if (!payload) res.status(401).end('Missing jwt');
+
+  /* log our user `id` in on Grafana (auth_proxy):
+  See https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/
+  */
+  const headers = {'x-webauth-user': payload.id};
+
+  grafanaAuthProxy.web(req, res, { target: `http://grafana:3000`, headers },
+    (err) => {
+      const msg = `Unable to proxy to Grafana, is it running?`;
+      log.debug(msg);
+      res.status(404).end(msg);
+    }
+  );
+});
+
+/** Add proxy route for Grafana */
+const addGrafanaRoutes = () => {
+
+};
+
+// ---------------------------------------------------------------------------
+// Main Routes
 
 /** Serve the js bundles of capabilities */
 app.use('/running/@transitive-robotics/_robot-agent',

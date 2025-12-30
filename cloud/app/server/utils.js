@@ -56,6 +56,31 @@ const getVersionRange = (version, type) => {
 };
 
 
+/** Verify ClickHouse credentials by attempting to connect
+ * @param {string} url - ClickHouse URL
+ * @param {string} dbName - database name
+ * @param {string} user - username
+ * @param {string} password - password
+ * @returns {boolean} - true if credentials are valid
+ */
+const verifyClickHouseCredentials = async (url, dbName, user, password) => {
+  const { createClient } = require('@clickhouse/client');
+  const testClient = createClient({
+    url: url || process.env.CLICKHOUSE_URL || 'http://clickhouse:8123',
+    database: dbName,
+    username: user,
+    password: password,
+  });
+  try {
+    await testClient.query({ query: 'SELECT 1', format: 'JSONEachRow' });
+    await testClient.close();
+    return true;
+  } catch (error) {
+    await testClient.close().catch(() => {});
+    return false;
+  }
+};
+
 /** Ensure ClickHouse database and user exist for a capability
  * Only used with admin ClickHouse user credentials.
  * @param {string} capName - capability name
@@ -69,25 +94,38 @@ const ensureCapabilityDB = async (capName) => {
 
   const user = `${dbName}_user`;
   log.debug(`ensuring clickhouse user ${user} for database ${dbName}`);
-  // Check if user exists
+
+  const capabilitiesCollection = Mongo.db.collection('capabilities');
+  const capabilityDoc = await capabilitiesCollection.findOne({_id: capName});
+
+  // Check if user exists in ClickHouse
   const userExists = await ClickHouse.client.query({
     query: `SELECT name FROM system.users WHERE name = '${user}'`,
     format: 'JSONEachRow'
   });
-
   const users = await userExists.json();
-  const capabilitiesCollection = Mongo.db.collection('capabilities');
-  if (users.length > 0) {
-    // retrieve password from mongo
-    const capabilityDoc = await capabilitiesCollection.findOne({_id: capName});
-    if (capabilityDoc?.clickhouseCredentials) {
-      log.debug(`ClickHouse user ${user} for database ${dbName
-        } exists, retrieved credentials from mongo`);
+
+  // If we have credentials in mongo and user exists, verify they work
+  if (users.length > 0 && capabilityDoc?.clickhouseCredentials?.password) {
+    const { password } = capabilityDoc.clickhouseCredentials;
+    const clickhouseUrl = process.env.CLICKHOUSE_URL || 'http://clickhouse:8123';
+    const isValid = await verifyClickHouseCredentials(clickhouseUrl, dbName, user, password);
+
+    if (isValid) {
+      log.debug(`ClickHouse user ${user} for database ${dbName} exists and credentials are valid`);
       return capabilityDoc.clickhouseCredentials;
+    } else {
+      log.warn(`ClickHouse user ${user} exists but credentials from mongo are invalid, resetting password`);
+      // Drop and recreate user with new password
+      await ClickHouse.client.command({ query: `DROP USER IF EXISTS ${user}` });
     }
+  } else if (users.length > 0) {
+    // User exists in ClickHouse but no password in mongo - drop and recreate
+    log.warn(`ClickHouse user ${user} exists but no password in mongo, resetting`);
+    await ClickHouse.client.command({ query: `DROP USER IF EXISTS ${user}` });
   }
 
-  // Generate new password if user doesn't exist
+  // Generate new password
   const password = getRandomId(15);
 
   // store user and password in mongo
@@ -96,7 +134,7 @@ const ensureCapabilityDB = async (capName) => {
     {upsert: true});
 
   for (let query of [
-    // create database user if needed
+    // create database user
     `CREATE USER IF NOT EXISTS ${user} IDENTIFIED WITH plaintext_password BY '${password}'`,
     // grant all privileges on the cap database to the user
     `GRANT ALL ON ${dbName}.* TO ${user}`,
@@ -106,7 +144,7 @@ const ensureCapabilityDB = async (capName) => {
     `CREATE ROW POLICY IF NOT EXISTS ${dbName}_admin ON ${dbName}.* USING 1 TO ${process.env.CLICKHOUSE_USER || 'default'}`,
   ]) await ClickHouse.client.command({ query });
 
-  log.debug(`ClickHouse user ${user} for database ${dbName} created`);
+  log.debug(`ClickHouse user ${user} for database ${dbName} created with new credentials`);
 
   return { dbName, user, password };
 }

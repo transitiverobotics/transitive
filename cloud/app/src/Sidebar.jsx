@@ -13,6 +13,8 @@ import { TransitiveLogo } from './TransitiveLogo.jsx';
 
 const F = React.Fragment;
 
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
+
 const styles = {
   sidebar: {
     margin: '0',
@@ -241,6 +243,7 @@ export const Sidebar = () => {
       }
       {/* Mobile sidebar - offcanvas for small screens */}
       <Offcanvas
+        data-bs-theme={darkMode ? 'dark' : 'light'}
         show={show}
         onHide={hideSidebar}
         className="d-lg-none bg-dark text-light"

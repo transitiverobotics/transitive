@@ -263,7 +263,7 @@ body {
 
 /* For dark mode to work on capabilities until they directly load a CSS where the
 theme is set before the .transitive-bs-root scope (i.e., by the application). */
-[data-bs-theme=dark] .transitive-bs-root {
+/* [data-bs-theme=dark] .transitive-bs-root {
   color-scheme: dark;
   --bs-body-color: #dee2e6;
   --bs-body-color-rgb: 222, 226, 230;
@@ -317,4 +317,4 @@ theme is set before the .transitive-bs-root scope (i.e., by the application). */
   --bs-form-valid-border-color: #75b798;
   --bs-form-invalid-color: #ea868f;
   --bs-form-invalid-border-color: #ea868f;
-}
+} */

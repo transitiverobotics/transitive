@@ -245,25 +245,28 @@ services:
       - mongodb
 
   grafana:
-    image: grafana/grafana
+    image: transitiverobotics/grafana:latest
     networks:
       - default
     restart: always
     user: 'root'
     environment:
       # TODO: use http in prod
-      GF_SERVER_ROOT_URL: http://grafana.${TR_HOST:-localhost}/
-      GF_PLUGINS_PREINSTALL: 'grafana-clickhouse-datasource'
-      GF_SECURITY_ALLOW_EMBEDDING: 'true'
-      GF_AUTH_PROXY_ENABLED: 'true'
-      # HTTP Header name that will contain the username or email
-      GF_AUTH_PROXY_header_name: X-WEBAUTH-USER
-      # HTTP Header property, defaults to `username` but can also be `email`
-      GF_AUTH_PROXY_header_property: username
-      # Set to `true` to enable auto sign up of users who do not exist in Grafana DB. Defaults to `true`.
-      GF_AUTH_PROXY_auto_sign_up: false
-      # GF_AUTH_jwt_enabled: true
-      # GF_AUTH_jwt_url_login: true
+      # GF_SERVER_ROOT_URL: http://grafana.${TR_HOST:-localhost}/
+      GF_SERVER_ROOT_URL: http://portal.${TR_HOST:-localhost}/grafana
+      # GF_SERVER_serve_from_sub_path: true
+      # GF_PLUGINS_PREINSTALL: 'grafana-clickhouse-datasource'
+      # GF_SECURITY_ALLOW_EMBEDDING: true
+      # GF_AUTH_PROXY_ENABLED: true
+      # # HTTP Header name that will contain the username or email
+      # GF_AUTH_PROXY_header_name: X-WEBAUTH-USER
+      # # HTTP Header property, defaults to `username` but can also be `email`
+      # GF_AUTH_PROXY_header_property: username
+      # # Set to `true` to enable auto sign up of users who do not exist in Grafana DB. Defaults to `true`.
+      # GF_AUTH_PROXY_auto_sign_up: false
+      # GF_AUTH_PROXY_enable_login_token: true
+      # # GF_AUTH_jwt_enabled: true
+      # # GF_AUTH_jwt_url_login: true
 
     volumes:
       - ${TR_VAR_DIR:-.}/grafana:/var/lib/grafana

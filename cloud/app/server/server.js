@@ -236,7 +236,7 @@ const getAuthPayload = async (req) => {
     }
   }
 
-  if (req.cookies[TOKEN_COOKIE]) {
+  if (req.cookies?.[TOKEN_COOKIE]) {
     return parseJWTCookie(req.cookies[TOKEN_COOKIE]);
   }
 };
@@ -374,19 +374,39 @@ const addCapsRoutes = () => {
 };
 
 
-const grafanaRouter = express.Router();
 /** http proxy for reverse proxying to Grafana, doing authentication */
-const grafanaAuthProxy = HttpProxy.createProxyServer({ xfwd: true });
-app.use('/grafana', grafanaRouter);
-grafanaRouter.use('/', async (req, res, next) => {
+const grafanaRouter = express.Router();
+const grafanaAuthProxy = HttpProxy.createProxyServer({
+  xfwd: true,
+  ws: true,
+  // selfHandleResponse: true
+});
+// app.use('/grafana', grafanaRouter);
+
+// grafanaAuthProxy.on('proxyRes', function (proxyRes, req, res) {
+//   // res.cookie(TOKEN_COOKIE, JSON.stringify({token: req.query.jwt})); // #DEBUG
+//   const cookiedRes = res.cookie(TOKEN_COOKIE, JSON.stringify({token: req.query.jwt}),
+//     {secure: true, sameSite: 'None'}); // #DEBUG
+//   proxyRes.pipe(cookiedRes);
+//   // res.end();
+// });
+
+// grafanaRouter.use('/', async (req, res, next) => {
+app.use('/grafana', async (req, res, next) => {
   const payload = await getAuthPayload(req);
 
-  if (!payload) res.status(401).end('Missing jwt');
+  // if (!payload) {
+  //   res.status(401).end('Missing jwt');
+  //   return;
+  // }
 
   /* log our user `id` in on Grafana (auth_proxy):
   See https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/
   */
-  const headers = {'x-webauth-user': payload.id};
+  // const headers = payload ? {'x-webauth-user': payload.id} : {};
+  const headers = {'x-webauth-user': 'admin'};
+
+  log.debug('/grafana:', req.url, req.cookies, headers);
 
   grafanaAuthProxy.web(req, res, { target: `http://grafana:3000`, headers },
     (err) => {
@@ -1720,8 +1740,15 @@ Mongo.init(() => {
   });
 
   // to allow client-side routing:
-  app.use('/*', (req, res) =>
-    res.sendFile(path.join(cwd, 'public', 'index.html')));
+  app.use('/*', (req, res) => {
+    // not working yet; trying to force redirect to portal.TR_HOST
+    // log.debug('*', req.hostname);
+    // if (!req.hostname.endsWith(process.env.TR_HOST)) {
+    //   res.redirect(`http://portal.${process.env.TR_HOST}`);
+    //   return;
+    // }
+    res.sendFile(path.join(cwd, 'public', 'index.html'));
+  });
 
   const server = http.createServer(app);
 

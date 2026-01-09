@@ -252,8 +252,8 @@ services:
     user: 'root'
     environment:
       # TODO: use http in prod
-      # GF_SERVER_ROOT_URL: http://grafana.${TR_HOST:-localhost}/
-      GF_SERVER_ROOT_URL: http://portal.${TR_HOST:-localhost}/grafana
+      GF_SERVER_ROOT_URL: http://grafana.${TR_HOST:-localhost}/
+      # GF_SERVER_ROOT_URL: http://portal.${TR_HOST:-localhost}/grafana
       # GF_SERVER_serve_from_sub_path: true
       # GF_PLUGINS_PREINSTALL: 'grafana-clickhouse-datasource'
       # GF_SECURITY_ALLOW_EMBEDDING: true

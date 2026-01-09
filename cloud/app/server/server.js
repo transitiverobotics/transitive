@@ -392,35 +392,53 @@ const grafanaAuthProxy = HttpProxy.createProxyServer({
 // });
 
 // grafanaRouter.use('/', async (req, res, next) => {
-app.use('/grafana', async (req, res, next) => {
-  const payload = await getAuthPayload(req);
+// app.use('/grafana', async (req, res, next) => {
+//   // if (!payload) {
+//   //   res.status(401).end('Missing jwt');
+//   //   return;
+//   // }
 
-  // if (!payload) {
-  //   res.status(401).end('Missing jwt');
-  //   return;
-  // }
+//   const headers = {};
 
-  /* log our user `id` in on Grafana (auth_proxy):
-  See https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/
-  */
-  // const headers = payload ? {'x-webauth-user': payload.id} : {};
-  const headers = {'x-webauth-user': 'admin'};
+//   // handle /login body
+//   if (req.url.startsWith('/login')) {
+//     /* log our user `id` in on Grafana (auth_proxy):
+//     See https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/
+//     */
+//     const payload = await getAuthPayload(req);
+//     if (payload) {
+//       // login via JWT
+//       headers['x-webauth-user'] = payload.id;
 
-  log.debug('/grafana:', req.url, req.cookies, headers);
+//     } else if (req.body) {
+//       // Regular login from UI: Manually check credentials using API. Not sure
+//       // why this is necessary, but without this the login just hangs if
+//       // auth_proxy is enabled.
+//       const { user, password } = req.body;
+//       if (user && password) {
+//         // headers['x-webauth-user'] = user;
+//         const result = await fetch(`http://${user}:${password}@grafana:3000/api/org`);
+//         log.debug('api response', result);
+//         if (result.ok) {
+//           headers['x-webauth-user'] = user;
+//         }
+//       }
+//     }
+//   }
 
-  grafanaAuthProxy.web(req, res, { target: `http://grafana:3000`, headers },
-    (err) => {
-      const msg = `Unable to proxy to Grafana, is it running?`;
-      log.debug(msg);
-      res.status(404).end(msg);
-    }
-  );
-});
+//   // #DEBUG
+//   headers['x-webauth-user'] = 'admin';
 
-/** Add proxy route for Grafana */
-const addGrafanaRoutes = () => {
 
-};
+//   log.debug('/grafana:', req.method, req.url, headers);
+//   grafanaAuthProxy.web(req, res, { target: `http://grafana:3000`, headers },
+//     (err) => {
+//       const msg = `Unable to proxy to Grafana, is it running?`;
+//       log.debug(msg);
+//       res.status(404).end(msg);
+//     }
+//   );
+// });
 
 // ---------------------------------------------------------------------------
 // Main Routes

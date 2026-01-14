@@ -551,11 +551,11 @@ class _robotAgent extends Capability {
             log.error('Failed to initialize TelemetryService:', error);
           });
           
+          await ClickHouse.ensureMqttHistoryTable();
           ClickHouse.registerMqttTopicForStorage(
             this.data,
             '/+orgId/+deviceId/+scope/_robot-agent/+/status/heartbeat',
           );
-
           ClickHouse.registerMqttTopicForStorage(
             this.data,
             '/+orgId/+deviceId/+scope/_robot-agent/+/info/os/#',

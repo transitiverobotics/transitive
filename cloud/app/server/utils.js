@@ -76,6 +76,7 @@ const verifyClickHouseCredentials = async (url, dbName, user, password) => {
     await testClient.close();
     return true;
   } catch (error) {
+    log.debug(`ClickHouse credential verification failed for user ${user}: ${error.message}`);
     await testClient.close().catch(() => {});
     return false;
   }
@@ -114,14 +115,16 @@ const ensureCapabilityDB = async (capName) => {
     if (isValid) {
       log.debug(`ClickHouse user ${user} for database ${dbName} exists and credentials are valid`);
       return capabilityDoc.clickhouseCredentials;
-    } else {
-      log.warn(`ClickHouse user ${user} exists but credentials from mongo are invalid, resetting password`);
-      // Drop and recreate user with new password
-      await ClickHouse.client.command({ query: `DROP USER IF EXISTS ${user}` });
     }
+    // Credentials invalid - will drop and recreate below
+    log.warn(`ClickHouse user ${user} exists but credentials from mongo are invalid, resetting password`);
   } else if (users.length > 0) {
-    // User exists in ClickHouse but no password in mongo - drop and recreate
+    // User exists in ClickHouse but no password in mongo
     log.warn(`ClickHouse user ${user} exists but no password in mongo, resetting`);
+  }
+
+  // Drop existing user if any (handles both invalid credentials and missing mongo password cases)
+  if (users.length > 0) {
     await ClickHouse.client.command({ query: `DROP USER IF EXISTS ${user}` });
   }
 
@@ -134,8 +137,8 @@ const ensureCapabilityDB = async (capName) => {
     {upsert: true});
 
   for (let query of [
-    // create database user
-    `CREATE USER IF NOT EXISTS ${user} IDENTIFIED WITH plaintext_password BY '${password}'`,
+    // create database user (user was dropped above if it existed)
+    `CREATE USER ${user} IDENTIFIED WITH plaintext_password BY '${password}'`,
     // grant all privileges on the cap database to the user
     `GRANT ALL ON ${dbName}.* TO ${user}`,
     // create row level security policy to allow access to all rows

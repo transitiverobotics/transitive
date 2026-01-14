@@ -554,13 +554,12 @@ class _robotAgent extends Capability {
           await ClickHouse.ensureMqttHistoryTable();
           ClickHouse.registerMqttTopicForStorage(
             this.data,
-            '/+orgId/+deviceId/+scope/_robot-agent/+/status/heartbeat',
+            '/+orgId/+deviceId/+scope/_robot-agent/+/status/heartbeat'
           );
           ClickHouse.registerMqttTopicForStorage(
             this.data,
-            '/+orgId/+deviceId/+scope/_robot-agent/+/info/os/#',
+            '/+orgId/+deviceId/+scope/_robot-agent/+/info/os/#'
           );
-
 
         }).catch((error) => {
           log.error('ClickHouse not available:', error);

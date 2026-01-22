@@ -1,12 +1,77 @@
 #!/bin/bash
 
-# Script to deploy a self-hosted service using docker-compose.
+# Script to deploy a self-hosted version of Transitive using Docker Compose.
 
-# generate a secret using /dev/random as randomness source
+BLACK="\033[30m"
+RED="\033[31m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+BLUE="\033[34m"
+PINK="\033[35m"
+CYAN="\033[36m"
+WHITE="\033[37m"
+NORMAL="\033[0;39m"
+
+printStep() {
+  printf "\n$GREEN$@$NORMAL\n"
+}
+
+printWarn() {
+  printf "\n$YELLOW$@$NORMAL\n"
+}
+
+# Generate a secret, using /dev/random as randomness source
 getSecret() {
   length=$([[ -z $1 ]] && echo 24 || echo $1)
   cat /dev/random | od -An -x -N 1024 | tr -d '\n ' | cut -c -$length
 }
+
+
+DIR=~/transitive
+# We need to create some folders to ensure the right owner, including for the
+# generated certs (see certs/generate.sh).
+mkdir -p $DIR/certs;
+mkdir -p $DIR/db;
+
+# For dev: create a folder read by cloud-app where capabilities can be updated live
+mkdir -p /tmp/caps;
+
+cd $DIR;
+
+if [[ -e $DIR/.env ]]; then
+  printWarn "There already exists a .env file. Won't reset. If you'd like to reset your deployment, please remove $DIR/db and rerun.";
+
+else
+
+  printStep "Generating .env file"
+
+  curl -sO https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/sample.env
+
+  # generate some secrets
+  TR_PASS_SECRET=$(getSecret 20)
+  TR_BOT_TOKEN_SECRET=$(getSecret 60)
+  TR_SESSION_SECRET=$(getSecret 60)
+  TR_CAPSESSION_SECRET=$(getSecret 60)
+  RANDOM_SUBDOMAIN=$(getSecret 10)
+  CLICKHOUSE_PASSWORD_SECRET=$(getSecret 20)
+
+  # fill in ENV vars in sample.env to generate .env
+  cat sample.env | while read -r L; do
+    if [[ $L =~ ^# ]] then
+      # print comments as is
+      echo $L;
+    else
+      # interpret all other lines
+      eval echo $L;
+    fi;
+  done > .env
+
+  echo $DIR/.env written;
+fi;
+
+
+printStep "Fetching docker-compose.yaml from GitHub repo"
+curl -sO https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/docker-compose.yaml
 
 # Detect Docker Compose (standalone or plugin)
 if ( docker-compose > /dev/null 2>&1 ); then
@@ -23,6 +88,9 @@ else
   exit 1;
 fi;
 
+
+printStep "Checking that Avahi (mDNS) is installed";
+
 if ( ! dpkg -l avahi-daemon > /dev/null ); then
   echo "You don't have avahi-daemon installed. Please run"
   echo " sudo apt-get install -y avahi-daemon"
@@ -30,100 +98,21 @@ if ( ! dpkg -l avahi-daemon > /dev/null ); then
   exit 2;
 fi;
 
-ADMIN_PASSWORD=$(getSecret 20)
-HOSTNAME="$(hostname).local"
-BOT_TOKEN=$(getSecret 60)
-SESSION_SECRET=$(getSecret 60)
-CAPSESSION_SECRET=$(getSecret 60)
-RANDOM_SUBDOMAIN=$(getSecret 10)
 
-DIR=~/transitive
-# We need to create some folders to ensure the right owner including the
-# generated certs (see certs/generate.sh).
-mkdir -p $DIR/certs
-mkdir -p $DIR/db;
-
-# For dev: create a folder read by cloud-app where capabilities can be updated live
-mkdir -p /tmp/caps;
-
-cd $DIR;
-
-# We need to delete any existing DB or else the admin password at the end
-# will not match what's already in the DB.
-if [[ -e $DIR/db ]]; then
-  echo "There already exists an installation in $DIR. Won't reset .env file or DB. Please remove $DIR/db and rerun if you'd like to reset your deployment.";
-
-else
-  # Generate .env file
-  cat << EOF > $DIR/.env
-MONGO_URL=mongodb://mongodb
-MONGO_DB=transitive
-MQTT_URL=mqtts://mosquitto
-
-# Folder on host where deployment files, db, and certificates are stored.
-TR_VAR_DIR=${DIR}
-
-# create this account in the DB if it doesn't exist
-TR_USER=admin
-TR_PASS=$ADMIN_PASSWORD
-
-# used at build time
-TR_HOST=${HOSTNAME}
-
-# Tell the proxy that we are in production. In production we get SSL certs from
-# Let's Encrypt, terminate HTTPs in the proxy, and use secure protocols (https
-# and wss) when connecting from the web/UI to the back end.
-PRODUCTION=false
-
-# Let's Encrypt email. Only needed in production.
-# TR_SSL_EMAIL=
-
-# Secret npm token for the 'bot' user; used to auto-publish packages
-# To publish packages to your registry add this token to your ~/.npmrc (see
-# 'npm help adduser')
-TR_BOT_TOKEN=${BOT_TOKEN}
-
-# Secrets used by express-session
-TR_SESSION_SECRET=${SESSION_SECRET}
-TR_CAPSESSION_SECRET=${CAPSESSION_SECRET}
-
-# Needs to be set when wanting to use premium capabilities from
-# transitiverobotics.com on a self-hosted deployment.
-# TR_BILLING_USER=#your_transitiverobotics.com_org_name
-# TR_BILLING_SECRET=#your_transitiverobotics.com_jwt_secret
-
-# Make sure we use a consistent docker-compose project name, irrespective of the
-# foldername we are starting from.
-COMPOSE_PROJECT_NAME=cloud
-
-## --- Dev
-
-# In dev we want to start some auxiliary services in docker-compose. Set to prod
-# in production.
-COMPOSE_PROFILES=dev
-
-# Whether to overwrite the host of the @transitive-robotics npm registry to
-# use the local one instead. Only use when developing @transitive-robotics
-# capabilities locally.
-# TR_REGISTRY_IS_LOCAL=false
-
-EOF
-
-  echo $DIR/.env written;
-
-fi;
-
-echo "Fetching docker-compose.yaml from GitHub repo"
-curl -sO https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/docker-compose.yaml
+printStep "Pulling Docker images";
 
 # Pull images from dockerhub
 compose pull
 
+printStep "Starting deployment";
+
 # Start it!
 compose up -d
 
+printStep "Verify local mDNS is working";
+
 # Verify that local subdomains work
-if (getent hosts ${RANDOM_SUBDOMAIN}.${HOSTNAME} > /dev/null); then
+if (getent hosts ${RANDOM_SUBDOMAIN}.${HOSTNAME}.local > /dev/null); then
   echo "mDNS verification successful"
   echo "All done! 🚀"
   echo -n "Now "
@@ -138,10 +127,10 @@ fi;
 ACTIVE_PASSWORD=$(cat $DIR/.env | grep TR_PASS | cut -d '=' -f 2)
 
 # Let the user know next steps
-echo "go to http://portal.${HOSTNAME} and log in using these credentials:"
-echo "      user: admin"
+echo "go to http://portal.${HOSTNAME}.local and log in using these credentials:"
+echo "  user: admin"
 echo "  password: $ACTIVE_PASSWORD"
 echo ""
-echo "If you want to stop the servive again, run \"cd $DIR && docker-compose down\"."
+echo "If you want to stop the servive again, run \"cd $DIR && docker compose down\"."
 echo "If you want to use capabilities available from transitiverobotics.com, then edit .env to set your username and JWT secret from your transitiverobotics.com account in TR_BILLING_USER and TR_BILLING_SECRET respectively."
 echo "To update your deployment, just rerun this command."

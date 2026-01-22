@@ -152,6 +152,7 @@ const routingTable = {
   mqtt: 'mosquitto:9001', // for clients to connect to mqtt via websockets
   hyperdx: `hyperdx:8080`,
   clickhouse: 'clickhouse:8123',  // direct clickhouse access
+  deploy: 'https://raw.githubusercontent.com/transitiverobotics/transitive/refs/heads/main/cloud/deploy',
   // parse env var that may list additional hosts to add
   ...tryJSONParse(process.env.TR_PROXY_ADD_HOSTS)
 };
@@ -253,7 +254,15 @@ const handleRequest = async (req, res) => {
   }
 
   console.log(`${req.socket.remoteAddress}: ${req.headers.host}${req.url} -> ${target}`);
-  proxy.web(req, res, { target: `http://${target}` });
+
+  if (target.startsWith('http')) {
+    // It's a web URL, fetch it and pipe to response
+    const response = await fetch(target);
+    Readable.fromWeb( response.body ).pipe( res );
+  } else {
+    // It's local
+    proxy.web(req, res, { target: `http://${target}` });
+  }
 };
 
 // rate limit ws requests

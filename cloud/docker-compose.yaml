@@ -213,6 +213,7 @@ services:
     volumes:
       - ${TR_VAR_DIR:-.}/hyperdx/ch_data:/var/lib/clickhouse
       - ${TR_VAR_DIR:-.}/hyperdx/ch_logs:/var/log/clickhouse-server
+      - ${TR_VAR_DIR:-.}/certs:/service/certs
     restart: always
     networks:
       - default

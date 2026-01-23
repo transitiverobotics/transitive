@@ -1,0 +1,21 @@
+{
+  "name": "clickhouse-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "node -c index.js",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "Christian Fritz",
+  "license": "Apache-2.0",
+  "description": "ClickHouse sidecar service for mqtt2clickhouse",
+  "dependencies": {
+    "@transitive-sdk/clickhouse": "^0.3.3",
+    "@transitive-sdk/utils": "^0.14.14",
+    "wait-port": "^1.1.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

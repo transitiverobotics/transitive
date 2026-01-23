@@ -135,7 +135,8 @@ const waitForClickHouse = async () => {
 const ensureClickouseDefaultPermissions = async () => {
   const cmd = 'CREATE ROW POLICY IF NOT EXISTS';
   for (let query of [
-    `${cmd} default_customers ON default.* USING concat('org_', OrgId, '_user') = currentUser() TO ALL`,
+    // `${cmd} default_users ON default.* USING concat('org_', OrgId, '_user') = currentUser() TO ALL`,
+    `${cmd} default_users ON default.* USING OrgId = splitByString('_', currentUser())[2] TO ALL`,
     `${cmd} default_admin ON default.* USING 1 TO ${process.env.CLICKHOUSE_USER || 'default'}`
   ]) await ClickHouse.client.command({ query });
 };

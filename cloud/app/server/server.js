@@ -17,11 +17,15 @@ const { auth, requiresAuth } = require('express-openid-connect');
 
 const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync,
   mergeVersions, forMatchIterator, Capability, tryJSONParse, clone, getRandomId,
-  getPackageVersionNamespace, toFlatObject } = require('@transitive-sdk/utils');
+  getPackageVersionNamespace, toFlatObject, registerCatchAll }
+  = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse } = require('./utils');
+const { waitForClickHouse, ensureClickHouseOrgUser,
+  ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup,
+  ensureHyperDXAdminSetup, changeServicePassword }
+  = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
 const docker = require('./docker');
 const installRouter = require('./install');
@@ -45,7 +49,12 @@ const log = getLogger('server');
 // log.setLevel('info');
 log.setLevel('debug');
 
+registerCatchAll();
+
 const cwd = process.cwd();
+
+// 'https://' in production, else 'http://'
+const httpProtocol = `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://`;
 
 const versionNS = getPackageVersionNamespace();
 
@@ -378,11 +387,11 @@ app.get('/running/:scope/:capName/*', (req, res) => {
   log.debug(`${userId}/${deviceId} running ${scope}/${capName}: ${version}`);
 
   // determine which registry to redirect to
-  const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL ?
-    'transitiverobotics.com'
-    : process.env.TR_HOST);
+  const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL
+    ? 'https://registry.transitiverobotics.com'
+    : `//registry.${process.env.TR_HOST}`);
+  const registryUrl = `${host}/-/custom/files/${capability}`;
 
-  const registryUrl = `//registry.${host}/-/custom/files/${capability}`;
   if (version) {
     // redirect to registry URL to fetch package files directly
     res.redirect(`${registryUrl}/${version}/${filePath}`);
@@ -531,7 +540,9 @@ class _robotAgent extends Capability {
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
         ClickHouse.init();
-        waitForClickHouse().then(() => {
+        waitForClickHouse().then(async () => {
+          await ensureClickouseDefaultPermissions();
+          await ensureHyperDXAdminSetup();
           this.telemetry = new TelemetryService();
           this.telemetry.init().then(() => {
             this.ingestLogs();
@@ -539,6 +550,15 @@ class _robotAgent extends Capability {
           }).catch((error) => {
             log.error('Failed to initialize TelemetryService:', error);
           });
+          
+          await ClickHouse.enableHistory({ dataCache: this.data });
+          ClickHouse.registerMqttTopicForStorage(
+            '/+orgId/+deviceId/+scope/_robot-agent/+/status/heartbeat'
+          );
+          ClickHouse.registerMqttTopicForStorage(
+            '/+orgId/+deviceId/+scope/_robot-agent/+/info/os/#'
+          );
+
         }).catch((error) => {
           log.error('ClickHouse not available:', error);
         });
@@ -1036,7 +1056,7 @@ class _robotAgent extends Capability {
       const config = {
         authRequired: false,
         auth0Logout: true,
-        baseURL: `http${tryJSONParse(process.env.PRODUCTION) ? 's' : ''}://portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
+        baseURL: `${httpProtocol}portal.${process.env.TR_HOST}/@transitive-robotics/_robot-agent/openid/${req.params.orgId}`,
         clientID: account.openId.clientId,
         issuerBaseURL: ensureHTTPs(account.openId.domain),
         secret: account.openId.secret,
@@ -1421,13 +1441,27 @@ class _robotAgent extends Capability {
       res.json(this.getCapabilitiesInUse());
     });
 
+    /** Route to provide the details needed for the Security page */
     this.router.get('/security', requireLogin, async (req, res) => {
       log.debug('get profile/security data for', req.session.user._id);
+
+      if (process.env.CLICKHOUSE_ENABLED) {
+        const { user, password } = await ensureClickHouseOrgUser(req.session.user._id);
+        await ensureHyperDXOrgSetup(req.session.user._id, user, password);
+      }
+
       const accounts = Mongo.db.collection('accounts');
       const account = await accounts.findOne({_id: req.session.user._id});
 
       for (let token in account.capTokens) {
         delete account.capTokens[token].password;
+      }
+
+      // Build ClickHouse play URL with embedded credentials
+      let clickhousePlayUrl = `${httpProtocol}clickhouse.${process.env.TR_HOST}/play`;
+      if (account.clickhouseCredentials) {
+        const params = new URLSearchParams(account.clickhouseCredentials);
+        clickhousePlayUrl += `?${params.toString()}`;
       }
 
       res.json({
@@ -1436,9 +1470,18 @@ class _robotAgent extends Capability {
         cap_usage: account.cap_usage || {},
         openId: account.openId || {},
         googleDomain: account.googleDomain || undefined,
+        clickhouseCredentials: {
+          ...account.clickhouseCredentials || {},
+          url: clickhousePlayUrl
+        },
+        hyperDXCredentials: {
+          ...account.hyperdxCredentials || {},
+          url: `${httpProtocol}hyperdx.${process.env.TR_HOST}/login`
+        }
       });
     });
 
+    /** Route used to update some of the details on the Security page. */
     this.router.post('/security', requireLogin, async (req, res) => {
 
       if (!req.session.user._id) {
@@ -1470,6 +1513,41 @@ class _robotAgent extends Capability {
       res.json({status: 'ok', result});
     });
 
+    /** route to change password for other services like ClickHouse and HyperDX */
+    this.router.post('/changeServicePassword/:service', requireLogin, async (req, res) => {
+      const user = req.session.user._id;
+      const service = req.params.service;
+      const newPassword = req.body?.newPassword;
+
+      log.debug(`change password for user ${user} in service ${service}`);
+      if (!user) {
+        res.status(401).json({error: 'not authorized'});
+        return;
+      }
+
+      if (!newPassword) {
+        res.status(400).json({error: 'newPassword is required'});
+        return;
+      }
+
+      if (!process.env.CLICKHOUSE_ENABLED) {
+        res.status(400).json({error: 'ClickHouse is not enabled'});
+        return;
+      }
+
+      if (!changeServicePassword[service]) {
+        res.status(400).json({error: `Unknown service ${service}`});
+        return;
+      }
+
+      try {
+        await changeServicePassword[service](user, newPassword);
+        res.json({status: 'ok'});
+      } catch (error) {
+        log.error(`Failed to change %{service} password:`, error);
+        res.status(500).json({error: error.message});
+      }
+    });
 
     // Admin tools
 
@@ -1623,12 +1701,6 @@ Mongo.init(() => {
     res.sendFile(path.join(cwd, 'public', 'index.html')));
 
   const server = http.createServer(app);
-
-  /** catch-all to be safe */
-  process.on('uncaughtException', (err) => {
-    console.error(`**** Caught exception: ${err}:`, err.stack);
-  });
-
 
   // if username and password are provided as env vars, create account if it
   // doesn't yet exists. This is used for initial bringup.

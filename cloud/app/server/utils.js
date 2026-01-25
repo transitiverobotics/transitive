@@ -56,6 +56,12 @@ const getVersionRange = (version, type) => {
 };
 
 
+// -----------------------------------------------------------------------------
+//
+// ClickHouse and HyperDX utils (that don't belong in @transitive-sdk/clickhouse
+// because they are deployment specific and require access to MongoDB as well.
+//
+
 /** Ensure ClickHouse database and user exist for a capability
  * Only used with admin ClickHouse user credentials.
  * @param {string} capName - capability name
@@ -112,37 +118,8 @@ const ensureCapabilityDB = async (capName) => {
 }
 
 
-/** Waits for ClickHouse to be ready */
-const waitForClickHouse = async () => {
-  log.debug('Waiting for ClickHouse to be ready...');
-  const start = Date.now();
-  const timeout = 2 * 60 * 1000; // 2 minutes before giving up
-  while (Date.now() - start < timeout) {
-    try {
-      await ClickHouse.client.query({ query: 'SELECT 1' });
-      log.debug('ClickHouse is ready');
-      return;
-    } catch (err) {
-      log.debug('ClickHouse not ready yet:', err.message);
-    }
-    await wait(2000);
-  }
-  throw new Error('Timeout waiting for ClickHouse to be ready');
-};
-
-
-/* sets up default row level security policies in ClickHouse */
-const ensureClickouseDefaultPermissions = async () => {
-  const cmd = 'CREATE ROW POLICY IF NOT EXISTS';
-  for (let query of [
-    // `${cmd} default_users ON default.* USING concat('org_', OrgId, '_user') = currentUser() TO ALL`,
-    `${cmd} default_users ON default.* USING OrgId = splitByString('_', currentUser())[2] TO ALL`,
-    `${cmd} default_admin ON default.* USING 1 TO ${process.env.CLICKHOUSE_USER || 'default'}`
-  ]) await ClickHouse.client.command({ query });
-};
-
-
-/* creates ClickHouse user for an organization with SELECT access for all dbs and tables */
+/* Creates ClickHouse user for an organisation/user with SELECT access for all
+dbs and tables */
 const ensureClickHouseOrgUser = async (orgId) => {
   const orgUser = `org_${orgId}_user`;
 
@@ -453,8 +430,6 @@ module.exports = {
   getNextInRange,
   getVersionRange,
   ensureCapabilityDB,
-  waitForClickHouse,
-  ensureClickouseDefaultPermissions,
   ensureClickHouseOrgUser,
   ensureHyperDXOrgSetup,
   ensureHyperDXAdminSetup,

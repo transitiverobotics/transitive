@@ -2,10 +2,10 @@
 const fs = require('fs');
 const net = require('net');
 const mqtt = require('mqtt');
-const waitPort = require('wait-port');
 
-const { MqttSync, getLogger, topicToPath, pathToTopic, registerCatchAll, wait }
-  = require('@transitive-sdk/utils');
+const { MqttSync, getLogger, topicToPath, pathToTopic, registerCatchAll, wait,
+  storageRequestToSelector
+} = require('@transitive-sdk/utils');
 
 const clickhouse = require('@transitive-sdk/clickhouse');
 
@@ -17,19 +17,26 @@ registerCatchAll();
 
 /** start the service, i.e., subscribe to "request topic" and register topics
  * to store when requests are received. */
-const init = async () => {
+const init = async (mqttSync) => {
 
-  // wait ClickHouse server to come up
-  await waitPort({ port: 8123, interval: 200 }, 10000);
-  await wait(200);
-  log.info('ClickHouse seems to be up');
+  // A separate MqttSync instance, without meta-data, for data topics; using
+  // the same mqtt client (and connection).
+  const mqttSyncData = new MqttSync({ mqttClient: mqttSync.mqtt });
 
-  clickhouse.init({ url: 'http://localhost:8123' });
-  await clickhouse.enableHistory({dataCache: mqttSync.data});
+  await clickhouse.init({ url: 'http://localhost:8123' });
+  await clickhouse.enableHistory({dataCache: mqttSyncData.data});
 
   /** Subscribe to special topic that capabilities can use to request storage of
   * their (retained) MQTT data in ClickHouse. */
   mqttSync.subscribe('/$store/$store/+/+/#');
+
+  // Would it be better not to use retained/mqttsync but just QoS:2
+  // directly? (or an RPC) wouldn't pollute the data space; but would require service to be online when
+  // requests are made.
+  //
+  // No: because we still need to retain/store the request in order to restart
+  // the subscription next time we start. Instead we just filter such "meta-data"
+  // in MqttSync unless explicitly requested.
   mqttSync.data.subscribePath('/$store/$store/+scope/+capName/#',
     async (ttl, topic, {scope, capName}) => {
 
@@ -39,16 +46,12 @@ const init = async () => {
         return;
       }
 
-      const path = topicToPath(topic);
-      // replace special token with wildcard for subscribing
-      path.forEach((part, i) => part == '$store' && (path[i] = '+'));
-
-      const dataTopic = pathToTopic(path);
+      const dataSelector = storageRequestToSelector(topic);
 
       // register this topic to be stored in ClickHouse
-      log.info(`Registering ${dataTopic} with TTL ${ttl}`);
-      mqttSync.subscribe(dataTopic);
-      clickhouse.registerMqttTopicForStorage(dataTopic, ttl);
+      log.info(`Registering ${dataSelector} with TTL ${ttl}`);
+      mqttSyncData.subscribe(dataSelector);
+      clickhouse.registerMqttTopicForStorage(dataSelector, ttl);
     });
 
 };
@@ -58,7 +61,6 @@ const init = async () => {
 // MQTT
 
 const MQTT_URL = process.env.MQTT_URL || 'mqtts://mosquitto';
-let mqttSync;
 
 const mqttClient = mqtt.connect(MQTT_URL, {
   key: fs.readFileSync(`certs/client.key`),
@@ -75,8 +77,7 @@ mqttClient.on('disconnect', log.warn.bind(log));
 
 mqttClient.once('connect', () => {
   log.info('connected');
-  mqttSync ||= new MqttSync({mqttClient});
-
-  init();
+  const mqttSync = new MqttSync({mqttClient, inclMeta: true});
+  init(mqttSync);
 });
 

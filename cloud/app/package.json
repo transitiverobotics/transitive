@@ -5,9 +5,9 @@
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",
     "@clickhouse/client": "^1.12.1",
-    "@transitive-sdk/clickhouse": "^0.1.1",
+    "@transitive-sdk/clickhouse": "^0.3.6",
     "@transitive-sdk/mongo": "^0.14.0",
-    "@transitive-sdk/utils": "^0.14.11",
+    "@transitive-sdk/utils": "^0.15.0",
     "@transitive-sdk/utils-web": "^0.14.6",
     "bcrypt": "^5.0.1",
     "bootstrap": "^5.3.8",

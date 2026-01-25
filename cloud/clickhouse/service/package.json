@@ -11,9 +11,8 @@
   "license": "Apache-2.0",
   "description": "ClickHouse sidecar service for mqtt2clickhouse",
   "dependencies": {
-    "@transitive-sdk/clickhouse": "^0.3.3",
-    "@transitive-sdk/utils": "^0.14.14",
-    "wait-port": "^1.1.0"
+    "@transitive-sdk/clickhouse": "^0.3.7",
+    "@transitive-sdk/utils": "^0.15.0"
   },
   "devDependencies": {
     "dotenv": "^17.2.3"

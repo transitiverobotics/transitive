@@ -539,20 +539,26 @@ class _robotAgent extends Capability {
       // Check for ClickHouse integration
       if (process.env.CLICKHOUSE_ENABLED === 'true') {
         log.debug('ClickHouse integration enabled');
-        ClickHouse.init();
-        waitForClickHouse().then(async () => {
-          await ensureClickouseDefaultPermissions();
-          await ensureHyperDXAdminSetup();
-          this.telemetry = new TelemetryService();
-          this.telemetry.init().then(() => {
-            this.ingestLogs();
-            this.forwardMetricsToClickhouse();
-          }).catch((error) => {
+        try {
+          await ClickHouse.init();
+        } catch (e) {
+          log.warn('ClickHouse not available?', e);
+          return;
+        }
+        await ClickHouse.ensureDefaultPermissions();
+        await ensureHyperDXAdminSetup();
+        this.telemetry = new TelemetryService();
+        this.telemetry.init().then(() => {
+          this.ingestLogs();
+          this.forwardMetricsToClickhouse();
+        }).catch((error) => {
             log.error('Failed to initialize TelemetryService:', error);
           });
-        }).catch((error) => {
-          log.error('ClickHouse not available:', error);
-        });
+
+        // request storing of all heartbeats for 30 days
+        this.mqttSync.requestHistoryStorage(
+          '/+/+/@transitive-robotics/_robot-agent/+/status/heartbeat', 30);
+
       } else {
         log.debug('ClickHouse integration disabled');
       }

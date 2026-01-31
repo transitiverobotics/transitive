@@ -1362,7 +1362,8 @@ class _robotAgent extends Capability {
       res.json({token});
     });
 
-
+    /** Create a token for a standalone page to access a capability. These tokens
+     * can be revoked from the Security page (see DELETE route below). */
     this.router.post('/createCapsToken', requireLogin, async (req, res) => {
       log.debug('createCapsToken', req.body);
       if (!req.body.jwt) {

@@ -13,9 +13,10 @@ import _ from 'lodash';
 import { MapContainer, TileLayer, Marker, Tooltip, Popup } from 'react-leaflet';
 
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
-  toFlatObject, getLogger, mergeVersions } from '@transitive-sdk/utils-web';
+  toFlatObject, getLogger, mergeVersions, selectorToMetaTopic }
+  from '@transitive-sdk/utils-web';
 
-import { heartbeatLevel, Heartbeat, ensureProps } from './shared';
+import { heartbeatLevel, Heartbeat, ensureProps, HeartbeatHistory } from './shared';
 import { Code } from '../src/utils/Code';
 import { Fold } from '../src/utils/Fold';
 import { Delayed } from '../src/utils/Delayed';
@@ -67,6 +68,12 @@ const styles = {
   },
   list: {
     flex: '1 1 20em',
+  },
+  deviceDiv: {
+    width: '100%'
+  },
+  history: {
+    float: 'right',
   }
 };
 
@@ -77,14 +84,16 @@ const explanation = `This will remove the data for all inactive devices.
 const hours = Array.from({ length: 25 }, (v, i) => i);
 
 /** Show one device */
-const FleetDevice = ({status, info, deviceId, device_url}) => {
+const FleetDevice = ({status, info, deviceId, device_url, heartbeats}) => {
   // log.debug({status, info, device, device_url});
+
+  log.debug(deviceId, {heartbeats});
 
   return <ListGroup.Item
     className="d-flex justify-content-between align-items-start"
     action href={`${device_url}/${deviceId}`}
   >
-    <div className="ms-2 me-auto">
+    <div className="ms-2 me-auto" style={styles.deviceDiv}>
       <div className="fw-bold">
         {status.heartbeat && <Heartbeat heartbeat={status.heartbeat} />}
         <span>{info?.os?.hostname}</span>
@@ -93,6 +102,9 @@ const FleetDevice = ({status, info, deviceId, device_url}) => {
               <Badge bg="info">{label}</Badge>
             </span>)
         }
+        {heartbeats && <span style={styles.history}>
+          <HeartbeatHistory {...{heartbeats}} />
+        </span>}
       </div>
       <div style={styles.caps}>
       { /* list running packages */
@@ -156,6 +168,7 @@ const Fleet = (props) => {
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
+  const [heartbeats, setHeartbeats] = useState();
 
   useEffect(() => {
       if (mqttSync) {
@@ -166,7 +179,25 @@ const Fleet = (props) => {
       }
     }, [mqttSync]);
 
-  log.debug('data', data);
+  // query ClickHouse for historic heartbeats
+  useEffect(() => {
+      const run = async () => {
+        log.debug('Querying history');
+        const result = await mqttSync.call(selectorToMetaTopic(
+            `/${id}/_fleet/@transitive-robotics/_robot-agent/+/$queryMQTTHistory`),
+          {
+            subtopic: '/status/heartbeat',
+            since: new Date(Date.now() - 60 * 60 * 1000),
+            limit: 100000,
+          });
+        log.debug({result})
+        setHeartbeats(result);
+      };
+      mqttSync && run();
+    }, [mqttSync, jwt, id]);
+
+
+  log.debug({data, heartbeats});
   if (!ready || !data) return <StatusComponent />;
 
   // merge all robot-agent versions' data and sort by hostname
@@ -333,7 +364,7 @@ const Fleet = (props) => {
                   : {}}
                 position={[info.geo.latitude, info.geo.longitude]}
                 icon={getHeartbeatIcon(status.heartbeat)}
-                >
+              >
                 <Tooltip>{ list.length == 1
                     ? info.os?.hostname || deviceId
                     : list.map(({deviceId, info}) => info.os?.hostname || deviceId)
@@ -360,7 +391,13 @@ const Fleet = (props) => {
         <ListGroup variant="flush" style={styles.list}>
           {!empty
             ? _.map(mergedData, ({status, info, deviceId}) =>
-              <FleetDevice key={deviceId} {...{status, info, deviceId, device_url}} />)
+              <FleetDevice key={deviceId}
+                {...{status, info, deviceId, device_url}}
+                heartbeats={mergeVersions(
+                  _.get(heartbeats,
+                    [id, deviceId, '@transitive-robotics', '_robot-agent']),
+                  'status').status?.heartbeat}
+                />)
             : <ListGroup.Item><i>No devices yet.</i></ListGroup.Item>
           }
         </ListGroup>

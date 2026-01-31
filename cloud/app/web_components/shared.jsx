@@ -78,16 +78,16 @@ const decompress = (zippedBase64) => {
 
 /** Component that renders the package log response, such as
 {
-  "@transitive-robotics": {
-    "webrtc-video": {
-      "err": null,
-      "stdout": [base64 encoded gzip buffer of text],
-      "stderr": [base64 encoded gzip buffer of text],
-    }
-  }
+"@transitive-robotics": {
+"webrtc-video": {
+"err": null,
+"stdout": [base64 encoded gzip buffer of text],
+"stderr": [base64 encoded gzip buffer of text],
 }
-  This has now been extended to additionally also show the live-log, which comes
-  directly from MQTT (not MQTTSync).
+}
+}
+This has now been extended to additionally also show the live-log, which comes
+directly from MQTT (not MQTTSync).
 */
 export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const scope = Object.keys(response)[0];
@@ -114,44 +114,44 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   // subscribe to live-log and append it
   useEffect(() => {
 
-    if (mqttClient) {
-      const topic = `${agentPrefix}/status/logs/live`;
+      if (mqttClient) {
+        const topic = `${agentPrefix}/status/logs/live`;
 
-      mqttClient.subscribe(topic, (err) => {
-        if (err) {
-          log.error('Failed to subscribe to live logs:', err);
-        } else {
-          log.debug('Subscribed to live logs:', topic);
-        }
-      });
-
-      mqttClient.on('message', (msgTopic, message) => {
-        if (msgTopic === topic) {
-          // const logLines = message && JSON.parse(message.toString());
-          const jsonStr = pako.ungzip(message, {to: 'string'});
-          const logLines = message && JSON.parse(jsonStr);
-
-          if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
-            return;
+        mqttClient.subscribe(topic, (err) => {
+          if (err) {
+            log.error('Failed to subscribe to live logs:', err);
+          } else {
+            log.debug('Subscribed to live logs:', topic);
           }
+        });
 
-          const packageLogObjects = _.filter(logLines, (line) => {
-            return line.package === packageName;
-          });
+        mqttClient.on('message', (msgTopic, message) => {
+          if (msgTopic === topic) {
+            // const logLines = message && JSON.parse(message.toString());
+            const jsonStr = pako.ungzip(message, {to: 'string'});
+            const logLines = message && JSON.parse(jsonStr);
 
-          const newLog = _.map(packageLogObjects, (log) => {
-            return `[${new Date(log.timestamp).toISOString()} ${log.module} ${log.level.toLowerCase()}] ${log.message}`;
-          }).join('\n');
+            if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
+              return;
+            }
 
-          if (newLog) {
-            setLiveLogs((prevLogs) => {
-              return prevLogs + '\n' + newLog;
+            const packageLogObjects = _.filter(logLines, (line) => {
+              return line.package === packageName;
             });
+
+            const newLog = _.map(packageLogObjects, (log) => {
+                return `[${new Date(log.timestamp).toISOString()} ${log.module} ${log.level.toLowerCase()}] ${log.message}`;
+              }).join('\n');
+
+            if (newLog) {
+              setLiveLogs((prevLogs) => {
+                return prevLogs + '\n' + newLog;
+              });
+            }
           }
-        }
-      });
-    }
-  }, [mqttClient, scope, capName]);
+        });
+      }
+    }, [mqttClient, scope, capName]);
 
 
   const lines = stdout ? stdout.split(/\n/g) : null;
@@ -229,7 +229,79 @@ export const LogButtonWithCounter = (props) => {
         mqttClient={mqttSync.mqtt}
         agentPrefix={versionPrefix}
         hide={() => setPkgLog(null)}
-      />}
+        />}
     </F>
   );
+};
+
+
+/** chatGPT: Write code that, given an object like the blow, generates an SVG
+* where for each minutes of the last hour there is a thin vertical bar that is
+green if there is a heartbeat with a Payload from that time, and gray otherwise.
+(modified)
+*/
+export const HeartbeatHistory = ({heartbeats, options = {}}) => {
+  const {
+    width = 300,
+    height = '0.5em',
+    barColorOn = "#2ecc71",   // green
+    barColorOff = "#9999",  // gray
+    barWidth = 2,
+    barGap = 1
+  } = options;
+
+  // 2. Build a set of minute keys (YYYY-MM-DDTHH:MM) that have payloads
+  const minutesWithPayload = new Set();
+
+  for (const hb of heartbeats) {
+    if (!hb.Payload || !hb.Timestamp) continue;
+
+    const ts = new Date(hb.Timestamp);
+    if (isNaN(ts)) continue;
+
+    // Normalize to minute precision
+    const minuteKey = ts.toISOString().slice(0, 16);
+    minutesWithPayload.add(minuteKey);
+  }
+
+  // 3. Compute the last 60 minutes (oldest → newest)
+  const now = new Date();
+  now.setSeconds(0, 0);
+
+  const minutes = [];
+  for (let i = 59; i >= 0; i--) {
+    const d = new Date(now);
+    d.setMinutes(now.getMinutes() - i);
+    minutes.push(d);
+  }
+
+  // 4. SVG layout math
+  const totalBars = minutes.length;
+  const svgWidth =
+    totalBars * barWidth + (totalBars - 1) * barGap;
+
+  const scale = width / svgWidth;
+
+  // 5. Generate SVG bars
+  let x = 0;
+  const bars = minutes.map((minute) => {
+    const key = minute.toISOString().slice(0, 16);
+    const color = minutesWithPayload.has(key) ? barColorOn : barColorOff;
+
+    const rect = <rect key={minute} fill={color}
+      x={x * scale} y={0} width={barWidth * scale} height={height}
+    >
+      <title>{minute.toISOString()}</title>
+    </rect>;
+
+    x += barWidth + barGap;
+    return rect;
+  });
+
+  // 6. Wrap in SVG
+  return <svg width={width} height={height}
+    viewBox={`0 0 ${width} ${height}`} xmlns="http://www.w3.org/2000/svg"
+  >
+    {bars}
+  </svg>;
 };

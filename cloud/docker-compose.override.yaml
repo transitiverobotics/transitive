@@ -80,6 +80,8 @@ services:
 
   clickhouse:
     build: ./clickhouse
+    volumes:
+      - ./clickhouse/service/index.js:/service/index.js
     # only in dev: open some of the ports
     # ports:
     #   - "8123:8123"  # HTTP interface for web UI and API

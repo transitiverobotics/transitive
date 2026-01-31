@@ -85,9 +85,7 @@ const hours = Array.from({ length: 25 }, (v, i) => i);
 
 /** Show one device */
 const FleetDevice = ({status, info, deviceId, device_url, heartbeats}) => {
-  // log.debug({status, info, device, device_url});
-
-  log.debug(deviceId, {heartbeats});
+  // log.debug(deviceId, {status, info, device, device_url, heartbeats});
 
   return <ListGroup.Item
     className="d-flex justify-content-between align-items-start"
@@ -191,23 +189,53 @@ const Fleet = (props) => {
             limit: 100000,
           });
         log.debug({result})
-        setHeartbeats(result);
+
+        // merge versions, flatten to `{deviceId: heartbeatSet}` format and make
+        // heartbeatSet a set of minute-precision Date strings.
+        const merged = _.mapValues( result[id], device => {
+          const mergedHeartbeats = mergeVersions(
+              _.get(device, ['@transitive-robotics', '_robot-agent']), 'status')
+              .status?.heartbeat;
+          // convert to object (set) of minute-precision timestamps (from Payload)
+          return _.mapKeys(mergedHeartbeats,
+            record => record.Payload?.slice(0, 16));
+        });
+
+        setHeartbeats(merged);
       };
       mqttSync && run();
     }, [mqttSync, jwt, id]);
 
-
   log.debug({data, heartbeats});
-  if (!ready || !data) return <StatusComponent />;
+  if (!ready || !data || !heartbeats) return <StatusComponent />;
 
   // merge all robot-agent versions' data and sort by hostname
   const mergedData = _.map(data[id], (device, deviceId) => {
       if (deviceId.startsWith('_')) return; // ignore _fleet
       const agentData = device['@transitive-robotics']['_robot-agent'];
+
+      const status = mergeVersions(agentData, 'status').status;
+      // add newer heartbeats to history
+      if (status.heartbeat) {
+        const latestHeartbeatMinute = status.heartbeat.slice(0, 16);
+        heartbeats[deviceId] ||= {}; // create it if it wasn't in record from DB
+        if (!heartbeats[deviceId][latestHeartbeatMinute]) {
+          heartbeats[deviceId][latestHeartbeatMinute] = true;
+          // add latest heartbeat to history for device
+          setHeartbeats(h => ({...h,
+            [deviceId]: {
+              ...h[deviceId],
+              [latestHeartbeatMinute]: true
+            }
+          }));
+        }
+      }
+
       return {
         deviceId,
         status: mergeVersions(agentData, 'status').status,
         info: mergeVersions(agentData, 'info').info,
+        heartbeats: heartbeats[deviceId]
       }
     }).filter(Boolean)
       .sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname))
@@ -390,13 +418,9 @@ const Fleet = (props) => {
 
         <ListGroup variant="flush" style={styles.list}>
           {!empty
-            ? _.map(mergedData, ({status, info, deviceId}) =>
+            ? _.map(mergedData, ({status, info, deviceId, heartbeats}) =>
               <FleetDevice key={deviceId}
-                {...{status, info, deviceId, device_url}}
-                heartbeats={mergeVersions(
-                  _.get(heartbeats,
-                    [id, deviceId, '@transitive-robotics', '_robot-agent']),
-                  'status').status?.heartbeat}
+                {...{status, info, deviceId, heartbeats, device_url}}
                 />)
             : <ListGroup.Item><i>No devices yet.</i></ListGroup.Item>
           }

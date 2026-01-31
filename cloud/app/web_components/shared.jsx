@@ -250,57 +250,31 @@ export const HeartbeatHistory = ({heartbeats, options = {}}) => {
     barGap = 1
   } = options;
 
-  // 2. Build a set of minute keys (YYYY-MM-DDTHH:MM) that have payloads
-  const minutesWithPayload = new Set();
-
-  for (const hb of heartbeats) {
-    if (!hb.Payload || !hb.Timestamp) continue;
-
-    const ts = new Date(hb.Timestamp);
-    if (isNaN(ts)) continue;
-
-    // Normalize to minute precision
-    const minuteKey = ts.toISOString().slice(0, 16);
-    minutesWithPayload.add(minuteKey);
-  }
-
-  // 3. Compute the last 60 minutes (oldest → newest)
-  const now = new Date();
-  now.setSeconds(0, 0);
-
-  const minutes = [];
-  for (let i = 59; i >= 0; i--) {
-    const d = new Date(now);
-    d.setMinutes(now.getMinutes() - i);
-    minutes.push(d);
-  }
-
-  // 4. SVG layout math
-  const totalBars = minutes.length;
+  // SVG layout math
+  const totalBars = 60;
   const svgWidth =
     totalBars * barWidth + (totalBars - 1) * barGap;
-
   const scale = width / svgWidth;
 
-  // 5. Generate SVG bars
+  // Generate SVG bars
   let x = 0;
-  const bars = minutes.map((minute) => {
-    const key = minute.toISOString().slice(0, 16);
-    const color = minutesWithPayload.has(key) ? barColorOn : barColorOff;
+  const bars = [];
+  for (let i = 59; i > 0; i--) {
+    const barDate = new Date(Date.now() - i * 60 * 1000);
+    const key = barDate.toISOString().slice(0, 16);
+    const color = heartbeats[key] ? barColorOn : barColorOff;
 
-    const rect = <rect key={minute} fill={color}
+    bars.push(<rect key={key} fill={color}
       x={x * scale} y={0} width={barWidth * scale} height={height}
     >
-      <title>{minute.toISOString()}</title>
-    </rect>;
+      <title>{key}</title>
+    </rect>);
 
     x += barWidth + barGap;
-    return rect;
-  });
+  }
 
-  // 6. Wrap in SVG
-  return <svg width={width} height={height}
-    viewBox={`0 0 ${width} ${height}`} xmlns="http://www.w3.org/2000/svg"
+  // Wrap in SVG
+  return <svg xmlns='http://www.w3.org/2000/svg' width={width} height={height}
   >
     {bars}
   </svg>;

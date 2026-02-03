@@ -185,7 +185,8 @@ const Fleet = (props) => {
             `/${id}/_fleet/@transitive-robotics/_robot-agent/+/$queryMQTTHistory`),
           {
             subtopic: '/status/heartbeat',
-            since: new Date(Date.now() - 60 * 60 * 1000),
+            since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+            aggSeconds: 60 * 60,
             limit: 100000,
           });
         log.debug({result})
@@ -196,9 +197,9 @@ const Fleet = (props) => {
           const mergedHeartbeats = mergeVersions(
               _.get(device, ['@transitive-robotics', '_robot-agent']), 'status')
               .status?.heartbeat;
-          // convert to object (set) of minute-precision timestamps (from Payload)
+          // convert to object (set) of minute-precision timestamps (from Timestamp)
           return _.mapKeys(mergedHeartbeats,
-            record => record.Payload?.slice(0, 16));
+            record => record.Timestamp?.slice(0, 13));
         });
 
         setHeartbeats(merged);
@@ -215,19 +216,24 @@ const Fleet = (props) => {
       const agentData = device['@transitive-robotics']['_robot-agent'];
 
       const status = mergeVersions(agentData, 'status').status;
-      // add newer heartbeats to history
+      // add newer per-minute heartbeats to history
       if (status.heartbeat) {
-        const latestHeartbeatMinute = status.heartbeat.slice(0, 16);
-        heartbeats[deviceId] ||= {}; // create it if it wasn't in record from DB
-        if (!heartbeats[deviceId][latestHeartbeatMinute]) {
-          heartbeats[deviceId][latestHeartbeatMinute] = true;
-          // add latest heartbeat to history for device
-          setHeartbeats(h => ({...h,
-            [deviceId]: {
-              ...h[deviceId],
-              [latestHeartbeatMinute]: true
-            }
-          }));
+        // verify that heartbeat is current
+        const heartbeatTime = (new Date(status.heartbeat)).getTime();
+        if (Date.now() - heartbeatTime > 60 * 1000) {
+          // ignore old heartbeat
+        } else {
+          const latestHeartbeatHour = status.heartbeat.slice(0, 13);
+          const latestHeartbeatMinute = status.heartbeat.slice(0, 16);
+          heartbeats[deviceId] ||= {}; // create it if it wasn't in record from DB
+          heartbeats[deviceId][latestHeartbeatHour] ||= {};
+          heartbeats[deviceId][latestHeartbeatHour].minutes ||= {};
+          if (!heartbeats[deviceId][latestHeartbeatHour].minutes[latestHeartbeatMinute]) {
+            heartbeats[deviceId][latestHeartbeatHour].minutes[latestHeartbeatMinute] = true;
+            heartbeats[deviceId][latestHeartbeatHour].minutesSoFar =
+              (new Date()).getMinutes();
+              setHeartbeats(structuredClone(heartbeats));
+          }
         }
       }
 

@@ -59,7 +59,10 @@ const init = async (mqttSync) => {
       // register this topic to be stored in ClickHouse
       log.info(`Registering ${dataSelector} with TTL ${ttl}`);
       mqttSyncData.subscribe(dataSelector);
-      clickhouse.registerMqttTopicForStorage(dataSelector, ttl);
+      // Wait until the retained messages have been received, since we don't want
+      // to store those, only live data.
+      mqttSyncData.waitForHeartbeatOnce(() =>
+        clickhouse.registerMqttTopicForStorage(dataSelector, ttl));
     });
 
   // Register an RPC for responding to requests for historic data. This is used
@@ -71,9 +74,7 @@ const init = async (mqttSync) => {
       subtopic,
       since, // timestamp, not Date object
       until,
-    } = params;
-
-    // const dataSelector = storageRequestToSelector(topic);
+    } = params; // all other params are passed onto query as well
 
     log.debug(`received queryMQTTHistory request for ${topic}: ${subtopic}`);
 
@@ -96,19 +97,25 @@ const init = async (mqttSync) => {
     // The main query call to ClickHouse:
     const results = await clickhouse.queryMQTTHistory(query);
 
-    // Regroup (unflatten) into our usual structure, using array of values.
+    // log.debug({results});
+
     const json = {};
-    // Using trandition for loop, since there may be many rows
+    // Regroup (unflatten) into our usual structure, using array of values.
+    // Using traditional for-loop, since there may be many rows
     for (let row of results) {
       let array = _.get(json, row.TopicParts);
       if (!array) {
         array = [];
         _.set(json, row.TopicParts, array);
       }
-      array.push({Timestamp: row.Timestamp, Payload: row.Payload});
+      array.push({
+        Timestamp: row.Timestamp,
+        Payload: row.Payload,
+        value: row.value,
+        aggValue: row.aggValue
+      });
     }
 
-    // log.debug(`Got ${results.length} results. ${JSON.stringify(results).length} B`);
     log.debug(`Got ${results.length} results. ${JSON.stringify(json).length} B`);
     return json;
   });

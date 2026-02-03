@@ -78,16 +78,16 @@ const decompress = (zippedBase64) => {
 
 /** Component that renders the package log response, such as
 {
-"@transitive-robotics": {
-"webrtc-video": {
-"err": null,
-"stdout": [base64 encoded gzip buffer of text],
-"stderr": [base64 encoded gzip buffer of text],
+  "@transitive-robotics": {
+    "webrtc-video": {
+      "err": null,
+      "stdout": [base64 encoded gzip buffer of text],
+      "stderr": [base64 encoded gzip buffer of text],
+    }
+  }
 }
-}
-}
-This has now been extended to additionally also show the live-log, which comes
-directly from MQTT (not MQTTSync).
+  This has now been extended to additionally also show the live-log, which comes
+  directly from MQTT (not MQTTSync).
 */
 export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const scope = Object.keys(response)[0];
@@ -242,16 +242,19 @@ green if there is a heartbeat with a Payload from that time, and gray otherwise.
 */
 export const HeartbeatHistory = ({heartbeats, options = {}}) => {
   const {
-    width = 300,
-    height = '0.5em',
-    barColorOn = "#2ecc71",   // green
-    barColorOff = "#9999",  // gray
-    barWidth = 2,
-    barGap = 1
+    width = 150,
+    height = '0.75em',
+    barColorOn = levels[0].color, // green
+    barColorOff = levels[2].color,  // gray
+    barWidth = 3,
+    barGap = 1,
+    totalBars = 24,
+    barDuration = 60 * 60 * 1000,
+    barDatePrecision = 13,
+    max = 60, // max value (green)
   } = options;
 
   // SVG layout math
-  const totalBars = 60;
   const svgWidth =
     totalBars * barWidth + (totalBars - 1) * barGap;
   const scale = width / svgWidth;
@@ -259,15 +262,31 @@ export const HeartbeatHistory = ({heartbeats, options = {}}) => {
   // Generate SVG bars
   let x = 0;
   const bars = [];
-  for (let i = 59; i > 0; i--) {
-    const barDate = new Date(Date.now() - i * 60 * 1000);
-    const key = barDate.toISOString().slice(0, 16);
-    const color = heartbeats[key] ? barColorOn : barColorOff;
+  for (let i = totalBars - 1; i >= 0; i--) {
+    const barDate = new Date(Date.now() - i * barDuration);
+    const key = barDate.toISOString().slice(0, barDatePrecision);
+    // fraction of minutes in current hour we have heartbeats for
+    const currentFraction = heartbeats[key]?.minutes ?
+      (heartbeats[key]?.minutesSoFar /
+        Object.keys(heartbeats[key].minutes).length)
+      : 0;
+    const count = (heartbeats[key]?.aggValue || 0) + currentFraction * max;
+    // count && log.info(heartbeats[key], {count});
+    const percent = Math.min(Math.round(count * 100/max), 100);
+    const color = count == 0
+        // no heartbeat at all: off:
+      ? barColorOff
+      : percent >= 100
+      // full count of heartbeats:
+      ? barColorOn
+      // partial: color between orange and green
+      : `oklch(0.58 0.16 ${68 + (143 - 68) * percent/100}`;
 
     bars.push(<rect key={key} fill={color}
       x={x * scale} y={0} width={barWidth * scale} height={height}
+      rx={2} ry={2}
     >
-      <title>{key}</title>
+      <title>{key}: {percent}% online</title>
     </rect>);
 
     x += barWidth + barGap;

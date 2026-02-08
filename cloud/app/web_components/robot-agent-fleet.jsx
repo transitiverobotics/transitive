@@ -182,7 +182,7 @@ const Fleet = (props) => {
       const run = async () => {
         log.debug('Querying history');
         const result = await mqttSync.call(selectorToMetaTopic(
-            `/${id}/_fleet/@transitive-robotics/_robot-agent/+/$queryMQTTHistory`),
+            `/${id}/+/@transitive-robotics/_robot-agent/+/$queryMQTTHistory`),
           {
             subtopic: '/status/heartbeat',
             since: new Date(Date.now() - 24 * 60 * 60 * 1000),

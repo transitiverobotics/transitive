@@ -24,8 +24,10 @@ const getSeverityNumber = (level) => {
 const timeToUnix = (time) =>
     new Date(time).toISOString().replace('T', ' ').replace('Z', '');
 
+
 /** Class for sending logs and metrics to ClickHouse. */
 class TelemetryService {
+
   async init() {
     log.info('Initializing TelemetryService');
     // create logs and metrics tables if they do not exist
@@ -33,7 +35,7 @@ class TelemetryService {
       log.info('Creating logs table if it does not exist');
       ClickHouse.createTable(
         'logs',
-        [ 
+        [
           'Timestamp DateTime64(9) CODEC(Delta(8), ZSTD(1))',
           'TimestampTime DateTime DEFAULT toDateTime(Timestamp)',
           'TraceId String CODEC(ZSTD(1))',
@@ -59,7 +61,7 @@ class TelemetryService {
           'INDEX idx_log_attr_value mapValues(LogAttributes) TYPE bloom_filter(0.01) GRANULARITY 1',
           'INDEX idx_body Body TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 8'
         ],
-        [ 
+        [
           'ENGINE = MergeTree',
           'PARTITION BY toDate(TimestampTime)',
           'PRIMARY KEY (ServiceName, TimestampTime)',
@@ -108,7 +110,7 @@ class TelemetryService {
           'SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1'
         ]
       );
-      
+
       log.info('Telemetry tables created or already exist');
     } catch (error) {
       log.error('Failed to create telemetry tables:', error);
@@ -116,6 +118,7 @@ class TelemetryService {
     }
   }
 
+  /** send logs to ClickHouse */
   sendLogs = async (logs, orgId, deviceId, serviceName = 'unknown-service') => {
     if (logs.length === 0) {
       log.debug('No logs to send');
@@ -128,49 +131,37 @@ class TelemetryService {
       'service.name': serviceName
     };
 
-    try {
-      log.debug('Sending logs ClickHouse...', logs.length, 'logs to send');
+    log.debug('Sending logs ClickHouse...', logs.length, 'logs to send');
 
-      // Prepare logs for ClickHouse insertion with correct otel_logs schema
-      const clickhouseLogs = logs.map(logObj => {
-        const timestamp = logObj.timestamp || Date.now();
-        const timestampISO = new Date(timestamp).toISOString();//.replace('T', ' ').replace('Z', '');
-        const levelLowercase = logObj.level ? logObj.level.toLowerCase() : 'unspecified';
-        return {
-          Timestamp: timestampISO, //`toDateTime64('${timestampISO}', 9)`,
-          TraceId: '', // Empty for now, could be populated if available
-          SpanId: '', // Empty for now, could be populated if available
-          TraceFlags: 0,
-          SeverityText: levelLowercase,
-          SeverityNumber: logObj.logLevelValue || getSeverityNumber(levelLowercase),
-          ServiceName: serviceName,
-          Body: (logObj.message || '').replace(/'/g, "''").replace(/\\/g, '\\\\'),
-          ResourceSchemaUrl: '',
-          ResourceAttributes: resourceAttributes,
-          ScopeSchemaUrl: '',
-          ScopeName: 'telemetry-service',
-          ScopeVersion: '1.0.0',
-          ScopeAttributes: {},
-          LogAttributes: {
-            module: logObj.module || 'unknown',
-            ...logObj.attributes
-          }
-        };
-      });
+    // Prepare logs for ClickHouse insertion with correct otel_logs schema
+    const rows = logs.map(logObj => {
+      const timestamp = logObj.timestamp || Date.now();
+      const timestampISO = new Date(timestamp).toISOString();//.replace('T', ' ').replace('Z', '');
+      const levelLowercase = logObj.level ? logObj.level.toLowerCase() : 'unspecified';
+      return {
+        Timestamp: timestampISO, //`toDateTime64('${timestampISO}', 9)`,
+        TraceId: '', // Empty for now, could be populated if available
+        SpanId: '', // Empty for now, could be populated if available
+        TraceFlags: 0,
+        SeverityText: levelLowercase,
+        SeverityNumber: logObj.logLevelValue || getSeverityNumber(levelLowercase),
+        ServiceName: serviceName,
+        Body: (logObj.message || '').replace(/'/g, "''").replace(/\\/g, '\\\\'),
+        ResourceSchemaUrl: '',
+        ResourceAttributes: resourceAttributes,
+        ScopeSchemaUrl: '',
+        ScopeName: 'telemetry-service',
+        ScopeVersion: '1.0.0',
+        ScopeAttributes: {},
+        LogAttributes: {
+          module: logObj.module || 'unknown',
+          ...logObj.attributes
+        }
+      };
+    });
 
-      // Use ClickHouse client to insert logs
-    ClickHouse.insert(
-      'logs',
-      clickhouseLogs,
-      orgId, deviceId
-    ).then(() => {
-        log.debug(`${clickhouseLogs.length} logs sent to ClickHouse successfully`);
-      }).catch(err => {
-        log.error('Failed to send logs to ClickHouse:', err);
-      });
-    } catch (error) {
-      log.error('Failed to send logs to ClickHouse:', error);
-    }
+    // Use ClickHouse client to insert logs
+    ClickHouse.insert('logs', rows, orgId, deviceId);
   }
 
   /**
@@ -251,15 +242,7 @@ class TelemetryService {
     }
 
     // Use ClickHouse client to insert metrics
-    ClickHouse.insert(
-      'metrics',
-      allMetrics,
-      orgId, deviceId
-    ).then(() => {
-      log.debug(`${allMetrics.length} metrics sent to ClickHouse successfully`);
-    }).catch(err => {
-      log.error('Failed to send metrics to ClickHouse:', err);
-    });
+    ClickHouse.insert('metrics', allMetrics, orgId, deviceId);
   }
 }
 

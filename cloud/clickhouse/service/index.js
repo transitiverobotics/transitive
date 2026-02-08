@@ -79,14 +79,11 @@ const init = async (mqttSync) => {
     log.debug(`received queryMQTTHistory request for ${topic}: ${subtopic}`);
 
     // interpret _fleet as a wildcard, turn into path:
-    const baseSelectorPath = metaPathToSelectorPath(
-      topicToPath(topic)
-        .slice(0,5)
-        .map(x => x == '_fleet' ? '+' : x));
+    const baseSelectorPath =
+      metaPathToSelectorPath(topicToPath(topic).slice(0,5));
 
     const topicSelector =
       `${pathToTopic(baseSelectorPath)}${ensureSlash(subtopic)}`;
-    log.debug({topicSelector});
 
     // construct query from params
     const query = { ...params, topicSelector};
@@ -94,10 +91,10 @@ const init = async (mqttSync) => {
     query.since && (query.since = new Date(query.since));
     query.until && (query.until = new Date(query.until));
 
+    log.debug({query});
     // The main query call to ClickHouse:
     const results = await clickhouse.queryMQTTHistory(query);
-
-    // log.debug({results});
+    log.debug('results: ', results?.length);
 
     const json = {};
     // Regroup (unflatten) into our usual structure, using array of values.
@@ -116,7 +113,7 @@ const init = async (mqttSync) => {
       });
     }
 
-    log.debug(`Got ${results.length} results. ${JSON.stringify(json).length} B`);
+    // log.debug(`Got ${results.length} results. ${JSON.stringify(json).length} B`);
     return json;
   });
 

@@ -31,7 +31,7 @@ const styles = {
     justifyContent: 'space-between',
     width: '100%',
     height: '100%',
-    color: 'var(--bs-body-color)'
+    color: 'var(--bs-secondary-color)'
   },
   views: {
     flexGrow: '1',
@@ -245,6 +245,7 @@ export const Sidebar = () => {
         onHide={hideSidebar}
         className="d-lg-none bg-dark text-light"
         style={{ fontSize: 'small' }}
+        data-bs-theme={'dark'}
       >
         <Offcanvas.Body className="p-3">
            <div style={styles.wrapper} className='sidebar'>

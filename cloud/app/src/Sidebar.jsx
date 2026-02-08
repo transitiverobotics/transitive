@@ -245,6 +245,7 @@ export const Sidebar = () => {
         onHide={hideSidebar}
         className="d-lg-none bg-dark text-light"
         style={{ fontSize: 'small' }}
+        data-bs-theme={'dark'}
       >
         <Offcanvas.Body className="p-3">
            <div style={styles.wrapper} className='sidebar'>

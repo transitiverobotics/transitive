@@ -166,7 +166,7 @@ const Fleet = (props) => {
 
   const {mqttSync, data, status, ready, StatusComponent} = useMqttSync({jwt, id,
     mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
-  const [heartbeats, setHeartbeats] = useState();
+  const [heartbeats, setHeartbeats] = useState({});
 
   useEffect(() => {
       if (mqttSync) {
@@ -181,15 +181,12 @@ const Fleet = (props) => {
   useEffect(() => {
       const run = async () => {
         log.debug('Querying history');
-        const result = await mqttSync.call(selectorToMetaTopic(
-            `/${id}/+/@transitive-robotics/_robot-agent/+/$queryMQTTHistory`),
-          {
-            subtopic: '/status/heartbeat',
-            since: new Date(Date.now() - 24 * 60 * 60 * 1000),
-            aggSeconds: 60 * 60,
-            limit: 100000,
-          });
-        log.debug({result})
+        const result = await mqttSync.queryHistory({
+          topic: `/${id}/+/@transitive-robotics/_robot-agent/+/status/heartbeat`,
+          since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          aggSeconds: 60 * 60,
+          limit: 100000,
+        });
 
         // merge versions, flatten to `{deviceId: heartbeatSet}` format and make
         // heartbeatSet a set of minute-precision Date strings.
@@ -204,11 +201,12 @@ const Fleet = (props) => {
 
         setHeartbeats(merged);
       };
+
       mqttSync && run();
     }, [mqttSync, jwt, id]);
 
   log.debug({data, heartbeats});
-  if (!ready || !data || !heartbeats) return <StatusComponent />;
+  if (!ready || !data) return <StatusComponent />;
 
   // merge all robot-agent versions' data and sort by hostname
   const mergedData = _.map(data[id], (device, deviceId) => {

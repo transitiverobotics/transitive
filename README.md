@@ -12,10 +12,10 @@ Designed with ROS in mind, but also works without.
 
 ### Key Features
 
-1. Live-data synchronization between robot, cloud, and UI ("MQTTSync")
+1. Live-data synchronization between robot, cloud, and UI via [MQTTSync](https://transitiverobotics.com/docs/learn/mqttsync/)
    - Transparent and efficient data-sharing without the need for APIs
    - Reactively re-render UI elements when data on a robot changes ([demo](https://youtu.be/XqzpSbH8zUI)).
-2. Full-stack package management
+2. [Full-stack package management](https://transitiverobotics.com/blog/design-full-stack-packages/)
    - Notion of packages ("capabilities") that provides encapsulation and allows sharing with third-parties
    - Deployment mechanism incl. over-the-air auto-updates
    - Handles cross-device version dependencies
@@ -24,13 +24,22 @@ Designed with ROS in mind, but also works without.
      - Using [Web Components](https://www.webcomponents.org/introduction)
      - Easy to embed in other web applications
      - Easy to embed in React, Angular, etc.
-3. Authentication and authorization
+3. [Authentication and authorization](https://transitiverobotics.com/docs/learn/auth/)
    - For robots in the fleet
    - For web application users
    - For third-party apps
 
 
 ## Setup
+
+If you are just learning about Transitive, we recommend you first try it from a user's perspective following our
+[Getting Started Guide](https://transitiverobotics.com/docs/guides/getting-started/).
+
+------
+
+## Developer Setup
+
+Once you've tried Transitive as a user and are ready to write your own capabilities, you can setup Transitive in your own dev/prod enviroment.
 
 ### Using Docker
 

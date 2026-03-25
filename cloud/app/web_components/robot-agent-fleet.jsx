@@ -292,20 +292,23 @@ const Fleet = (props) => {
 
     return <Fold title="Add devices" expanded={empty}>
       <F>
-        Execute this command on your device to add it:
-        <Code
-          code={`curl -s "${curlURL}?id=${id}&token=${
-            encodeURIComponent(session.robot_token)}" | bash`}
-          />
-        For instructions on getting started or to pre-install the agent and
-        capabilities in Docker, please see the <a
-          href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
+        <div>
+          Execute this on your robot to start the Transitive Agent in a Docker
+          container:<Code language='bash' code={dockerCommand} />
+          Replace <tt>try_noetic</tt> with <tt>try_humble</tt> or <tt>try_jazzy
+          </tt>, depending on which ROS distro you want to
+          use (if any). For instructions on how to pre-install the
+          agent and capabilities in your own Docker image, please see the <a
+            href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
+        </div>
 
-        If you just want to try it out quickly you can use one of our example
-        Docker images: <Code language='bash' code={dockerCommand} />
-        Besides <tt>try_noetic</tt> we also provide Docker images for
-        ROS Humble and Jazzy (<tt>try_humble</tt> and <tt>try_jazzy
-        </tt> respectively).
+        <div>
+          Alternatively you can install the agent natively using this command:
+          <Code
+            code={`curl -s "${curlURL}?id=${id}&token=${
+              encodeURIComponent(session.robot_token)}" | bash`}
+            />
+        </div>
       </F>
     </Fold>;
   }

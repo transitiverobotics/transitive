@@ -1,5 +1,4 @@
 {
-  "title": "History",
   "annotations": {
     "list": [
       {
@@ -17,7 +16,7 @@
     ]
   },
   "description": "A reusable dashboard showing a time series chart of historic values from MQTTSync.",
-  "editable": true,
+  "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 0,
@@ -85,7 +84,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 13,
+        "h": 24,
         "w": 24,
         "x": 0,
         "y": 0
@@ -105,7 +104,6 @@
         }
       },
       "pluginVersion": "12.3.0",
-      "repeat": "subtopic",
       "repeatDirection": "v",
       "targets": [
         {
@@ -127,11 +125,25 @@
           },
           "pluginVersion": "4.14.0",
           "queryType": "table",
-          "rawSql": "SELECT\n  Timestamp,\n  JSONExtract(Payload, 'Float32') as value,\n  splitByChar('/', '${__user.login}') as userParts,\n  arrayMap(x -> decodeURLComponent(x), splitByChar('/', '${subtopic}')) as subTopicPrefix\nFROM\n  mqtt_history\nWHERE\n  TopicParts[1] = userParts[1] AND TopicParts[2] = userParts[2] AND\n  TopicParts[3] = userParts[3] AND TopicParts[4] = userParts[4] AND\n  (\n    Timestamp >= $__fromTime_ms\n    AND Timestamp <= $__toTime_ms\n  )\n  AND (arraySlice(TopicParts, 6, length(subTopicPrefix)) = subTopicPrefix)\n",
+          "rawSql": "WITH splitByChar('/', '${__user.login}') as userParts\nSELECT\n  Timestamp,\n  JSONExtract(Payload, 'Float32') as value,  \n  arrayStringConcat(arrayMap(x -> encodeURLComponent(x), arraySlice(TopicParts, 6)), '/') as subTopicParts\nFROM\n  mqtt_history  \nWHERE\n  TopicParts[1] = userParts[1] AND TopicParts[2] = userParts[2] AND\n  TopicParts[3] = userParts[3] AND TopicParts[4] = userParts[4] AND\n  (\n    Timestamp >= $__fromTime_ms\n    AND Timestamp <= $__toTime_ms\n  )\n  AND arrayExists(x -> startsWith(subTopicParts, x), [${subtopic:sqlstring}])\n",
           "refId": "A"
         }
       ],
       "title": "",
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "subTopicParts"
+            ],
+            "keepFields": true,
+            "naming": {
+              "asLabels": false
+            }
+          }
+        }
+      ],
       "transparent": true,
       "type": "timeseries"
     }
@@ -143,14 +155,17 @@
     "list": [
       {
         "current": {
-          "text": "",
-          "value": ""
+          "text": [],
+          "value": []
         },
+        "definition": "SELECT distinct arraySlice(TopicParts, 6) as subTopic, arrayStringConcat(arrayMap(x -> encodeURLComponent(x), subTopic), '/') as value,\narrayStringConcat(arraySlice(TopicParts, 1, 4), '/') as namespace\nFROM mqtt_history\nWHERE '${__user.login}' = namespace ",
         "multi": true,
         "name": "subtopic",
         "options": [],
-        "query": "",
-        "type": "custom"
+        "query": "SELECT distinct arraySlice(TopicParts, 6) as subTopic, arrayStringConcat(arrayMap(x -> encodeURLComponent(x), subTopic), '/') as value,\narrayStringConcat(arraySlice(TopicParts, 1, 4), '/') as namespace\nFROM mqtt_history\nWHERE '${__user.login}' = namespace ",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
       }
     ]
   },
@@ -160,6 +175,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
+  "title": "History",
   "uid": "mqtthistory",
   "version": 1
 }

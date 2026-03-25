@@ -31,14 +31,16 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
-    width: '100%',
     height: '100%',
+    maxHeight: 'calc(100vh - 2em)',
     color: 'var(--bs-secondary-color)'
   },
   views: {
     flexGrow: '1',
-    marginTop: '3em',
-    marginBottom: '3em',
+    paddingTop: '3em',
+    overflow: 'auto',
+    scrollbarColor: '#7777 #4440',
+    scrollbarWidth: 'thin'
   },
   subsection: {
     marginLeft: '1em'
@@ -58,6 +60,9 @@ const styles = {
     // background: 'linear-gradient(45deg, #23559c25, #18901335)',
     fontWeight: 'bold'
   },
+  userMenu: {
+    marginTop: '1em'
+  },
   loggedIn: {
     paddingRight: '1em'
   },
@@ -73,7 +78,7 @@ const styles = {
   delinquent: {
     color: '#b00',
   },
-  usermenu: {
+  userLinks: {
     lineHeight: '2em',
   },
   hasTitle: {
@@ -155,7 +160,7 @@ export const Sidebar = () => {
     { session.admin && <div><Link to='/admin'>Admin</Link></div> }
     { session.impersonating && <div><ActionLink onClick={deimpersonate}>
           Stop impersonating</ActionLink></div> }
-    <div style={styles.usermenu}>
+    <div style={styles.userLinks}>
       <div>
         <Link to='/security'>Security & Data usage</Link>
       </div>
@@ -213,7 +218,7 @@ export const Sidebar = () => {
       <OtherFleetCaps />
     </div>
 
-    <div>
+    <div style={styles.userMenu}>
       { isLoggedIn ?
         <UserMenu />
         :

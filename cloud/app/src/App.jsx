@@ -26,18 +26,22 @@ const F = React.Fragment;
 const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
 
 const styles = {
+  app: {
+    height: '100%',
+  },
   wrapper: {
     width: '100%',
     height: '100%',
+    minHeight: '100vh',
     margin: '0px',
     display: 'flex',
+    background: 'var(--bs-secondary-bg)',
   },
   body: {
     margin: '0',
     flex: '10 1 20em',
-    height: '100vh',
+    height: '100%',
     overflow: 'auto',
-    background: 'var(--bs-secondary-bg)',
     color: 'var(--bs-body-color)'
   },
   cap: {
@@ -381,7 +385,7 @@ const Apps = () => {
 
 
 export default () => {
-  return <div>
+  return <div style={styles.app}>
     <UserContextProvider>
       <Apps />
     </UserContextProvider>

@@ -92,4 +92,5 @@ services:
     volumes:
       # in dev we mount the source, in prod we ignore it
       - ./grafana/service/index.js:${PRODUCTION:+/tmp}/service/index.js
+      - ./grafana/service/templates:${PRODUCTION:+/tmp}/service/templates
 

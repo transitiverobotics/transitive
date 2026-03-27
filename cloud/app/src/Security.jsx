@@ -22,124 +22,124 @@ const styles = {
 };
 
 /** Component for changing passwords in a dialog */
-const PasswordChangeDialog = ({ show, onHide, name, onSuccess }) => {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+// const PasswordChangeDialog = ({ show, onHide, name, onSuccess }) => {
+//   const [newPassword, setNewPassword] = useState('');
+//   const [confirmPassword, setConfirmPassword] = useState('');
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState('');
+//   const [success, setSuccess] = useState('');
 
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (show) {
-      setNewPassword('');
-      setConfirmPassword('');
-      setError('');
-      setSuccess('');
-      setLoading(false);
-    }
-  }, [show]);
+//   // Reset state when dialog opens
+//   useEffect(() => {
+//     if (show) {
+//       setNewPassword('');
+//       setConfirmPassword('');
+//       setError('');
+//       setSuccess('');
+//       setLoading(false);
+//     }
+//   }, [show]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     setError('');
+//     setSuccess('');
 
-    if (!newPassword) {
-      setError('Password is required');
-      return;
-    }
+//     if (!newPassword) {
+//       setError('Password is required');
+//       return;
+//     }
 
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+//     if (newPassword !== confirmPassword) {
+//       setError('Passwords do not match');
+//       return;
+//     }
 
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
+//     if (newPassword.length < 8) {
+//       setError('Password must be at least 8 characters');
+//       return;
+//     }
 
-    setLoading(true);
+//     setLoading(true);
 
-    try {
-      await fetchJson(
-        `/@transitive-robotics/_robot-agent/changeServicePassword/${name.toLowerCase()}`,
-        (err, res) => {
-          setLoading(false);
-          if (err) {
-            log.error(err);
-            setError(err.error || 'Failed to change password');
-          } else {
-            setSuccess('Password changed successfully');
-            setNewPassword('');
-            setConfirmPassword('');
-            onSuccess && onSuccess();
-            // Close dialog after a short delay to show success message
-            setTimeout(() => onHide(), 1500);
-          }
-        },
-        { body: { newPassword } }
-      );
-    } catch (err) {
-      setLoading(false);
-      setError('Failed to change password');
-      log.error(err);
-    }
-  };
+//     try {
+//       await fetchJson(
+//         `/@transitive-robotics/_robot-agent/changeServicePassword/${name.toLowerCase()}`,
+//         (err, res) => {
+//           setLoading(false);
+//           if (err) {
+//             log.error(err);
+//             setError(err.error || 'Failed to change password');
+//           } else {
+//             setSuccess('Password changed successfully');
+//             setNewPassword('');
+//             setConfirmPassword('');
+//             onSuccess && onSuccess();
+//             // Close dialog after a short delay to show success message
+//             setTimeout(() => onHide(), 1500);
+//           }
+//         },
+//         { body: { newPassword } }
+//       );
+//     } catch (err) {
+//       setLoading(false);
+//       setError('Failed to change password');
+//       log.error(err);
+//     }
+//   };
 
-  return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Change {name} Password</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>New Password</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
-              disabled={loading}
-              autoFocus
-            />
-          </Form.Group>
+//   return (
+//     <Modal show={show} onHide={onHide} centered>
+//       <Modal.Header closeButton>
+//         <Modal.Title>Change {name} Password</Modal.Title>
+//       </Modal.Header>
+//       <Modal.Body>
+//         <Form onSubmit={handleSubmit}>
+//           <Form.Group className="mb-3">
+//             <Form.Label>New Password</Form.Label>
+//             <Form.Control
+//               type="password"
+//               autoComplete="new-password"
+//               value={newPassword}
+//               onChange={(e) => setNewPassword(e.target.value)}
+//               placeholder="Enter new password"
+//               disabled={loading}
+//               autoFocus
+//             />
+//           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Confirm Password</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              disabled={loading}
-            />
-          </Form.Group>
+//           <Form.Group className="mb-3">
+//             <Form.Label>Confirm Password</Form.Label>
+//             <Form.Control
+//               type="password"
+//               autoComplete="new-password"
+//               value={confirmPassword}
+//               onChange={(e) => setConfirmPassword(e.target.value)}
+//               placeholder="Confirm new password"
+//               disabled={loading}
+//             />
+//           </Form.Group>
 
-          {error && <Alert variant="danger">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
+//           {error && <Alert variant="danger">{error}</Alert>}
+//           {success && <Alert variant="success">{success}</Alert>}
 
-          <div className="d-flex justify-content-end gap-2">
-            <Button variant="secondary" onClick={onHide} disabled={loading}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading || !newPassword || !confirmPassword}
-            >
-              {loading ? 'Changing...' : 'Change Password'}
-            </Button>
-          </div>
-        </Form>
-      </Modal.Body>
-    </Modal>
-  );
-};
+//           <div className="d-flex justify-content-end gap-2">
+//             <Button variant="secondary" onClick={onHide} disabled={loading}>
+//               Cancel
+//             </Button>
+//             <Button
+//               type="submit"
+//               variant="primary"
+//               disabled={loading || !newPassword || !confirmPassword}
+//             >
+//               {loading ? 'Changing...' : 'Change Password'}
+//             </Button>
+//           </div>
+//         </Form>
+//       </Modal.Body>
+//     </Modal>
+//   );
+// };
 
 /** Component for displaying a credential field with copy and show/hide password */
 const CredentialField = ({ label, value, name, type = 'text' }) => {
@@ -283,20 +283,20 @@ const AccountCredentials = (props) => {
     }
     <CredentialField name={name} label="Password" value={credentials.password} type="password" />
 
-    <Form.Group as={Row} className="mt-3">
+    {/* <Form.Group as={Row} className="mt-3">
       <Col sm={{ span: 10, offset: 2 }}>
         <Button variant="primary" size="sm" onClick={() => setShow(true)}>
           Change {name} Password
         </Button>
       </Col>
-    </Form.Group>
+    </Form.Group> */}
 
-    <PasswordChangeDialog
+    {/* <PasswordChangeDialog
       show={show}
       name={name}
       onHide={() => setShow(false)}
       onSuccess={() => setForceUpdate(f => f + 1)}
-      />
+      /> */}
 
     <hr/>
   </F>;
@@ -364,14 +364,7 @@ export const Security = () => {
       </a> (JWT) signed with your secret.
     </Form.Text>
 
-    <Form.Group as={Row} controlId="formPlaintextEmail">
-      <Form.Label column sm="2">
-        JWT secret
-      </Form.Label>
-      <Col sm="10">
-        <Form.Control plaintext readOnly defaultValue={account.jwtSecret} />
-      </Col>
-    </Form.Group>
+    <CredentialField label="JWT Secret" value={account.jwtSecret} type="password" />
 
     <hr/>
 
@@ -487,6 +480,18 @@ export const Security = () => {
           These credentials can be used to query your data directly via the ClickHouse API.
         </F>}
         credentials={account.clickhouseCredentials}
+        setForceUpdate={setForceUpdate}
+        />
+    }
+
+    {account?.grafanaCredentials?.password && <AccountCredentials
+        name='Grafana'
+        description={<F>
+          Transitive integrates Grafana, where you can visualize your devices'
+          data and set up powerful alerts, with notifications sent to various
+          services (email, SMS, Slack, PagerDuty, Telegram, and more).
+        </F>}
+        credentials={account.grafanaCredentials}
         setForceUpdate={setForceUpdate}
         />
     }

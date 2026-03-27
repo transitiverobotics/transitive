@@ -1,6 +1,7 @@
 
-const fs = require('fs');
-const net = require('net');
+const fs = require('node:fs');
+const net = require('node:net');
+const { execSync } = require('node:child_process');
 const mqtt = require('mqtt');
 const _ = require('lodash');
 
@@ -115,9 +116,33 @@ const ensureUserIsEditor = async (grafanaOrgId, userId) => {
   return true;
 }
 
-/** Add the ClickHouse data source to the org's provisioning */
+/** Add the ClickHouse data source to the org's provisioning. orgId is the
+* Transitive orgId */
 const ensureDatasource = async (grafanaOrgId, orgId) => {
+  const accounts = Mongo.db.collection('accounts');
+  const orgAccount = await accounts.findOne({_id: orgId});
+  if (!orgAccount?.clickhouseCredentials) {
+    log.warn(`No ClickHouse credentials for ${orgId}`);
+    return;
+  }
 
+  const env = [
+      'env',
+      `ORGID=${grafanaOrgId}`,
+      `USER=${orgAccount?.clickhouseCredentials.user}`,
+      `PASSWORD=${orgAccount?.clickhouseCredentials.password}`
+    ].join(' ');
+  const template = './templates/datasources/clickhouse-org.template.yaml';
+  const destination = `/etc/grafana/provisioning/datasources/clickhouse-org.${orgId}.yaml`;
+  execSync(`${env} envsubst < ${template} > ${destination}`);
+
+  // trigger a reload
+  const result = await fetch(
+    `${GRAFANA_API_HOST}/api/admin/provisioning/datasources/reload`,
+    {
+      method: 'POST',
+      headers: GRAFANA_API_HEADERS,
+    });
 };
 
 // ---------------------------------------------------------------------------
@@ -130,14 +155,12 @@ const init = async (mqttSync) => {
     async (running, topic, {orgId, scope, capName}) => {
       if (!running) return;
 
-      // first ensure the org exists
       if (provisioned[orgId]) {
         return;
       }
-
-      log.debug(orgId);
       provisioned[orgId] = true;
 
+      // first ensure the org exists
       const grafanaOrgId = await ensureOrg(orgId);
 
       // next ensure the org's main user exists

@@ -1,0 +1,38 @@
+# Provision a ClickHouse data source for a specific org
+# See https://grafana.com/grafana/plugins/grafana-clickhouse-datasource/?tab=overview
+
+# Configuration file version
+apiVersion: 1
+
+# List of data sources to delete from the database.
+deleteDatasources:
+  - name: ClickHouseFullOrgAccess
+    orgId: $ORGID
+
+# Mark provisioned data sources for deletion if they are no longer in a provisioning file.
+# It takes no effect if data sources are already listed in the deleteDatasources section.
+prune: true
+
+# List of data sources to insert/update depending on what's
+# available in the database.
+datasources:
+  - name: ClickHouseFullOrgAccess
+    type: grafana-clickhouse-datasource
+    access: proxy
+    orgId: $ORGID
+    uid: clickhouse-org
+    isDefault: true
+
+    jsonData:
+      defaultDatabase: default
+      port: 9000
+      host: clickhouse
+      username: $USER
+      tlsSkipVerify: false
+    secureJsonData:
+      password: $PASSWORD
+
+    # <int> Sets the version. Used to compare versions when
+    # updating. Ignored when creating a new data source.
+    version: 1
+    editable: false

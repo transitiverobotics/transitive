@@ -1,0 +1,20 @@
+{
+  "name": "grafana-service",
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "node -c index.js",
+    "start": "[ $PRODUCTION = 'true' ] && node index.js || node --watch index.js"
+  },
+  "keywords": [],
+  "author": "Christian Fritz",
+  "license": "Apache-2.0",
+  "description": "Grafana sidecar service for connecting to Transitive MQTTSync and auto-provision Grafana assets",
+  "dependencies": {
+    "@transitive-sdk/mongo": "^0.14.0",
+    "@transitive-sdk/utils": "^0.16.3"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

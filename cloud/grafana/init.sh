@@ -33,31 +33,22 @@ fi;
 echo OrgId: $ORGID
 
 # Set orgid in provisioning files
-for n in $(find /to_be_provisioned -type f -name *.template); do
+for n in $(find /to_be_provisioned -type f -name *.template.*); do
   env ORGID=$ORGID envsubst < $n > ${n//.template/}
 done
 
 # now move the provisioning files into place so they get picked up and trigger a
 # reload so we don't need to wait
-cp -r /to_be_provisioned/dashboards/* /etc/grafana/provisioning/dashboards
-cp -r /to_be_provisioned/datasources/* /etc/grafana/provisioning/datasources
+cp -r /to_be_provisioned/. /etc/grafana/provisioning/
+for l in $(ls /to_be_provisioned); do
+  curl -s -X POST ${HOST}/api/admin/provisioning/$l/reload;
+  echo;
+  sleep 0.2;
+done
 
-curl -s -X POST ${HOST}/api/admin/provisioning/datasources/reload
-echo
-
-sleep 0.2
-curl -s -X POST ${HOST}/api/admin/provisioning/dashboards/reload
-echo
-
-# Only now that the mqtt-history org exists can we set the org_mapping. Doing so
-# in grafana.ini would only take effect the second time Grafana starts (i.e.,
-# once the mqtt-history org we are mapping to exists.
-
-# curl -s http://admin:${GRAFANA_ADMIN_PASSWORD}@localhost:3000/api/admin/settings \
-#   -H "Content-Type: application/json" \
-#   -d '{ "updates": { "auth.jwt": { "org_mapping": "*:mqtt-history:Viewer" } } }'
-# echo
-
+# Only now that the mqtt-history org exists does the org_mapping in grafana.ini
+# take effect (i.e., once the mqtt-history org we are mapping to exists). Hence
+# need to restart Grafana if the org was created.
 if [[ $FIRST_START == 1 ]]; then
   echo "Restarting Grafana"
 
@@ -70,5 +61,12 @@ if [[ $FIRST_START == 1 ]]; then
 
 fi;
 
-# Wait for Grafana server to finish (hopefully never)
-wait $GRAFANA_PID
+# # Wait for Grafana server to finish (hopefully never)
+# wait $GRAFANA_PID
+
+# only start service if no docker command given
+if [[ $# -lt 1 ]] || [[ "$1" == "--"* ]]; then
+  echo "Starting Grafana nodejs service";
+  (cd /service && npm start)
+fi;
+

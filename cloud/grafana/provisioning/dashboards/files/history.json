@@ -115,7 +115,7 @@
           "format": 1,
           "meta": {
             "builderOptions": {
-              "columns": [],
+          "columns": [],
               "database": "",
               "limit": 1000,
               "mode": "list",

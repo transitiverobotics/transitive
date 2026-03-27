@@ -256,8 +256,11 @@ services:
     volumes:
       - ${TR_VAR_DIR:-.}/grafana:/var/lib/grafana
       - ${TR_VAR_DIR:-.}/jwks/public.jwks:/jwks/public.jwks
+      - ${TR_VAR_DIR:-.}/certs:/service/certs
     depends_on:
       clickhouse:
+        condition: service_started
+      mongodb:
         condition: service_started
       ensure_certs:
         condition: service_completed_successfully

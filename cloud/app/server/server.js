@@ -1618,6 +1618,11 @@ class _robotAgent extends Capability {
           ...account.clickhouseCredentials || {},
           url: clickhousePlayUrl
         },
+        grafanaCredentials: {
+          user: account._id,
+          password: account.grafanaPassword,
+          url: `${httpProtocol}grafana.${process.env.TR_HOST}/`
+        },
         hyperDXCredentials: {
           ...account.hyperdxCredentials || {},
           url: `${httpProtocol}hyperdx.${process.env.TR_HOST}/login`

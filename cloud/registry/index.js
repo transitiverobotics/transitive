@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const {URL} = require('url');
+const http = require('node:http');
 
 const { Readable } = require('stream');
 
@@ -477,6 +478,11 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   });
 
   app.listen(PORT);
+
+  // in addition listen on port 80 internally, to avoid fetch's "bad port" 6000
+  http.createServer(app).listen(80, () => {
+    console.log('Also listening on port 80');
+  });
 };
 
 process.on('uncaughtException', (err) => {

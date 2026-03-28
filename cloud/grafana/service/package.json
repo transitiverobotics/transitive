@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node -c index.js",
-    "start": "[ $PRODUCTION = 'true' ] && node index.js || node --watch index.js"
+    "start": "[ ${PRODUCTION:-false} = 'true' ] && node index.js || node --watch index.js"
   },
   "keywords": [],
   "author": "Christian Fritz",

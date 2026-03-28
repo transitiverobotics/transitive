@@ -1,11 +1,11 @@
 
 const fs = require('node:fs');
 const net = require('node:net');
-const { execSync } = require('node:child_process');
+const { execSync, exec } = require('node:child_process');
 const mqtt = require('mqtt');
 const _ = require('lodash');
 
-const { MqttSync, getLogger, registerCatchAll, getRandomId }
+const { MqttSync, getLogger, registerCatchAll, getRandomId, versionCompare }
   = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
 
@@ -145,30 +145,89 @@ const ensureDatasource = async (grafanaOrgId, orgId) => {
     });
 };
 
+
+const provisionOrg = async (orgId) => {
+  provisioned[orgId] ||= {};
+
+  if (provisioned[orgId].org) {
+    return;
+  }
+
+  provisioned[orgId].org = true;
+
+  // first ensure the org exists
+  const grafanaOrgId = await ensureOrg(orgId);
+  provisioned[orgId].grafanaOrgId = grafanaOrgId;
+
+  // next ensure the org's main user exists
+  const userId = await ensureUser(grafanaOrgId, orgId);
+  await ensureUserIsEditor(grafanaOrgId, userId);
+
+  // provision data source
+  await ensureDatasource(grafanaOrgId, orgId);
+}
+
+
 // ---------------------------------------------------------------------------
 
 /** This is the main function */
 const init = async (mqttSync) => {
   mqttSync.subscribe('/+/+/+/_robot-agent/+/status/runningPackages/#');
   mqttSync.data.subscribePath(
-    '/+orgId/+/+/_robot-agent/+/status/runningPackages/+scope/+capName/+',
-    async (running, topic, {orgId, scope, capName}) => {
+    '/+orgId/+/+/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
+    async (running, topic, {orgId, scope, capName, version}) => {
       if (!running) return;
 
-      if (provisioned[orgId]) {
+      await provisionOrg(orgId);
+
+      // now provision any capability specific assets
+
+      provisioned[orgId].caps ||= {};
+      const capability = `${scope}/${capName}`;
+      const capWithVersion = `${capability}/${version}`;
+      if (provisioned[orgId].caps[capability] &&
+        versionCompare(provisioned[orgId].caps[capability], version) >= 0) {
         return;
       }
-      provisioned[orgId] = true;
 
-      // first ensure the org exists
-      const grafanaOrgId = await ensureOrg(orgId);
+      // version is higher than what has been provisioned so far
+      provisioned[orgId].caps[capability] = version;
 
-      // next ensure the org's main user exists
-      const userId = await ensureUser(grafanaOrgId, orgId);
-      await ensureUserIsEditor(grafanaOrgId, userId);
+      const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL
+        ? 'https://registry.transitiverobotics.com' : `http://registry`);
+      const capRegistryUrl = `${host}/-/custom/files/${capWithVersion}`;
 
-      // provision data source
-      await ensureDatasource(grafanaOrgId, orgId);
+      const alerts = await fetch(`${capRegistryUrl}/grafana/alerting/template.json`,
+        {headers: { 'Content-Type': 'application/json' }});
+
+      if (alerts.ok) {
+        const alertsJson = await alerts.json();
+        log.debug(`${capWithVersion} provides alerts`);
+
+        // Ground the template, i.e., subsitute specific fields for this user and
+        // capability
+        alertsJson.groups.forEach(group => {
+          group.orgId = provisioned[orgId].grafanaOrgId;
+          group.folder = `Templates/${capability}`;
+          group.rules.forEach(rule => {
+            rule.uid = `${capName}-${rule.uid}`
+            rule.isPaused = true;
+          });
+        });
+        fs.writeFileSync(`/etc/grafana/provisioning/alerting/org-${orgId}.json`,
+          JSON.stringify(alertsJson));
+
+        const result = await fetch(
+          `${GRAFANA_API_HOST}/api/admin/provisioning/alerting/reload`,
+          {
+            method: 'POST',
+            headers: GRAFANA_API_HEADERS,
+          });
+        log.debug(await result.text());
+
+      } else {
+        log.debug(`${capWithVersion} does not define alerts`);
+      }
     });
 };
 

@@ -35,6 +35,8 @@ echo OrgId: $ORGID
 # Set orgid in provisioning files
 for n in $(find /to_be_provisioned -type f -name *.template.*); do
   env ORGID=$ORGID envsubst < $n > ${n//.template/}
+  # remove the template, in order not to confuse Grafana
+  rm $n
 done
 
 # now move the provisioning files into place so they get picked up and trigger a

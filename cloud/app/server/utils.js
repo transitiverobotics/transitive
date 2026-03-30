@@ -118,63 +118,6 @@ const ensureCapabilityDB = async (capName) => {
 }
 
 
-/* Creates ClickHouse user for an organisation/user with SELECT access for all
-dbs and tables */
-const ensureClickHouseOrgUser = async (orgId) => {
-  const orgUser = `org_${orgId}_user`;
-
-  // Check if user exists
-  const userExists = await ClickHouse.client.query({
-    query: `SELECT name FROM system.users WHERE name = '${orgUser}'`,
-    format: 'JSONEachRow'
-  });
-
-  const accountsCollection = Mongo.db.collection('accounts');
-  const users = await userExists.json();
-
-  if (users.length > 0) {
-    log.debug(`ClickHouse user for organization ${orgId} already exists`);
-    const orgDoc = await accountsCollection.findOne({ _id: orgId });
-    const { user: orgUser, password } = orgDoc.clickhouseCredentials;
-    if (!password) {
-      throw new Error(`ClickHouse user for organization ${orgId} exists but no password found in mongo`);
-    } else {
-      log.debug(`retrieved ClickHouse credentials for organization ${orgId} from mongo: ${orgUser} / ${password}`);
-      return {
-        user: orgUser,
-        password: password
-      };
-    }
-  }
-
-  const orgPassword = getRandomId(15);
-
-  log.debug(`creating ClickHouse user for organization ${orgId} : ${orgUser} / ${orgPassword}`);
-
-  for (let query of [
-    // Create user:
-    `CREATE USER IF NOT EXISTS ${orgUser} IDENTIFIED WITH plaintext_password BY '${orgPassword}'`,
-    // Grant read only access to all databases and tables - row level security
-    // will limit access to own org data:
-    `GRANT SELECT ON *.* TO ${orgUser}`,
-    // Immediately revoke select access to system tables again (see
-    // https://clickhouse.com/docs/sql-reference/statements/revoke#examples):
-    `REVOKE SELECT ON system.* FROM ${orgUser}`,
-  ]) await ClickHouse.client.command({ query });
-
-  // store user and password in mongo
-  await accountsCollection.updateOne(
-    { _id: orgId },
-    { $set: { clickhouseCredentials: { user: orgUser, password: orgPassword } } }
-  );
-
-  return {
-    user: orgUser,
-    password: orgPassword
-  };
-}
-
-
 /** Helper: Create complete HyperDX setup (team, user, connection, sources)
  * @param {Object} config - Configuration object
  * @param {string} config.teamName - Name of the team
@@ -445,7 +388,6 @@ module.exports = {
   getNextInRange,
   getVersionRange,
   ensureCapabilityDB,
-  ensureClickHouseOrgUser,
   ensureHyperDXOrgSetup,
   ensureHyperDXAdminSetup,
   ensureClickHouseMQTTHistoryUser,

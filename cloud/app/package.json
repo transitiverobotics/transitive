@@ -5,7 +5,7 @@
   "dependencies": {
     "@aws-sdk/client-ses": "^3.354.0",
     "@clickhouse/client": "^1.12.1",
-    "@transitive-sdk/clickhouse": "^0.5.2",
+    "@transitive-sdk/clickhouse": "^0.6.2",
     "@transitive-sdk/mongo": "^0.14.0",
     "@transitive-sdk/utils": "^0.16.2",
     "@transitive-sdk/utils-web": "^0.16.2",
@@ -54,7 +54,7 @@
     "dev-build": "node esbuild.js",
     "build": "node esbuild.js",
     "dev": "NODOCKER=1 node server.js",
-    "start": "node server/server.js"
+    "start": "[ ${PRODUCTION:-false} = 'true' ] && node server/server.js || node --watch server/server.js"
   },
   "eslintConfig": {},
   "browserslist": {

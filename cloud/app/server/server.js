@@ -23,8 +23,7 @@ const { parseMQTTTopic, decodeJWT, loglevel, getLogger, versionCompare, MqttSync
 const Mongo = require('@transitive-sdk/mongo');
 const ClickHouse = require('@transitive-sdk/clickhouse');
 
-const { waitForClickHouse, ensureClickHouseOrgUser,
-  ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup,
+const { waitForClickHouse, ensureClickouseDefaultPermissions, ensureHyperDXOrgSetup,
   ensureHyperDXAdminSetup, changeServicePassword, ensureClickHouseMQTTHistoryUser }
   = require('./utils');
 const { COOKIE_NAME, TOKEN_COOKIE } = require('../common.js');
@@ -35,6 +34,7 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
+
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
 const PORT = 9000;
@@ -1590,7 +1590,9 @@ class _robotAgent extends Capability {
       log.debug('get profile/security data for', req.session.user._id);
 
       if (process.env.CLICKHOUSE_ENABLED) {
-        const { user, password } = await ensureClickHouseOrgUser(req.session.user._id);
+        const accountsCollection = Mongo.db.collection('accounts');
+        const { user, password } = await ClickHouse
+            .ensureClickHouseOrgUser(req.session.user._id, accountsCollection);
         await ensureHyperDXOrgSetup(req.session.user._id, user, password);
       }
 

@@ -11,6 +11,7 @@
   "license": "Apache-2.0",
   "description": "Grafana sidecar service for connecting to Transitive MQTTSync and auto-provision Grafana assets",
   "dependencies": {
+    "@transitive-sdk/clickhouse": "^0.6.2",
     "@transitive-sdk/mongo": "^0.14.0",
     "@transitive-sdk/utils": "^0.16.3"
   },

@@ -1,13 +1,13 @@
-
 const fs = require('node:fs');
 const net = require('node:net');
-const { execSync, exec } = require('node:child_process');
+const { execSync } = require('node:child_process');
 const mqtt = require('mqtt');
 const _ = require('lodash');
 
 const { MqttSync, getLogger, registerCatchAll, getRandomId, versionCompare }
   = require('@transitive-sdk/utils');
 const Mongo = require('@transitive-sdk/mongo');
+const ClickHouse = require('@transitive-sdk/clickhouse');
 
 const log = getLogger('index.js');
 log.setLevel('debug');
@@ -120,17 +120,13 @@ const ensureUserIsEditor = async (grafanaOrgId, userId) => {
 * Transitive orgId */
 const ensureDatasource = async (grafanaOrgId, orgId) => {
   const accounts = Mongo.db.collection('accounts');
-  const orgAccount = await accounts.findOne({_id: orgId});
-  if (!orgAccount?.clickhouseCredentials) {
-    log.warn(`No ClickHouse credentials for ${orgId}`);
-    return;
-  }
+  const {user, password} = await ClickHouse.ensureClickHouseOrgUser(orgId, accounts);
 
   const env = [
       'env',
       `ORGID=${grafanaOrgId}`,
-      `USER=${orgAccount?.clickhouseCredentials.user}`,
-      `PASSWORD=${orgAccount?.clickhouseCredentials.password}`
+      `USER=${user}`,
+      `PASSWORD=${password}`
     ].join(' ');
   const template = './templates/datasources/clickhouse-org.template.yaml';
   const destination = `/etc/grafana/provisioning/datasources/clickhouse-org.${orgId}.yaml`;
@@ -145,7 +141,7 @@ const ensureDatasource = async (grafanaOrgId, orgId) => {
     });
 };
 
-
+/** Ensures that the Grafana org fore the given Transitive user (orgId) exists. */
 const provisionOrg = async (orgId) => {
   provisioned[orgId] ||= {};
 
@@ -172,6 +168,8 @@ const provisionOrg = async (orgId) => {
 
 /** This is the main function */
 const init = async (mqttSync) => {
+  await ClickHouse.init();
+
   mqttSync.subscribe('/+/+/+/_robot-agent/+/status/runningPackages/#');
   mqttSync.data.subscribePath(
     '/+orgId/+/+/_robot-agent/+/status/runningPackages/+scope/+capName/+version',

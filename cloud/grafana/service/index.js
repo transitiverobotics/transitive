@@ -242,6 +242,7 @@ const reloadProvisioning = async () => {
 // fashion, to avoid too many concurrent threads (calls to API), which can lead
 // to Grafana errors about the database being locked.
 const backlog = {};
+const processed = {}; // hashes already processed, to avoid repetition
 
 let processing = false;
 const processBacklog = async () => {
@@ -260,6 +261,7 @@ const processBacklog = async () => {
   log.debug('provisioning', nextKey);
   const {orgId, scope, capName, version} = backlog[nextKey];
   delete backlog[nextKey];
+  processed[nextKey] = true;
 
   await provisionOrg(orgId);
   await provisionCapabilityAssets(orgId, scope, capName, version);
@@ -278,6 +280,7 @@ const init = async (mqttSync) => {
     async (running, topic, {orgId, scope, capName, version}) => {
       if (!running) return;
       const hash = [orgId, scope, capName, version].join('-');
+      if (processed[hash]) return;
       backlog[hash] = {orgId, scope, capName, version};
       processBacklog();
     });

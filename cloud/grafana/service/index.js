@@ -134,14 +134,6 @@ const ensureDatasource = async (grafanaOrgId, orgId) => {
   const template = './templates/datasources/clickhouse-org.template.yaml';
   const destination = `/etc/grafana/provisioning/datasources/clickhouse-org.${orgId}.yaml`;
   execSync(`${env} envsubst < ${template} > ${destination}`);
-
-  // trigger a reload
-  const result = await fetch(
-    `${GRAFANA_API_HOST}/api/admin/provisioning/datasources/reload`,
-    {
-      method: 'POST',
-      headers: GRAFANA_API_HEADERS,
-    });
 };
 
 /** Ensures that the Grafana org fore the given Transitive user (orgId) exists. */
@@ -156,15 +148,19 @@ const provisionOrg = async (orgId) => {
 
   // first ensure the org exists
   const grafanaOrgId = await ensureOrg(orgId);
+  if (!grafanaOrgId) return;
   provisioned[orgId].grafanaOrgId = grafanaOrgId;
 
   // next ensure the org's main user exists
   const userId = await ensureUser(grafanaOrgId, orgId);
-  await ensureUserIsEditor(grafanaOrgId, userId);
+  if (!userId) return;
+
+  const madeEditor = await ensureUserIsEditor(grafanaOrgId, userId);
+  if (!madeEditor) return;
 
   // provision data source
   await ensureDatasource(grafanaOrgId, orgId);
-}
+};
 
 /** get alerts provided by `capability`, either from cache of from registry */
 const getAlerts = async (scope, capName, version) => {
@@ -193,7 +189,84 @@ const getAlerts = async (scope, capName, version) => {
   return assets[capability].alerts;
 }
 
+/** Fetch and provision to orgId any assets provided by the capability */
+const provisionCapabilityAssets = async (orgId, scope, capName, version) => {
+
+  provisioned[orgId].caps ||= {};
+  const capability = `${scope}/${capName}`;
+
+  if (provisioned[orgId].caps[capability] &&
+    versionCompare(provisioned[orgId].caps[capability], version) >= 0) {
+    return;
+  }
+
+  // version is higher than what has been provisioned so far
+  provisioned[orgId].caps[capability] = version;
+
+  const alerts = getAlerts(scope, capName, version);
+
+  if (alerts?.groups) {
+    // Ground the template, i.e., subsitute specific fields for this user and
+    // capability
+    alerts.groups.forEach(group => {
+      group.orgId = provisioned[orgId].grafanaOrgId;
+      group.folder = `Templates/${capability}`;
+      group.rules.forEach(rule => {
+        rule.uid = `${capName}-${rule.uid}`
+        rule.isPaused = true;
+      });
+    });
+
+    fs.writeFileSync(`/etc/grafana/provisioning/alerting/org-${orgId}.json`,
+      JSON.stringify(alerts));
+  }
+};
+
+/** Trigger reload of Grafana's file-based provisioning */
+const reloadProvisioning = async () => {
+  for (let asset of ['datasources', 'alerting']) {
+    const result = await fetch(
+      `${GRAFANA_API_HOST}/api/admin/provisioning/${asset}/reload`,
+      {
+        method: 'POST',
+        headers: GRAFANA_API_HEADERS,
+      });
+    log.debug(await result.text());
+  }
+};
+
+
 // ---------------------------------------------------------------------------
+
+// backlog of orgs and capabilities to provision, to be processed in an orderly
+// fashion, to avoid too many concurrent threads (calls to API), which can lead
+// to Grafana errors about the database being locked.
+const backlog = {};
+
+let processing = false;
+const processBacklog = async () => {
+  if (processing) return;
+
+  processing = true;
+  const nextKey = Object.keys(backlog)[0];
+
+  if (!nextKey) {
+    // backlog is empty, trigger provisioning reload and end processing
+    await reloadProvisioning();
+    processing = false;
+    return;
+  }
+
+  log.debug('provisioning', nextKey);
+  const {orgId, scope, capName, version} = backlog[nextKey];
+  delete backlog[nextKey];
+
+  await provisionOrg(orgId);
+  await provisionCapabilityAssets(orgId, scope, capName, version);
+
+  processing = false;
+  processBacklog();
+}
 
 /** This is the main function */
 const init = async (mqttSync) => {
@@ -204,45 +277,9 @@ const init = async (mqttSync) => {
     '/+orgId/+/+/_robot-agent/+/status/runningPackages/+scope/+capName/+version',
     async (running, topic, {orgId, scope, capName, version}) => {
       if (!running) return;
-
-      await provisionOrg(orgId);
-
-      // now provision any capability specific assets
-
-      provisioned[orgId].caps ||= {};
-      const capability = `${scope}/${capName}`;
-      if (provisioned[orgId].caps[capability] &&
-        versionCompare(provisioned[orgId].caps[capability], version) >= 0) {
-        return;
-      }
-
-      // version is higher than what has been provisioned so far
-      provisioned[orgId].caps[capability] = version;
-
-      const alerts = getAlerts(scope, capName, version);
-
-      if (alerts?.groups) {
-        // Ground the template, i.e., subsitute specific fields for this user and
-        // capability
-        alerts.groups.forEach(group => {
-          group.orgId = provisioned[orgId].grafanaOrgId;
-          group.folder = `Templates/${capability}`;
-          group.rules.forEach(rule => {
-            rule.uid = `${capName}-${rule.uid}`
-            rule.isPaused = true;
-          });
-        });
-        fs.writeFileSync(`/etc/grafana/provisioning/alerting/org-${orgId}.json`,
-          JSON.stringify(alerts));
-
-        const result = await fetch(
-          `${GRAFANA_API_HOST}/api/admin/provisioning/alerting/reload`,
-          {
-            method: 'POST',
-            headers: GRAFANA_API_HEADERS,
-          });
-        log.debug(await result.text());
-      }
+      const hash = [orgId, scope, capName, version].join('-');
+      backlog[hash] = {orgId, scope, capName, version};
+      processBacklog();
     });
 };
 

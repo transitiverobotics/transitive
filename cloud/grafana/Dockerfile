@@ -4,6 +4,7 @@ FROM grafana/grafana:12.4.2
 USER root
 RUN apk add jq envsubst nodejs npm
 
+WORKDIR /service
 COPY service/package* .
 RUN npm ci
 COPY service/. /service

@@ -203,7 +203,7 @@ const provisionCapabilityAssets = async (orgId, scope, capName, version) => {
   // version is higher than what has been provisioned so far
   provisioned[orgId].caps[capability] = version;
 
-  const alerts = getAlerts(scope, capName, version);
+  const alerts = await getAlerts(scope, capName, version);
 
   if (alerts?.groups) {
     // Ground the template, i.e., subsitute specific fields for this user and

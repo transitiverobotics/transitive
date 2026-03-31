@@ -20,9 +20,12 @@ GRAFANA_API_HEADERS = {
   Authorization: `Basic ${btoa(`admin:${process.env.GRAFANA_ADMIN_PASSWORD}`)}`
 };
 
-/** Cache of already provisioned orgs and their assets */
-const provisioned = {
-};
+/* Cache of already provisioned orgs and their assets */
+const provisioned = {};
+
+/* Cache of assets from packages to provision. Avoids repeated fetching from
+registry.*/
+const assets = {};
 
 /** Ensure the given org exists, retun it's Grafana org id (Number) */
 const ensureOrg = async (org) => {
@@ -163,6 +166,32 @@ const provisionOrg = async (orgId) => {
   await ensureDatasource(grafanaOrgId, orgId);
 }
 
+/** get alerts provided by `capability`, either from cache of from registry */
+const getAlerts = async (scope, capName, version) => {
+  const capability = `${scope}/${capName}`;
+  const capWithVersion = `${capability}/${version}`;
+
+  assets[capability] ||= {};
+
+  if (!assets[capability].alerts) {
+    const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL
+      ? 'https://registry.transitiverobotics.com' : `http://registry`);
+    const capRegistryUrl = `${host}/-/custom/files/${capWithVersion}`;
+
+    const alerts = await fetch(`${capRegistryUrl}/grafana/alerting/template.json`,
+      {headers: { 'Content-Type': 'application/json' }});
+
+    if (alerts.ok) {
+      log.debug(`${capability} provides alerts`);
+      const alertsJson = await alerts.json();
+      assets[capability].alerts = alertsJson;
+    } else {
+      assets[capability].alerts = {}; // none provided, but remember we looked!
+    }
+  }
+
+  return assets[capability].alerts;
+}
 
 // ---------------------------------------------------------------------------
 
@@ -182,7 +211,6 @@ const init = async (mqttSync) => {
 
       provisioned[orgId].caps ||= {};
       const capability = `${scope}/${capName}`;
-      const capWithVersion = `${capability}/${version}`;
       if (provisioned[orgId].caps[capability] &&
         versionCompare(provisioned[orgId].caps[capability], version) >= 0) {
         return;
@@ -191,20 +219,12 @@ const init = async (mqttSync) => {
       // version is higher than what has been provisioned so far
       provisioned[orgId].caps[capability] = version;
 
-      const host = (scope == '@transitive-robotics' && !process.env.TR_REGISTRY_IS_LOCAL
-        ? 'https://registry.transitiverobotics.com' : `http://registry`);
-      const capRegistryUrl = `${host}/-/custom/files/${capWithVersion}`;
+      const alerts = getAlerts(scope, capName, version);
 
-      const alerts = await fetch(`${capRegistryUrl}/grafana/alerting/template.json`,
-        {headers: { 'Content-Type': 'application/json' }});
-
-      if (alerts.ok) {
-        const alertsJson = await alerts.json();
-        log.debug(`${capWithVersion} provides alerts`);
-
+      if (alerts?.groups) {
         // Ground the template, i.e., subsitute specific fields for this user and
         // capability
-        alertsJson.groups.forEach(group => {
+        alerts.groups.forEach(group => {
           group.orgId = provisioned[orgId].grafanaOrgId;
           group.folder = `Templates/${capability}`;
           group.rules.forEach(rule => {
@@ -213,7 +233,7 @@ const init = async (mqttSync) => {
           });
         });
         fs.writeFileSync(`/etc/grafana/provisioning/alerting/org-${orgId}.json`,
-          JSON.stringify(alertsJson));
+          JSON.stringify(alerts));
 
         const result = await fetch(
           `${GRAFANA_API_HOST}/api/admin/provisioning/alerting/reload`,
@@ -222,9 +242,6 @@ const init = async (mqttSync) => {
             headers: GRAFANA_API_HEADERS,
           });
         log.debug(await result.text());
-
-      } else {
-        log.debug(`${capWithVersion} does not define alerts`);
       }
     });
 };

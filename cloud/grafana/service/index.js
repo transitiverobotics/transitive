@@ -186,7 +186,7 @@ const getAlerts = async (scope, capName, version) => {
     }
   }
 
-  return assets[capability].alerts;
+  return structuredClone(assets[capability].alerts);
 }
 
 /** Fetch and provision to orgId any assets provided by the capability */

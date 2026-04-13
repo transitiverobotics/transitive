@@ -125,7 +125,7 @@
           },
           "pluginVersion": "4.14.0",
           "queryType": "table",
-          "rawSql": "WITH splitByChar('/', '${__user.login}') as userParts\nSELECT\n  Timestamp,\n  JSONExtract(Payload, 'Float32') as value,  \n  arrayStringConcat(arrayMap(x -> encodeURLComponent(x), arraySlice(TopicParts, 6)), '/') as subTopicParts\nFROM\n  mqtt_history  \nWHERE\n  TopicParts[1] = userParts[1] AND TopicParts[2] = userParts[2] AND\n  TopicParts[3] = userParts[3] AND TopicParts[4] = userParts[4] AND\n  (\n    Timestamp >= $__fromTime_ms\n    AND Timestamp <= $__toTime_ms\n  )\n  AND arrayExists(x -> startsWith(subTopicParts, x), [${subtopic:sqlstring}])\n",
+          "rawSql": "WITH splitByChar('/', '${__user.login}') as userParts\nSELECT\n  Timestamp,\n  JSONExtract(Payload, 'Float32') as value,  \n  arrayStringConcat(arrayMap(x -> encodeURLComponent(x), arraySlice(TopicParts, 6)), '/') as subTopicParts\nFROM\n  mqtt_history  \nWHERE\n  lower(TopicParts[1]) = userParts[1] AND lower(TopicParts[2]) = userParts[2] AND\n  TopicParts[3] = userParts[3] AND TopicParts[4] = userParts[4] AND\n  (\n    Timestamp >= $__fromTime_ms\n    AND Timestamp <= $__toTime_ms\n  )\n  AND arrayExists(x -> startsWith(subTopicParts, x), [${subtopic:sqlstring}])\n",
           "refId": "A"
         }
       ],

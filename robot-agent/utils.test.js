@@ -1,3 +1,4 @@
+const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('assert');
 const { getInstalledPackages, toPrecision } = require('./utils');
 

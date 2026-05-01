@@ -4,7 +4,7 @@
   "description": "The Transitive Robotics robot agent, responsible for installing and starting capability packages on the device and relaying mqtt communication.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha -w *.test.js",
+    "test": "node --test --watch",
     "postinstall": "sh postinstall.sh",
     "preuninstall": "sh preuninstall.sh",
     "dev": "env TR_DEVMODE=TRUE PATH=$PATH:~/.transitive/usr/sbin:~/.transitive/usr/bin:~/.transitive/sbin:~/.transitive/bin npm run start",
@@ -15,7 +15,7 @@
   "author": "Christian Fritz",
   "license": "Apache-2.0",
   "dependencies": {
-    "@transitive-sdk/utils": "^0.14.1",
+    "@transitive-sdk/utils": "^0.17.2",
     "aedes-preunsub": "^0.51.3",
     "cron": "^2.1.0",
     "dotenv": "^16.0.0",
@@ -24,9 +24,6 @@
     "pidusage-tree": "^2.0.5",
     "systeminformation": "^5.27.7",
     "tail": "^2.2.6"
-  },
-  "devDependencies": {
-    "mocha": "^9.1.4"
   },
   "config": {
     "desiredNodeVersion": 20,

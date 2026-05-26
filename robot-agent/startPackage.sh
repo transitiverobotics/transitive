@@ -125,6 +125,7 @@ do
   cd "$BASE/node_modules/$1"
   export PASSWORD=$(cat ../../../password)
   # setting FORCE_COLOR=1 to force ANSI colors in Chalk (for logging)
+  START=$(date +%s)
   FORCE_COLOR=1 npm start &
   echo '{"status": "started"}' > $STATUS_FILE
   pid=$!
@@ -133,6 +134,14 @@ do
   wait
   pid=
   echo '{"status": "restarting"}' > $STATUS_FILE
-  sleep 1
+
+  # ensure no restarting more than once a minute
+  ELAPSED=$(( $(date +%s) - START ))
+  DELAY=$(( 60 - ELAPSED ))
+  DELAY=$(( DELAY < 1 ? 1 : DELAY )) # MIN DELAY 1s
+
+  echo "Restarting in $DELAY seconds"
+  sleep $DELAY
+
   echo "Restarting $1"
 done

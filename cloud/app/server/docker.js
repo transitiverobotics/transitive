@@ -136,6 +136,7 @@ const build = async ({name, version, pkgInfo}) => {
   log.debug({externalIp});
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
       'FROM node:20.12.2',
+      // 'FROM node:20.20.2', // 20.19.3+ required by mongodb@7
       'RUN apt-get update',
       'COPY . /app/',
       'WORKDIR /app',
@@ -237,7 +238,7 @@ const start = async ({name, version, pkgInfo}) => {
     }
   }
   let clickhouseEnvVars = [];
-  if (process.env.CLICKHOUSE_ENABLED === 'true') {   
+  if (process.env.CLICKHOUSE_ENABLED === 'true') {
     try {
       const {dbName, user, password} = await ensureCapabilityDB(name);
       log.debug('ClickHouse user for cap:', user);

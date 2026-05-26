@@ -9,17 +9,21 @@ log.setLevel('info');
 /** List of self checks to run */
 const selfChecks = {
   // check if unshare is supported
-  unshareSupported: {
-    command: 'unshare -rm whoami',
-    checkResult: (result) => result.trim() === 'root',
-    error: 'Unshare not supported, please add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
-  },
+  // unshareSupported: {
+  //   command: 'unshare -rm whoami',
+  //   checkResult: (result) => result.trim() === 'root',
+  //   error: 'Unshare not supported, please add kernel.apparmor_restrict_unprivileged_userns = 0 to /etc/sysctl.conf',
+  // },
+  // ^^ disabled because not accurate; if root or password-sudoer then we don't
+  // need `unshare -r`, meaning we would be showing a false-positive
+
   // check if bash is installed
   bashInstalled: {
     command: 'which bash',
     checkResult: (result) => result.trim() !== '',
     error: 'Bash not installed, please install bash.',
   },
+
   // check if bash is the default shell
   bashDefaultShell: {
     command: 'echo $SHELL',
@@ -28,11 +32,16 @@ const selfChecks = {
     // required.
     error: 'Bash is not the default shell, please set bash as the default shell',
   },
+
   // check if an overlay file system can be created
   overlaySupported: {
     command: 'TRPACKAGE=@test_overlay/test ./unshare.sh whoami',
     error: 'Overlay file system not supported, please see https://transitiverobotics.com/docs/guides/troubleshooting/',
   },
+
+  // clockSync: {
+  // TODO: add this, check for clock being on-time
+  // }
 };
 
 

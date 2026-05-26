@@ -22,6 +22,14 @@ NORMAL="\033[0;39m"
 DIR=~/.transitive
 BASEDIR=$(dirname $0)
 
+if (unshare -rm id); then
+  UNSHARE="unshare -rm";
+else
+  # workaround for Ubuntu 24.04+ where
+  # kernel.apparmor_restrict_unprivileged_userns = 1 is default
+  UNSHARE="aa-exec -p trinity -- unshare -rm";
+fi
+
 # -------------------------------------------------------------------
 # Functions
 
@@ -52,19 +60,17 @@ setupSources() {
     # remove it in case an older version of aptLocal added it:
     rm -rf $DIR/etc/apt/sources.list.d/ros-latest.list
   else
-  echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc/apt/sources.list.d/ros-latest.list
-  fi;
+    echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > $DIR/etc/apt/sources.list.d/ros-latest.list;
+  fi
 
   if [[ -e /etc/apt/trusted.gpg ]]; then cp {,$DIR}/etc/apt/trusted.gpg; fi
   cp /etc/apt/trusted.gpg.d/* $DIR/etc/apt/trusted.gpg.d || true
   # For now, always get latest ROS repo keys, to mitigate stuff like:
   # https://discourse.ros.org/t/ros-gpg-key-expiration-incident/20669
 
-
-
   printStep "Import repo keys"
 
-  curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | unshare -rm apt-key --keyring $DIR/etc/apt/trusted.gpg.d/ros.gpg add -
+  curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | $UNSHARE apt-key --keyring $DIR/etc/apt/trusted.gpg.d/ros.gpg add -
 
   # node.js:
   ARCH=$(dpkg --print-architecture)

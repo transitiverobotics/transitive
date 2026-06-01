@@ -38,11 +38,14 @@ const restart = () => {
   capProcess.on('exit', () => log.debug('Capability stopped running'));
 };
 
-/** Remove all hidden files and directories in the given directory */
+/** Remove unwanted hidden files and directories matching `.*-*` in the given
+* directory */
 const rmHidden = (dir) => {
-  fs.readdirSync(dir).forEach(name => name.startsWith('.') &&
-      fs.rmSync(`${dir}/${name}`, {recursive: true, force: true})
-  );
+  fs.readdirSync(dir).forEach(name => {
+    if (name.match(/\..*-.*/)) {  // match `.*-*`
+      fs.rmSync(`${dir}/${name}`, {recursive: true, force: true});
+    }
+  });
 };
 
 /** Check for updates and install them. If successful, restart the cap.

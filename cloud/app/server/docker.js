@@ -39,7 +39,7 @@ const docker = new Docker();
 const getTagName = ({name, version}) => `${name.replace(/@/g, '')}:${version}`;
 
 /** generate docker container name from capability name and version */
-const getCointainerName = ({name, version}) =>
+const getContainerName = ({name, version}) =>
   getTagName({name, version}).replace(/[\/:]/g, '.');
 
 /** Given an image tag name, parse it an return capability name and version.
@@ -56,15 +56,11 @@ const parseTagName = (imageTag) => {
 /** Ensure the given version of the given package is running. If not, start
   it in a docker container. */
 const ensureRunning = async ({name, version}) => {
-  // const pkgInfo = await (
-  //   await fetch(`http://${REGISTRY_HOST}:6000/${encodeURIComponent(name)}`))
-  //   .json();
 
-  const list = await docker.listContainers();
-  const tagName = getTagName({name, version});
-  const isRunning = list.some(container => container.Image == tagName);
+  const containerName = getContainerName({name, version});
+  const list = await docker.listContainers({filters: {name: [containerName]}});
 
-  if (!isRunning) {
+  if (list.length == 0) {
     // fetch package.json for `name` from the registry corresponding to the scope
     const localRegistry = 'http://registry:6000';
     const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
@@ -256,7 +252,7 @@ const start = async ({name, version, pkgInfo}) => {
   }
 
   docker.run(tagName, [], devNull, {
-      name: getCointainerName({name, version}),
+      name: getContainerName({name, version}),
       Env: [
         `MQTT_URL=${process.env.MQTT_URL}`,
         `PUBLIC_PORT=${exposedPorts.min}`,
@@ -278,7 +274,7 @@ const start = async ({name, version, pkgInfo}) => {
 
 /** stop the container for the given version of the given package name */
 const stop = async ({name, version}) => {
-  const containerName = getCointainerName({name, version});
+  const containerName = getContainerName({name, version});
   log.debug('stopping', containerName);
   const list = await docker.listContainers({filters: {name: [containerName]}});
   if (list.length > 0) {

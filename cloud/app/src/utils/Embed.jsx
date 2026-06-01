@@ -76,17 +76,6 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
     const tryCode = `<script src="${bundleURL}"></script>\n<${name} ${defaultParams} jwt="${jwt}"${paramString} />`;
     const tryReact = `import { TransitiveCapability } from '@transitive-sdk/utils-web';\n...\n<TransitiveCapability jwt="${jwt}"${paramString} />`;
 
-    const parameters = getParameters({ files: {
-      'package.json': { content: { dependencies: {} }},
-      'index.html': { content: tryCode },
-      'sandbox.config.json': { content: {
-        "infiniteLoopProtection": true,
-        "hardReloadOnChange": false,
-        "view": "browser",
-        "template": "static"
-      }}
-    }});
-
     return <div style={{color: 'inherit'}}>
       <p>
         You can embed this UI component in other web pages or share it via a link.
@@ -94,20 +83,26 @@ const EmbedBody = ({name, jwt, deviceId, extra={}, style, host, ssl,
       <hr/>
 
       <h5>Testing</h5>
-      <form action="https://codesandbox.io/api/v1/sandboxes/define" method="POST"
-        target="_blank">
-        <input type="hidden" name="parameters" value={parameters} />
+
+      <form action="https://codepen.io/pen/define" method="POST" target="_blank">
+        <input type="hidden" name="data" value={JSON.stringify({
+            title: jwtPayload.capability,
+            layout: 'left',
+            html: tryCode,
+          })} />
         <Button variant="primary" size='sm' onClick={(e) => {
           e.preventDefault();
           e.target.parentNode.submit();
           return false;
         }}>
-          Try it in a CodeSandbox
+          Try it in a CodePen
         </Button><br/>
 
-        To test in your own web app, use one of these snippets. The included <a
-          href="https://jwt.io/">JWT token</a> is valid for the next 12 hours
-        from when this page was loaded.
+        <br/>
+
+        Or you can test in your own web app using one of these snippets. The
+        included <a href="https://jwt.io/">JWT token</a> is valid for the next
+        12 hours from when this page was loaded.
 
         <Tabs
           id="uncontrolled-tab-example"

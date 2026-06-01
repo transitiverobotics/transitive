@@ -121,7 +121,7 @@ const build = async ({name, version, pkgInfo}) => {
 
   fs.writeFileSync(path.join(dir, '.dockerignore'), [
       'node_modules',
-      'Dockerfile'
+      // 'Dockerfile'
     ].join('\n'));
 
   fs.copyFileSync('assets/cloud_runner.js', path.join(dir, 'cloud_runner.js'));

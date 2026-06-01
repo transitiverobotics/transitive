@@ -22,10 +22,10 @@ EXPOSE 9000
 ARG TR_HOST
 ENV TR_HOST=${TR_HOST:-localhost}
 
-FROM base as dev
+FROM base AS dev
 RUN apt-get update && apt-get install -y tmux
 CMD ./tmux.sh && while (true); do echo "tmux running"; sleep 60; date; done
 
-FROM base as prod
+FROM base AS prod
 
 CMD ["npm", "start"]

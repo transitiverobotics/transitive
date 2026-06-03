@@ -4,7 +4,6 @@ import { Form, InputGroup, FormControl, Button, Modal, Tabs, Tab } from 'react-b
 import { Link } from 'react-router-dom';
 import { FaCode } from 'react-icons/fa';
 import _ from 'lodash';
-import { getParameters } from "codesandbox/lib/api/define";
 
 import {fetchJson, getLogger, decodeJWT} from '@transitive-sdk/utils-web';
 

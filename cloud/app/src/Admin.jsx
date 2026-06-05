@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 
 import { Col, Row, Form, Badge, Toast } from 'react-bootstrap';
 import DataTable, { createTheme } from 'react-data-table-component';
@@ -103,21 +103,26 @@ export const Admin = () => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-      fetchJson('/@transitive-robotics/_robot-agent/admin/getUsers', (err, res) => {
-        if (err) {
-          log.error(err, res);
-        } else {
-          const heartbeats = aggregateHeartbeatsByStatus(res.heartbeats);
-          res.users.forEach(user => {
-            user.heartbeats = heartbeats[user._id] || [];
-          });
-          setUsers(res.users);
-        }
-      });
+      const refresh = () => {
+        fetchJson('/@transitive-robotics/_robot-agent/admin/getUsers', (err, res) => {
+          if (err) {
+            log.error(err, res);
+          } else {
+            const heartbeats = aggregateHeartbeatsByStatus(res.heartbeats);
+            res.users.forEach(user => {
+              user.heartbeats = heartbeats[user._id] || [];
+            });
+            setUsers(res.users);
+          }
+        });
+      }
 
-  }, []);
+      refresh();
+      const interval = setInterval(refresh, 60000); // refresh every minute
+      return () => { clearInterval(interval); }
+    }, []);
 
-  log.debug({users});
+  // log.debug({users});
 
   const columns = [
     {
@@ -183,11 +188,13 @@ export const Admin = () => {
     { /* Whether account has a payment method on file, and whether it is delinquent */
       name: 'Has card',
       grow: 1,
-      cell: row => <span>
+      cell: row => <a
+        href={`https://dashboard.stripe.com/customers/${row.stripeCustomer?.id}`}
+      >
         {canPay(row) && <FaRegCreditCard />}
         {row.stripeCustomer?.delinquent &&
           <FaExclamationTriangle style={styles.warning} />}
-      </span>,
+      </a>,
       sortable: true,
       sortFunction: (a, b) => (canPay(a) ? 1 : 0) - (canPay(b) ? 1 : 0)
     },

@@ -113,9 +113,11 @@ const build = async ({name, version, pkgInfo}) => {
   const trRegistry = tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) ?
     localRegistry : 'https://registry.transitiverobotics.com';
 
+  const [scope, capName] = name.split('/');
   // generate .npmrc
   fs.writeFileSync(path.join(dir, '.npmrc'), [
       `@transitive-robotics:registry=${trRegistry}`,
+      `${scope}:registry=${trRegistry}`,
       `@local:registry=${localRegistry}`
     ].join('\n'));
 

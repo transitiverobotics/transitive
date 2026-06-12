@@ -76,9 +76,28 @@ const addPackage = (addedPkg) => {
   log.debug(`adding package ${addedPkg}`);
   const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
   fs.mkdirSync(dir, {recursive: true});
-  fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
+
+  // fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
+
+  // create the .npmrc file
+  const [scope, capName] = addedPkg.split('/');
+  const lines = fs.readFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, 'utf8')
+      .split('\n')
+      .filter(line => !line.startsWith('#'));
+  if (!lines.some(line => line.startsWith(scope))) {
+    // it's a non-standard scope (third-party), add it
+    log.debug('adding package scope', scope);
+    const registry = lines[0].split('=')[1];
+    // We assume the same registry as for @transitive-robotics packages which
+    // can be local if TR_REGISTRY_IS_LOCAL == true in the deployment this robot
+    // is running against.
+    lines.push(`${scope}:registry=${registry}`);
+  }
+
+  fs.writeFileSync(`${dir}/.npmrc`, lines.join('\n'));
   fs.writeFileSync(`${dir}/package.json`,
     `{ "dependencies": {"${addedPkg}": "*"} }`);
+
   updatePackageConfigFile(addedPkg);
   startPackage(addedPkg);
 };

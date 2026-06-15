@@ -218,6 +218,7 @@ const StatusBadge = ({running, inactive, status, disabled}) =>
     : <Badge bg="dark">stopped</Badge>
   );
 
+/** An installed acapability */
 const Capability = (props) => {
 
   const { mqttSync, running, desired, status, disabled, name, title,
@@ -477,6 +478,23 @@ const Device = (props) => {
       }, 1000);
   };
 
+  /** List item for a package (capability), to be used in accordion */
+  const PackageItem = (pkg, eventKey) => {
+    const issues = failsRequirements(info, pkg);
+
+    const price = pkg.versions?.[0].transitiverobotics?.price;
+    if (price && !canPay) {
+      issues.push('Please add a payment method in Billing.');
+    }
+
+    return <Accordion.Item eventKey={eventKey} key={pkg._id}>
+      <Accordion.Body>
+        <Package {...{pkg, install, issues}} />
+      </Accordion.Body>
+    </Accordion.Item>
+  };
+
+
   // Augment the `info` object with derived variables for testing requirements
   const info = latestVersionData?.info;
   // active ROS releases are those that are installed and permitted by the
@@ -500,6 +518,10 @@ const Device = (props) => {
   const errorCount = latestVersionData?.status?.logs
     ?.errorCount?.['@transitive-robotics']?.['robot-agent'] || 0;
   log.debug({latestVersionData, packages, toast, canBeInstalledPkgs});
+
+  const sortedCapabilities = _.sortBy(canBeInstalledPkgs,
+      pkg => new Date(pkg.date)).reverse();
+  const betaCapabilitiesExist = sortedCapabilities.some(c => c.transitiverobotics.beta);
 
   return <div>
     <div style={styles.row} className='position-relative'>
@@ -612,25 +634,25 @@ const Device = (props) => {
 
         {/* Fold-out for adding capabilities */}
         { latestVersionData.status?.ready ? <F>
-            <Accordion.Item eventKey="1">
+            <Accordion.Item eventKey='1'>
               <Accordion.Header><MdAdd/> Add Capabilities</Accordion.Header>
             </Accordion.Item>
-            {_.sortBy(canBeInstalledPkgs, pkg => new Date(pkg.date)).reverse().map(pkg => {
-                  const issues = failsRequirements(info, pkg);
-
-                  const price = pkg.versions?.[0].transitiverobotics?.price;
-                  if (price && !canPay) {
-                    issues.push('Please add a payment method in Billing.');
-                  }
-
-                  return <Accordion.Item eventKey="1" key={pkg._id}>
-                    <Accordion.Body>
-                      <Package {...{pkg, install, issues}} />
-                    </Accordion.Body>
-                  </Accordion.Item>
-                })
+            {sortedCapabilities
+                .filter(c => !c.transitiverobotics.beta)
+                .map(pkg => PackageItem(pkg, '1'))
             }
+
+            {betaCapabilitiesExist && <F>
+              <Accordion.Item eventKey='2'>
+                <Accordion.Header>Beta Capabilities</Accordion.Header>
+              </Accordion.Item>
+              {sortedCapabilities
+                  .filter(c => c.transitiverobotics.beta)
+                  .map(pkg => PackageItem(pkg, '2'))
+              }
+            </F>}
           </F>
+
           : !inactive && <Accordion.Item eventKey="0">
             <Accordion.Body><Spinner animation="border" size="sm"
                 /> Waiting for agent getting ready.</Accordion.Body>

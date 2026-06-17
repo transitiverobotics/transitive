@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const express = require('express');
+const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
@@ -277,6 +278,8 @@ app.use(cors(), express.static(path.join(cwd, 'dist')));
 
 const capsRouter = express.Router();
 app.use('/caps', capsRouter);
+
+app.use(compression());
 
 // Needs to come *after* capsRouter, to allow per-capability servers to parse
 // the body when it arrives there.
@@ -1746,7 +1749,22 @@ class _robotAgent extends Capability {
     /** get list of users */
     this.router.get('/admin/getUsers', requireAdmin, async (req, res) => {
       const accounts = Mongo.db.collection('accounts');
-      const users = await accounts.find({_id: {$ne: 'bot'}}).toArray();
+      const users = await accounts.find({_id: {$ne: 'bot'}}, {
+          projection: {
+            _id: 1,
+            verified: 1,
+            created: 1,
+            free: 1,
+            // balanceExpires: 1,
+            stripeCustomer: {
+              id: 1,
+              balance: 1,
+              delinquent: 1,
+              invoice_settings: {
+                default_payment_method: 1
+              }
+            }
+          }}).toArray();
 
       const heartbeats = {};
       // get latest heartbeats for all devices

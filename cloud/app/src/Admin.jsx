@@ -118,7 +118,8 @@ export const Admin = () => {
       }
 
       refresh();
-      const interval = setInterval(refresh, 60000); // refresh every minute
+      // refresh regularly:
+      const interval = setInterval(refresh, 10 * 60 * 1000);
       return () => { clearInterval(interval); }
     }, []);
 

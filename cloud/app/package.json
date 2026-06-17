@@ -11,6 +11,7 @@
     "@transitive-sdk/utils-web": "^0.17.2",
     "bcrypt": "^6.0.0",
     "bootstrap": "^5.3.8",
+    "compression": "^1.8.1",
     "connect-mongo": "^4.6.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

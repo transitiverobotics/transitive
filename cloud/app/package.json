@@ -27,7 +27,6 @@
     "jsonwebtoken": "^9.0.3",
     "lodash": "^4.17.21",
     "node-fetch": "^2.6.7",
-    "pako": "^2.0.4",
     "prism-react-renderer": "^2.0.5",
     "prompt": "^1.2.1",
     "react": "^18.3.1",

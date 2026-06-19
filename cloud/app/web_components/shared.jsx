@@ -207,7 +207,10 @@ export const LogButtonWithCounter = (props) => {
     const topic = `${versionPrefix}/rpc/getPkgLog`;
     log.debug('running getPkgLog command', {topic, pkg: packageName});
 
-    mqttSync.call(topic, {pkg: packageName}, (response) => {
+    const lines = Number(window.tr_logLines || 10000);
+    log.info(`To get more/less than 10000 log lines, set window.tr_logLines`);
+
+    mqttSync.call(topic, {pkg: packageName, lines}, (response) => {
       log.debug('got package log response', response);
       const [scope, capName] = packageName.split('/');
       setPkgLog({[scope]: {[capName]: response}});

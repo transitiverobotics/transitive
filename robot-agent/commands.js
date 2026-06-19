@@ -44,9 +44,13 @@ const commands = {
     killPackage(pkg);
   },
 
-  getPkgLog: ({pkg}) => {
+  getPkgLog: ({pkg, lines = 10000}) => {
     return new Promise((resolve, reject) => {
-      exec(`cat ~/.transitive/packages/${pkg}/log | tail -n 100000`,
+      exec(`cat log.3 log.2 log.1 log | tail -n ${lines}`,
+        {
+          maxBuffer: 100 * 1024 * 1024,
+          cwd: `${process.env.HOME}/.transitive/packages/${pkg}`
+        },
         (err, stdout, stderr) => resolve({
           err,
           stdout: zlib.gzipSync(stdout).toString('base64'),

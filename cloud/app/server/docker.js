@@ -133,8 +133,8 @@ const build = async ({name, version, pkgInfo}) => {
   const externalIp = await dns.promises.lookup(process.env.TR_HOST, {family: 4});
   log.debug({externalIp});
   fs.writeFileSync(path.join(dir, 'Dockerfile'), [
-      'FROM node:20.12.2',
-      // 'FROM node:20.20.2', // 20.19.3+ required by mongodb@7
+      // 'FROM node:20.12.2',
+      'FROM node:20.20.2', // 20.19.3+ required by mongodb@7
       'RUN apt-get update',
       'COPY . /app/',
       'WORKDIR /app',
@@ -142,10 +142,6 @@ const build = async ({name, version, pkgInfo}) => {
       `ENV TR_HOST=${process.env.TR_HOST}`,
       `ENV EXTERNAL_IP=${externalIp.address}`,
       'ENV TRANSITIVE_IS_CLOUD=1',
-      // Required in order to install indirect dependencies from the
-      // @transitive-robotics scope
-      // #TODO: No longer used, remove
-      'ENV npm_config_userconfig=/app/.npmrc',
       'RUN npm install',
       // TODO: remove the next line once all caps use utils@0.7.1, i.e., they
       // find certs in upper folders if needed
@@ -211,7 +207,8 @@ const start = async ({name, version, pkgInfo}) => {
     NetworkMode: 'cloud_caps',
     Init: true, // start an init process that reaps zombies, e.g., sshd's
     LogConfig: { Type: 'local' },
-    Memory: 500 * Math.pow(2,20), // 500MB memory limit
+    // memory limit; can peak over 500 MB during `npm update`; see #686
+    Memory: 1000 * Math.pow(2,20),
   };
 
   let ExposedPorts;

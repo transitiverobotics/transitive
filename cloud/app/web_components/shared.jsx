@@ -1,5 +1,4 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import pako from 'pako';
 
 import { Modal, Badge, OverlayTrigger, Tooltip, Button } from 'react-bootstrap';
 import { FaCircle, FaRegCircle } from 'react-icons/fa';
@@ -70,11 +69,20 @@ export const ensureProps = (props, list) => list.every(name => {
 });
 
 
+/** given an array of bytes or string, decompress and return result */
+const decompress = async (bytes) => {
+  const stream = new DecompressionStream('gzip');
+  const writer = stream.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  return new Response(stream.readable).text();
+}
+
 /** given a compressed base64 buffer, convert and decompress */
-const decompress = (zippedBase64) => {
-  const buf = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
-  return pako.ungzip(buf, {to: 'string'});
-};
+const decompressBase64 = async (zippedBase64) => {
+  const bytes = Uint8Array.from(atob(zippedBase64), c => c.charCodeAt(0));
+  return decompress(bytes);
+}
 
 /** Component that renders the package log response, such as
 {
@@ -94,7 +102,6 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
   const cap = Object.values(response)[0];
   const capName = Object.keys(cap)[0];
   const result = Object.values(cap)[0];
-  const stdout = decompress(result.stdout);
 
   // const packageName = (capName === 'robot-agent') ?
   //   'robot-agent' : `${scope}/${capName}`;
@@ -125,10 +132,9 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
           }
         });
 
-        mqttClient.on('message', (msgTopic, message) => {
+        mqttClient.on('message', async (msgTopic, message) => {
           if (msgTopic === topic) {
-            // const logLines = message && JSON.parse(message.toString());
-            const jsonStr = pako.ungzip(message, {to: 'string'});
+            const jsonStr = await decompress(message);
             const logLines = message && JSON.parse(jsonStr);
 
             if (!logLines || !Array.isArray(logLines) || logLines.length === 0) {
@@ -153,10 +159,17 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
       }
     }, [mqttClient, scope, capName]);
 
+  const [lines, setLines] = useState(null);
 
-  const lines = stdout ? stdout.split(/\n/g) : null;
+  // decompress the result we got, set the lines from it
+  useEffect(() => {
+      const run = async () => {
+        const stdout = await decompressBase64(result.stdout);
+        setLines(stdout ? stdout.split(/\n/g) : []);
+      }
+      run();
+    }, []);
 
-  // fullscreen={true}
   return <Modal show={true} size='xl' onHide={hide} >
     <Modal.Header closeButton>
       <Modal.Title>Log for {packageName}</Modal.Title>
@@ -165,15 +178,16 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
       background: 'hsl(240, 7%, 5%)',
       color: '#eee',
     }}>
-      {/* {stdout ? <pre style={style}>{stdout}</pre> : <div>stdout is empty</div>} */}
       { lines ?
-        lines.map((line, i) => <AnsiHtml style={style} text={line} key={i}/>)
-        : <div>stdout is empty</div>
+        ( lines.length > 0 ?
+          lines.map((line, i) => <AnsiHtml style={style} text={line} key={i}/>)
+          : <div>stdout is empty</div>
+        )
+        : <div>fetching log...</div>
       }
-
       <hr/>
-      <h6>Live Log, configured <tt>minLogLevel</tt> and above only (default: "error"):</h6>
 
+      <h6>Live Log, configured <tt>minLogLevel</tt> and above only (default: "error"):</h6>
       <pre style={style}>
         {liveLogs}
       </pre>

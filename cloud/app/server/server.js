@@ -35,6 +35,7 @@ const {
   createAccount, sendVerificationEmail, verifyCode, sendResetPasswordEmail,
   changePassword
 } = require('./accounts');
+const PackageMonitor = require('./PackageMonitor');
 
 
 const HEARTBEAT_TOPIC = '$SYS/broker/uptime';
@@ -554,6 +555,11 @@ app.get('/running/:scope/:capName/*', (req, res) => {
 // test with:
 // curl "data.homedesk:8000/bundle/health-monitoring/dist/health-monitoring-device.js?userId=qEmYn5tibovKgGvSm&deviceId=GbGa2ygqqz"
 
+app.get('/availablePackages', async (req, res) => {
+  // TODO: add authentication headers (once #84), npm token as Bearer
+  res.set({'Access-Control-Allow-Origin': '*'});
+  res.json(PackageMonitor.packages);
+});
 
 /* -------------------------------------------------------------------------
   Cloud Agent
@@ -1110,28 +1116,6 @@ class _robotAgent extends Capability {
   addRoutes() {
 
     this.router.use(express.json());
-    this.router.get('/availablePackages', async (req, res) => {
-      // TODO: add authentication headers (once #84), npm token as Bearer
-      const selector = JSON.stringify({'versions.transitiverobotics': {$exists: 1}});
-
-      const localRegistry = process.env.TR_REGISTRY || 'registry:6000';
-      const response = await fetch(`http://${localRegistry}/-/custom/all?q=${selector}`);
-      const data = await response.json();
-
-      if (!tryJSONParse(process.env.TR_REGISTRY_IS_LOCAL) &&
-        process.env.TR_BILLING_USER && process.env.TR_BILLING_SECRET) {
-        // also fetch available packages from Transitive Robotics's public repo
-        const publicResponse = await fetch(
-          `https://registry.transitiverobotics.com/-/custom/all?q=${selector}`);
-        const publicData = await publicResponse.json();
-        data.splice(data.length, 0, ...publicData);
-      }
-
-      // log.debug('availablePackages', data);
-
-      res.set({'Access-Control-Allow-Origin': '*'});
-      res.json(data);
-    });
 
     addSessions(this.router, 'sessions', process.env.TR_SESSION_SECRET);
 
@@ -1890,6 +1874,8 @@ Mongo.init(() => {
 
   addCapsRoutes();
   robotAgent.addRoutes();
+
+  PackageMonitor.init();
 
   server.listen(PORT, () => {
     log.info(`Server started on port ${server.address().port}`);

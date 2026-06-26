@@ -112,7 +112,7 @@ const getMergedPackageInfo = (robotAgentData) => {
 (json from npm registry) requirements if any. If it fails, will return a list
 of human-readable issues. */
 const failsRequirements = (info, pkg) => {
-  const requires = pkg.versions?.[0].transitiverobotics?.requires;
+  const requires = pkg.transitiverobotics?.requires;
   if (!requires) return [];
 
   const issues = requires.map( req =>
@@ -150,7 +150,7 @@ const OSInfo = ({info}) => {
 */
 const getPkgTitle = (name, allPackges) => {
   const pkg = allPackges[name];
-  return pkg?.versions[0].transitiverobotics.title;
+  return pkg?.transitiverobotics.title;
 };
 
 /** Given an object, map each item using fn, in lexicographic order of keys */
@@ -166,7 +166,7 @@ const Price = ({price}) => <span>
 
 /** a package as shown in the install dropdown */
 const Package = ({pkg, install, issues}) => {
-  const {title, price} = pkg.versions?.[0].transitiverobotics;
+  const {title, price} = pkg.transitiverobotics;
   const host = location.host.replace('portal.', '');
 
   return <Row>
@@ -366,17 +366,16 @@ const Device = (props) => {
   const {device} = decodeJWT(jwt);
   const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
 
-
   const [showAdd, setShowAdd] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const [availablePackages, setAvailablePackages] = useState([]);
+  const [availablePackages, setAvailablePackages] = useState({});
   useEffect(() => {
       if (host === undefined) return;
-      const cloudHost = `${ssl ? 'https' : 'http'}://data.${host}`;
-      fetch(`${cloudHost}/@transitive-robotics/_robot-agent/availablePackages`)
+      const cloudHost = `${ssl ? 'https' : 'http'}://portal.${host}`;
+      fetch(`${cloudHost}/availablePackages`)
         .then(result => result.json())
-        .then(json => setAvailablePackages(_.keyBy(json, 'name')));
+        .then(json => setAvailablePackages(json));
     }, [ssl, host]);
 
   useEffect(() => {
@@ -429,6 +428,7 @@ const Device = (props) => {
   const packages = getMergedPackageInfo(latestVersionData);
   const canBeInstalledPkgs = _.keyBy(
     _.filter(availablePackages, pkg => !packages[pkg.name]), 'name');
+  log.debug({canBeInstalledPkgs});
 
   const desiredPackagesTopic = `${versionPrefix}/desiredPackages`;
 
@@ -482,7 +482,7 @@ const Device = (props) => {
   const PackageItem = (pkg, eventKey) => {
     const issues = failsRequirements(info, pkg);
 
-    const price = pkg.versions?.[0].transitiverobotics?.price;
+    const price = pkg.transitiverobotics?.price;
     if (price && !canPay) {
       issues.push('Please add a payment method in Billing.');
     }
@@ -522,6 +522,7 @@ const Device = (props) => {
   const sortedCapabilities = _.sortBy(canBeInstalledPkgs,
       pkg => new Date(pkg.date)).reverse();
   const betaCapabilitiesExist = sortedCapabilities.some(c => c.transitiverobotics.beta);
+  log.debug({sortedCapabilities});
 
   return <div>
     <div style={styles.row} className='position-relative'>
@@ -611,7 +612,7 @@ const Device = (props) => {
 
     <MyToast toast={toast} onClose={() => setToast(null)}/>
 
-    <div style={styles.row}>
+    {!_.isEmpty(availablePackages) && <div style={styles.row}>
       <h5>Capabilities</h5>
       { hasDisabled && <Alert variant='danger'>
         <FaExclamationTriangle /> Some capabilities have been disabled because
@@ -659,7 +660,7 @@ const Device = (props) => {
           </Accordion.Item>
         }
       </Accordion>
-    </div>
+    </div>}
   </div>
 };
 

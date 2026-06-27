@@ -1006,7 +1006,9 @@ class _robotAgent extends Capability {
   }
 
   /** Stop cloud docker containers for capabilities that haven't been used in a
-    while. */
+    while. Test by manually starting unused containers from front-end:
+    fetch('/@transitive-robotics/_robot-agent/admin/startCloudCap/@transitive-robotics%2Fremote-teleop/0.19.3')
+    */
   async stopUnusedContainers() {
     if (process.env.NODOCKER) {
       log.info('NODOCKER: not stopping unused docker containers');
@@ -1019,22 +1021,33 @@ class _robotAgent extends Capability {
 
     log.info('Capabilities in use', capabilitiesInUse);
     const capabilityContainers = await docker.listCapabilityContainers();
-    log.info('Running capability containers', capabilityContainers.map(c => c.Names));
+    // log.info('Running capability containers', capabilityContainers.map(c => c.Names));
 
-    _.forEach(capabilityContainers, (container) => {
-      const containerName = container.Names[0].slice(1); // remove leading /
-      // if no device is using this capability, stop it
-      const [scope, name, ...versionParts] = containerName.split('.');
-      const version = versionParts.join('.');
+    const capabilities = {}; // map capability names to list of running versions
+    capabilityContainers.map(c => c.Names[0]).forEach(containerName => {
+      // remove leading /, split name and version from containerName, e.g.
+      // transitive-robotics.terminal.0.1.5,
+      const [scope, name, ...versionParts] = containerName.slice(1).split('.');
+      const capability = [scope, name].join('.')
+      capabilities[capability] ||= [];
+      capabilities[capability].push(versionParts.join('.'));
+    });
 
-      if (capabilitiesInUse[`@${scope}`]?.[name]?.[version]){
-        log.debug(`stopUnusedContainers: still in use, not stopping ${containerName}`);
-      } else {
-        // split name and version from containerName, e.g.
-        // transitive-robotics.terminal.0.1.5
-        log.info(`Stopping ${containerName} not in use by any device`);
-        docker.stop({ name: `${scope}.${name}`, version});
-      }
+    log.info('Running capability versions', capabilities);
+
+    _.forEach(capabilities, (versions, containerName) => {
+      // sort by version and remove latest (which we always want to keep running)
+      versions.sort(versionCompare).pop();
+      const [scope, name] = containerName.split('.');
+
+      _.forEach(versions, version => {
+        if (capabilitiesInUse[`@${scope}`]?.[name]?.[version]){
+          log.debug(`stopUnusedContainers: still in use, not stopping ${containerName}.${version}`);
+        } else {
+          log.info(`Stopping ${containerName}.${version} not in use by any device`);
+          docker.stop({ name: `${containerName}`, version});
+        }
+      });
     });
   }
 

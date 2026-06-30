@@ -49,51 +49,51 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
   /** look through the provided tar data (base64) and extract images from docs
   folder */
-  const addImagesFromTar = (tarData, pkgId) => {
-    const stream = Readable.from(Buffer.from(tarData, 'base64'));
-    // stream.pipe(new tar.Parse({
-    // stream.pipe(tar.x({
-    //   onentry: entry => {
+  // const addImagesFromTar = (tarData, pkgId) => {
+  //   const stream = Readable.from(Buffer.from(tarData, 'base64'));
+  //   // stream.pipe(new tar.Parse({
+  //   // stream.pipe(tar.x({
+  //   //   onentry: entry => {
 
-    const images = [];
-    /* on entry: check if image and add to images array if so */
-    const onEntry = (entry) => {
-      console.log('tar entry', entry.path);
-      if (!entry.path.startsWith('package/docs/')) {
-        return;
-      }
+  //   const images = [];
+  //   /* on entry: check if image and add to images array if so */
+  //   const onEntry = (entry) => {
+  //     console.log('tar entry', entry.path);
+  //     if (!entry.path.startsWith('package/docs/')) {
+  //       return;
+  //     }
 
-      const fileType = mime.lookup(entry.path);
-      if (!fileType || fileType.split('/')[0] != 'image') {
-        return;
-      }
-      console.log(`found image in tar ${entry.path}, adding to db in base64`);
+  //     const fileType = mime.lookup(entry.path);
+  //     if (!fileType || fileType.split('/')[0] != 'image') {
+  //       return;
+  //     }
+  //     console.log(`found image in tar ${entry.path}, adding to db in base64`);
 
-      const chunks = [];
-      entry.on('data', chunk => chunks.push(chunk));
-      entry.on('end', () => {
+  //     const chunks = [];
+  //     entry.on('data', chunk => chunks.push(chunk));
+  //     entry.on('end', () => {
 
-        const buf = Buffer.concat(chunks);
-        if (buf.length > 16 * 1024 * 1024) {
-          console.warn(`image ${entry.path} too large (${buf.length} bytes > 16MB), not adding`);
-          return;
-        }
+  //       const buf = Buffer.concat(chunks);
+  //       if (buf.length > 16 * 1024 * 1024) {
+  //         console.warn(`image ${entry.path} too large (${buf.length} bytes > 16MB), not adding`);
+  //         return;
+  //       }
 
-        images.push({
-          path: entry.path,
-          mime: fileType,
-          size: entry.size,
-          base64: buf.toString('base64')
-        });
-      });
+  //       images.push({
+  //         path: entry.path,
+  //         mime: fileType,
+  //         size: entry.size,
+  //         base64: buf.toString('base64')
+  //       });
+  //     });
 
-      while (entry.read());
-    };
+  //     while (entry.read());
+  //   };
 
-    stream.pipe(tar.x({cwd: '/tmp'}))
-      .on('entry', onEntry)
-      .on('end', () => packages.updateOne({_id: pkgId}, {$set: {images}}));
-  };
+  //   stream.pipe(tar.x({cwd: '/tmp'}))
+  //     .on('entry', onEntry)
+  //     .on('end', () => packages.updateOne({_id: pkgId}, {$set: {images}}));
+  // };
 
 
   const app = express();
@@ -267,20 +267,23 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
       return;
     }
 
-    const tarballId = `${scope}/${pkgName}-${versionNumber}.tgz`
-    const file = await tarballs.findOne({ _id: tarballId });
-
-    if (!file) {
-      res.status(404).end(`No tarball for ${tarballId}`);
-      return;
-    }
-
     const tmpPath = `/tmp/${scope}/${pkgName}-${versionNumber}`;
     const filePath = `${tmpPath}/package/${path}`;
+
     if (fs.existsSync(filePath)) {
       // path already extracted
       res.sendFile(filePath);
+
     } else {
+
+      const tarballId = `${scope}/${pkgName}-${versionNumber}.tgz`
+      const file = await tarballs.findOne({ _id: tarballId });
+
+      if (!file) {
+        res.status(404).end(`No tarball for ${tarballId}`);
+        return;
+      }
+
       // extract and send it
       fs.mkdirSync(tmpPath, {recursive: true});
 
@@ -387,7 +390,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
     _.each(attachments, ({data}, filePath) => {
       tarballs.insertOne({_id: filePath, data});
       console.log(`stored tarball ${filePath}`);
-      addImagesFromTar(data, req.params.package);
+      // addImagesFromTar(data, req.params.package);
     });
 
     res.status(200).end();

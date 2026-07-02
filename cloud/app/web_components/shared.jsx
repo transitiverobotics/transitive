@@ -17,6 +17,8 @@ const _ = {
   filter: require('lodash/filter'),
 };
 
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
+
 const STALE_THRESHOLD = 3 * 24 * 60 * 60 * 1e3;
 const WARNING_THRESHOLD = 1.15 * 60 * 1e3;
 
@@ -170,7 +172,8 @@ export const PkgLog = ({response, mqttClient, agentPrefix, hide}) => {
       run();
     }, []);
 
-  return <Modal show={true} size='xl' onHide={hide} >
+  return <Modal show={true} size='xl' onHide={hide}
+    data-bs-theme={darkMode ? 'dark' : 'light'} >
     <Modal.Header closeButton>
       <Modal.Title>Log for {packageName}</Modal.Title>
     </Modal.Header>

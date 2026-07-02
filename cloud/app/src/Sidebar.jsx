@@ -13,8 +13,6 @@ import { TransitiveLogo } from './TransitiveLogo.jsx';
 
 const F = React.Fragment;
 
-const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
-
 const styles = {
   sidebar: {
     margin: '0',

@@ -15,6 +15,8 @@ log.setLevel('debug');
 
 const F = React.Fragment;
 
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)')?.matches;
+
 const styles = {
   form: {maxWidth: '40em'},
   modalBody: {},
@@ -189,6 +191,7 @@ export const Embed = ({style, compRef, capability, name, ...props}) => {
       <FaCode style={styles.icon}/> Embed
     </Button>
     <Modal show={show} size="lg" centered aria-labelledby="embedding code"
+      data-bs-theme={darkMode ? 'dark' : 'light'}
       onHide={() => setShow(false)} >
       <Modal.Header closeButton>
         <Modal.Title>

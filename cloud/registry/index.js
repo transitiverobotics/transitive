@@ -6,6 +6,7 @@ const tar = require('tar');
 const mime = require('mime-types')
 const assert = require('assert')
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const {URL} = require('url');
@@ -97,6 +98,7 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
 
 
   const app = express();
+  app.use(compression());
   app.use(express.json({limit: '10mb'}));
 
   /** log all requests */

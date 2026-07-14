@@ -15,6 +15,7 @@
     "@transitive-sdk/mongo": "^0.14.0",
     "@transitive-sdk/utils": "^0.14.2",
     "bcrypt": "^5.0.1",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "express": "^4.17.2",
     "lodash": "^4.17.21",

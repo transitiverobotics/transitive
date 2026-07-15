@@ -34,6 +34,7 @@ const startMDNS = async () => {
 
   mdns.on('query', function(query) {
     const name = query.questions[0].name.toLowerCase();
+    console.log(new Date(), name);
     name?.endsWith(host) && mdns.respond({
       answers: [{
         name,

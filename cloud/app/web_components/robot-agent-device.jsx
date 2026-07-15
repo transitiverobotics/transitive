@@ -133,7 +133,7 @@ const OSInfo = ({info}) => {
     <h3>{info.os.hostname}</h3>
     <div>
       {info.labels?.map(label =>
-        <span key={label}>{' '}<Badge bg="secondary">{label}</Badge></span>)
+        <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
       }
     </div>
     <Form.Text>

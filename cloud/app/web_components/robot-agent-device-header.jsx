@@ -16,15 +16,25 @@ const log = getLogger('robot-agent-device-header');
 log.setLevel('debug');
 
 const styles = {
+  wrapper: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'end',
+  },
   name: {
     fontWeight: 'bold',
-    flexGrow: 1,
+    // flexGrow: 1,
+    // fontSize: 'larger',
   },
-  wrapper: {
-    padding: '0.75em',
-    display: 'flex',
-    alignItems: 'center',
+  title: {
+    marginTop: '0.5em',
   },
+  extras: {
+    display: 'inline-flex',
+    marginLeft: '1em',
+    alignItems: 'baseline',
+    gap: '0.5em'
+  }
 };
 
 
@@ -35,14 +45,13 @@ const Device = (props) => {
     log.debug({props})
     return <div>missing props</div>;
   }
-  const {jwt, id, host} = props;
+  const {jwt, id, host, title, pkg} = props;
   const ssl = props.ssl && JSON.parse(props.ssl);
 
   const {mqttSync, data, status, ready, StatusComponent } =
     useMqttSync({jwt, id, mqttUrl: `${ssl ? 'wss' : 'ws'}://mqtt.${host}`});
   const {device} = decodeJWT(jwt);
   const prefix = `/${id}/${device}/@transitive-robotics/_robot-agent`;
-  const pkg = props.pkg; // name of the capability of whose page we are on
   const [scope, capName] = pkg.split('/');
 
   useEffect(() => {
@@ -59,23 +68,36 @@ const Device = (props) => {
   const versionPrefix = `${prefix}/${latestVersion}`;
 
   return <div style={styles.wrapper}>
-    <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
-    <a href={`/device/${device}`} style={styles.name}>
-      {!ready ? '' : mergedData?.info?.os?.hostname || device}
-    </a>
-    {mergedData?.info?.labels?.map(label =>
-        <span key={label}>{' '}<Badge bg="info">{label}</Badge></span>)
-    }
-    <LogButtonWithCounter
-      text="show capability log"
-      mqttSync={mqttSync}
-      versionPrefix={versionPrefix}
-      packageName={pkg}
-      // toolTipPlacement='bottom',
-      errorCount={mergedData?.status?.logs?.errorCount?.[scope]?.[capName]}
-    />
+    <div style={styles.name}>
+      <Heartbeat heartbeat={mergedData?.status?.heartbeat}/>
+      <a href={`/device/${device}`}>
+        {!ready ? '' : mergedData?.info?.os?.hostname || device}
+      </a>
+      <span style={styles.extras}>
+        {mergedData?.info?.labels?.map(label =>
+            <Badge bg="info">{label}</Badge>)
+        }
+      </span>
+      <h3 style={styles.title}>{title}</h3>
+    </div>
+    <div style={styles.extras}>
+      <LogButtonWithCounter
+        text="log"
+        mqttSync={mqttSync}
+        versionPrefix={versionPrefix}
+        packageName={pkg}
+        // toolTipPlacement='bottom',
+        errorCount={mergedData?.status?.logs?.errorCount?.[scope]?.[capName]}
+        />
+      <Button variant='link' href={`//${host}/caps/${pkg.replace('@','')}`}
+        // style={styles.cap.docLink}
+      >
+        {/* <FaBook style={styles.icon}/>  */}
+        documentation
+      </Button>
+    </div>
   </div>;
 };
 
 
-createWebComponent(Device, 'robot-agent-device-header');
+createWebComponent(Device, 'robot-agent-device-header', '0.0.0', { className: 'ignore' });

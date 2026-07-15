@@ -54,11 +54,6 @@ const styles = {
     embed: {
       float: 'right'
     },
-    title: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      paddingRight: '1rem'
-    },
     docLink: {
       fontSize: 'smaller',
     },
@@ -230,21 +225,19 @@ const CapabilityWidget = ({type}) => {
     return <div>Loading components</div>;
   }
 
-  return <div>
-    {type == 'device' ?
-      <Capability simple={true} webComponent='robot-agent-device-header'
-        capability='@transitive-robotics/_robot-agent'
-        pkg={capability} />
-      : <div>Fleet</div>
-    }
-    <div>&nbsp;</div>
+  const title = pkg?.title || componentDef?.title || capability;
 
-    <div style={styles.cap.title}>
-      <h4>{pkg?.title || componentDef?.title || capability}</h4>
-      <Button variant='link' href={`//${host}/caps/${capability.replace('@','')}`}
-        style={styles.cap.docLink}>
-        <FaBook style={styles.icon}/> Documentation
-      </Button>
+  return <div>
+    <div>
+      {type == 'device' ?
+        <Capability simple={true} webComponent='robot-agent-device-header'
+          capability='@transitive-robotics/_robot-agent'
+          pkg={capability}
+          style={{flexGrow: 1000}}
+          title={title}
+          />
+        : <strong><a href='/'>Fleet</a> » {title}</strong>
+      }
     </div>
     <Capability webComponent={webComponent} capability={capability}/>
 

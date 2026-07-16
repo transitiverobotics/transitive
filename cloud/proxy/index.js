@@ -212,8 +212,8 @@ class RateLimiter {
 
     // count thie request
     this.ipRates[ip].push(Date.now());
+    // console.log(`ip rate ${this.name}, ${ip}: ${requests}/${this.rate}`);
     requests++;
-    console.log(`ip rate ${this.name}, ${ip}: ${requests}/${this.rate}`);
 
     if (requests > this.rate) {
       const delay = (this.period / this.rate) * (requests / this.rate);
@@ -271,17 +271,18 @@ const handleRequest = async (req, res) => {
 };
 
 // rate limit ws requests
-// const wsRateLimiter = new RateLimiter(240, 720, 'ws');
+const wsRateLimiter = new RateLimiter(300, 300, 'ws');
 
 /** handler for web socket upgrade */
 const handleUpgrade = async (req, socket, head) => {
+  const block = await wsRateLimiter.limit(req);
+  if (block) {
+    // the rate limiter wants us to drop this request
+    req.destroy();
+    return;
+  }
+
   console.log(`ws: ${req.socket.remoteAddress}: ${req.headers.host}${req.url}`);
-  // const block = await wsRateLimiter.limit(req);
-  // if (block) {
-  //   // the rate limiter wants us to drop this request
-  //   req.destroy();
-  //   return;
-  // }
 
   const target = getTarget(req);
   if (!target || target instanceof Function) {

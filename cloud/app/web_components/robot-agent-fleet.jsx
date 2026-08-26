@@ -64,7 +64,7 @@ const styles = {
     flex: '1.5 1 25em',
     minHeight: '20em',
     height: 'calc(80vh - 15em)',
-    maxHeight: '40em'
+    maxHeight: '40em',
   },
   list: {
     flex: '1 1 20em',
@@ -128,15 +128,31 @@ const compareHeartbeat = (a, b) =>
 
 const attribution = [
     // '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a>',
-    // '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
+    '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
     // '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     // 'contributors'
-     '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+    //  '&copy; <a href="https://carto.com/attributions">CARTO</a>'
   ].join(' ');
 const tilesUrl =
 //   'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.{ext}';
-  // 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  // 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+/** SVG with color matrices to change colors on the map */
+const MapTones = () => {
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute' }}>
+      <filter id="mapTone" colorInterpolationFilters="sRGB">
+        {/* gray-scale based on blue-tones only */}
+        <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 1 0 0
+          0 0 1 0 0
+          0 0 1 0 0
+          1 1 0 0 1">
+        </feColorMatrix>
+      </filter>
+    </svg>
+  );
+}
 
 /** map from heartbeat levels to icon leaflet marker classname */
 const heartbeatIconClassNames = ['icon-green', 'icon-red', 'icon-grey'];
@@ -327,11 +343,13 @@ const Fleet = (props) => {
         .icon-red { filter: hue-rotate(140deg); }
         .icon-grey { filter: saturate(0); }
         .leaflet-layer {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-        `}
-        {/* brightness(1.5); */}
+          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) url(#mapTone);
+          }
+          `}
+          {/* filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); */}
     </style>
+    <MapTones />
+
     <div >
       <h4>Devices</h4>
 

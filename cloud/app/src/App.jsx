@@ -236,7 +236,10 @@ const CapabilityWidget = ({type}) => {
           style={{flexGrow: 1000}}
           title={title}
           />
-        : <strong><a href='/'>Fleet</a> » {title}</strong>
+        : <>
+          Fleet
+          <h3>{title}</h3>
+        </>
       }
     </div>
     <Capability webComponent={webComponent} capability={capability}/>

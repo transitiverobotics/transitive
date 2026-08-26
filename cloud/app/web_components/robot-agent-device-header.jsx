@@ -74,8 +74,8 @@ const Device = (props) => {
         {!ready ? '' : mergedData?.info?.os?.hostname || device}
       </a>
       <span style={styles.extras}>
-        {mergedData?.info?.labels?.map(label =>
-            <Badge bg="info">{label}</Badge>)
+        {mergedData?.info?.labels?.map((label, i) =>
+            <Badge bg="info" key={i}>{label}</Badge>)
         }
       </span>
       <h3 style={styles.title}>{title}</h3>

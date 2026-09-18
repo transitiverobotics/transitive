@@ -264,6 +264,19 @@ const getPackageInfo = async (package) => {
   return json;
 };
 
+/** Given an object of the form {capability: {org_deviceId: heartbeat}} write
+* it to Mongo's packages collection, where the homepage can read them.
+* Throttled to run at most once a day.
+*/
+const updatePkgUsage = _.throttle(async (allHeartbeats) => {
+    const packages = await Mongo.db.collection('packages');
+    for (let capability in allHeartbeats) {
+      const devices = allHeartbeats[capability];
+      log.debug('updating usage for', capability)
+      await packages.updateOne({_id: capability}, {$set: {usage: devices}});
+    }
+  }, 24 * 60 * 60 * 1000);
+
 // ----------------------------------------------------------------------
 
 const app = express();
@@ -1054,23 +1067,32 @@ class _robotAgent extends Capability {
   /** Get last capabilities used by devices which have sent a heartbeat recently */
   getCapabilitiesInUse() {
     const capabilities = {};
+    const allHeartbeats = {}; // per capability: list of all devices w/ heartbeats
 
     _.forEach(this.data.get(), (orgData, orgId) => {
       const devicesStatus = this.getStatus(orgId);
 
       _.forEach(devicesStatus, (status, deviceId) => {
         const heartbeat = new Date(status.heartbeat || 0).getTime();
-        // If device's heartbeat is old, don't consider its capabilities in use
-        if (heartbeat < (Date.now() - PRESERVE_CAPS_DOCKER_CONTAINERS_THRESHOLD))
-          return;
 
         forMatchIterator(status, ['runningPackages', '+scope', '+capName', '+version'],
           (value, topic, {scope, capName, version}) => {
             if (!value) return;
+
+            const cap = `${scope}/${capName}`;
+            allHeartbeats[cap] ||= {};
+            allHeartbeats[cap][`${orgId}/${deviceId}`] = heartbeat;
+
+            // If device's heartbeat is old, don't consider its capabilities in use
+            if (heartbeat < (Date.now() - PRESERVE_CAPS_DOCKER_CONTAINERS_THRESHOLD))
+              return;
+
             _.set(capabilities, [scope, capName, version], true);
           });
       });
     });
+
+    updatePkgUsage(allHeartbeats);
 
     return capabilities;
   }

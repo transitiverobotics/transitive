@@ -128,8 +128,8 @@ const compareHeartbeat = (a, b) =>
 
 const attribution = [
     // '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a>',
-    '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
-    // '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    // '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     // 'contributors'
     //  '&copy; <a href="https://carto.com/attributions">CARTO</a>'
   ].join(' ');

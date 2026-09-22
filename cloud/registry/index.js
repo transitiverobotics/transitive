@@ -211,7 +211,8 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   */
   app.use('/-/custom/all', cors(), async (req, res) => {
     const projection = {
-      versions: {$slice: -1} // get latest version of each package
+      versions: {$slice: -1}, // get latest version of each package,
+      usage: 0,
     };
     !('images' in req.query) && (projection.images = 0);
     const selector = req.query.q ? JSON.parse(req.query.q) : {};
@@ -405,7 +406,8 @@ const startServer = ({collections: {tarballs, packages, accounts}}) => {
   */
   app.get('/:package', cors(), async (req, res) => {
 
-    const package = await packages.findOne({_id: req.params.package});
+    const package = await packages.findOne({_id: req.params.package}, {
+      projection: { usage: 0 }});
 
     if (!package) {
       res.status(404).end();

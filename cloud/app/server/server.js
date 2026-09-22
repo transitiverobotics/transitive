@@ -683,13 +683,13 @@ class _robotAgent extends Capability {
 
       this.mqttSync.waitForHeartbeatOnce(() => {
         this.updateAllSubscriptions();
-        // report usage every hour
+        // report usage to billing every hour
         new CronJob('0 0 * * * *', this.updateAllSubscriptions.bind(this),
           null, true);
 
-        this.stopUnusedContainers();
-        // check every day at 1AM
-        new CronJob('0 0 1 * * *', this.stopUnusedContainers.bind(this),
+        // this.stopUnusedContainers(); // don't want to trigger usage report
+        // check every day at midnight PST
+        new CronJob('0 0 16 * * *', this.stopUnusedContainers.bind(this),
           null, true);
       });
 

@@ -318,3 +318,8 @@ export const HeartbeatHistory = ({heartbeats, options = {}}) => {
     {bars}
   </svg>;
 };
+
+
+/** Given an object, map each item using fn, in lexicographic order of keys */
+export const mapSorted = (obj, fn, compare = undefined) =>
+  obj ? Object.keys(obj).sort(compare).map(key => fn(obj[key], key)) : [];

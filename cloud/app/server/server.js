@@ -689,7 +689,7 @@ class _robotAgent extends Capability {
 
         // this.stopUnusedContainers(); // don't want to trigger usage report
         // check every day at midnight PST
-        new CronJob('0 0 16 * * *', this.stopUnusedContainers.bind(this),
+        new CronJob('0 0 7 * * *', this.stopUnusedContainers.bind(this),
           null, true);
       });
 

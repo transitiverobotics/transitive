@@ -18,7 +18,8 @@ class PackageMonitor {
     const projection = {
       versions: 0,
       images: 0,
-      readme: 0
+      readme: 0,
+      usage: 0,
     };
 
     const list = await this.collection

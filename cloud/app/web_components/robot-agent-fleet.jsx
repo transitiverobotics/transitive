@@ -16,7 +16,8 @@ import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
   toFlatObject, getLogger, mergeVersions, selectorToMetaTopic }
   from '@transitive-sdk/utils-web';
 
-import { heartbeatLevel, Heartbeat, ensureProps, HeartbeatHistory } from './shared';
+import { heartbeatLevel, Heartbeat, ensureProps, HeartbeatHistory, mapSorted }
+  from './shared';
 import { Code } from '../src/utils/Code';
 import { Fold } from '../src/utils/Fold';
 import { Delayed } from '../src/utils/Delayed';
@@ -106,8 +107,8 @@ const FleetDevice = ({status, info, deviceId, device_url, heartbeats}) => {
       </div>
       <div style={styles.caps}>
       { /* list running packages */
-        _.map(status.runningPackages,
-          (scope, scopeName) => _.map(scope, (versions, name) =>
+        mapSorted(status.runningPackages,
+          (scope, scopeName) => mapSorted(scope, (versions, name) =>
             <span style={styles.cap}
               title={scopeName} key={name}>{name}
               <span style={styles.version}>&nbsp;v{

@@ -14,7 +14,8 @@ import { ActionLink } from '../src/utils/index';
 import { useMqttSync, createWebComponent, decodeJWT, versionCompare,
     toFlatObject, getLogger, mqttClearRetained } from '@transitive-sdk/utils-web';
 
-import { Heartbeat, heartbeatLevel, ensureProps, LogButtonWithCounter } from './shared';
+import { Heartbeat, heartbeatLevel, ensureProps, LogButtonWithCounter, mapSorted }
+  from './shared';
 import { ConfigEditor } from './config-editor';
 import { ConfirmedButton } from '../src/utils/ConfirmedButton';
 import { Fold } from '../src/utils/Fold';
@@ -152,10 +153,6 @@ const getPkgTitle = (name, allPackges) => {
   const pkg = allPackges[name];
   return pkg?.transitiverobotics.title;
 };
-
-/** Given an object, map each item using fn, in lexicographic order of keys */
-const mapSorted = (obj, fn) =>
-  Object.keys(obj).sort().map(key => fn(obj[key], key));
 
 /** Price as displayed in package list */
 const Price = ({price}) => <span>

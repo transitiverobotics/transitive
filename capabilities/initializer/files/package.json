@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "main": "main.js",
   "scripts": {
-    "test": "jest --watch *.test.js",
+    "test": "node --test --watch",
     "start": "./subScript",
     "preinstall": "./subScript",
     "install": "./subScript",
@@ -18,10 +18,11 @@
     "dev:start": "transitiveDev tmux",
     "dev:install": "npm --prefix robot install"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@transitive-sdk/utils-caps": "^0.4.1"
+  },
   "devDependencies": {
-    "@transitive-sdk/utils-caps": "^0.2.10",
-    "@transitive-sdk/utils-web": "^0.14.7",
+    "@transitive-sdk/utils-web": "^0.17.6",
     "lodash": "^4.17.21",
     "react": "^18.3.1",
     "react-bootstrap": "^2.1.2",

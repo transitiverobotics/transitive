@@ -2,6 +2,29 @@
 
 set -e
 
+# -------------------------------------------------------------------------
+# See if all required packages are already installed, if so, skip the update
+
+echo "Checking package status"
+ALREADY_INSTALLED=1
+for PACKAGE in $*; do
+  echo -n "  $PACKAGE"
+  if [[ ! -e ~/.transitive/var/lib/dpkg/status.d/.merged/$PACKAGE ]]; then
+    ALREADY_INSTALLED=0
+    echo " - MISSING"
+    break;
+  fi;
+  echo " - present"
+done
+
+if (( $ALREADY_INSTALLED )); then
+  echo "All packages already installed, skipping"
+  exit 0;
+fi;
+
+# -------------------------------------------------------------------------
+# Set config, run apt-get update
+
 . $(dirname $0)/aptCommon.sh
 
 # -------------------------------------------------------------------------

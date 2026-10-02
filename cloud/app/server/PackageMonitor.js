@@ -30,8 +30,10 @@ class PackageMonitor {
       async change => {
         const packageId = change.documentKey._id;
         log.debug('package changed:', packageId);
-        this.packages[packageId] = await this.collection
-            .findOne({_id: packageId}, {projection});
+        const packageInfo = await this.collection.findOne(
+          {_id: packageId, transitiverobotics: {$ne: null}},
+          {projection});
+        packageInfo && (this.packages[packageId] = packageInfo);
       });
 
 

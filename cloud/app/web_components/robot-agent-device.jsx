@@ -315,6 +315,11 @@ const Capability = (props) => {
                         You need to add a payment method
                       </Form.Text>}
                     </Dropdown.Item>
+                } {
+                  <Dropdown.Item as='button' variant='link'
+                    onClick={() => runPkgCommand('reinstallPackage')}>
+                    reinstall
+                  </Dropdown.Item>
                 }
                 <LogButtonWithCounter
                   text="get log"

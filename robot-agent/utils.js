@@ -14,6 +14,9 @@ log.setLevel('debug');
 const basePath = `${constants.TRANSITIVE_DIR}/packages`;
 const LOG_COUNT = 3;
 
+/** Get the package folder for the given pkg (including scope) */
+const getPkgFolder = (name) => `${basePath}/${name}`;
+
 /** given a path, list all sub-directories by name */
 const getSubDirs = (path) => fs.readdirSync(path, {withFileTypes: true})
     .filter(f => f.isDirectory())
@@ -74,7 +77,7 @@ const getPackagePid = (pkgName) =>{
 e.g., @transitive-robotics/test1 */
 const addPackage = (addedPkg) => {
   log.debug(`adding package ${addedPkg}`);
-  const dir = `${constants.TRANSITIVE_DIR}/packages/${addedPkg}`;
+  const dir = getPkgFolder(addedPkg);
   fs.mkdirSync(dir, {recursive: true});
 
   // fs.copyFileSync(`${constants.TRANSITIVE_DIR}/.npmrc`, `${dir}/.npmrc`);
@@ -114,7 +117,7 @@ const removePackage = (pkg) => {
     } else {
       log.debug('package stopped, removing files');
     }
-    exec(`rm -rf ${constants.TRANSITIVE_DIR}/packages/${pkg}`);
+    exec(`rm -rf ${getPkgFolder(pkg)}`);
   });
 };
 
@@ -127,7 +130,7 @@ const updatePackageConfigFile = (packageName) => {
   };
   log.info(`Updating ${packageName} config.json file`, config);
   // update the config.json file for this package
-  fs.writeFileSync(`${basePath}/${packageName}/config.json`,
+  fs.writeFileSync(`${getPkgFolder(packageName)}/config.json`,
     JSON.stringify(config, null, 2));
 };
 
@@ -147,6 +150,22 @@ const restartPackage = (name, startIfNotRunning = false) => {
     }
   });
 };
+
+/** Force-reinstall package */
+const reinstallPackage = (name) => {
+  exec(`rm -rf ${getPkgFolder(name)}/node_modules`);
+  killPackage(name, 'SIGUSR1', (code) => {
+    if (code == 1) {
+      log.warn(`package ${name} not running`);
+      startPackage(name);
+    } else if (code) {
+      log.warn(`restarting package ${name} failed (code: ${code})`)
+    } else {
+      log.debug(`package ${name} updated and restarted`)
+    }
+  });
+};
+
 
 /** 'kill' package, i.e., send it the desired signal to the process group
 leader. Also used for restarting packages via SIGUSR1, see the trap in
@@ -176,21 +195,21 @@ const startPackage = (name) => {
     if (code) {
       log.debug(`starting ${name}`);
       // package is not running, start it
-      const logFile = `${os.homedir()}/.transitive/packages/${name}/log`;
+      const logFile = `${getPkgFolder(name)}/log`;
       fs.mkdirSync(path.dirname(logFile), {recursive: true});
       const out = fs.openSync(logFile, 'a');
 
-      const subprocess = spawn(`${os.homedir()}/.transitive/unshare.sh`,
+      const subprocess = spawn(`${constants.TRANSITIVE_DIR}/unshare.sh`,
         [`/home/bin/startPackage.sh ${name}`],
         { stdio: ['ignore', out, out], // so it can continue without us
           detached: true,
-          cwd: `${os.homedir()}/.transitive`,
-          env: Object.assign({},
-            process.env, // TODO: is this safe? we may *not* want capabilities to see this
-            {
-              TRPACKAGE: name,
-              TR_ROS_RELEASES: config?.global?.rosReleases?.join(' '),
-            })
+          cwd: constants.TRANSITIVE_DIR,
+          env: {
+            ...process.env,
+            // TODO: is this safe? we may *not* want capabilities to see this
+            TRPACKAGE: name,
+            TR_ROS_RELEASES: config?.global?.rosReleases?.join(' ')
+          }
         });
 
       subprocess.unref();
@@ -216,7 +235,7 @@ const watchStatus = (name, status = undefined) => {
     return;
   }
 
-  const statusFile = `${os.homedir()}/.transitive/packages/${name}/status.json`;
+  const statusFile = `${getPkgFolder(name)}/status.json`;
   const statusTopic = `${global.AGENT_PREFIX}/status/package/${name}`;
 
   fs.access(statusFile, fs.constants.R_OK, (err) => {
@@ -405,6 +424,7 @@ const toPrecision = (number, precision) => {
 
 module.exports = {
   restartPackage,
+  reinstallPackage,
   killPackage,
   startPackage,
   weHaveSudo,

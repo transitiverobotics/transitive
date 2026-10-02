@@ -4,7 +4,7 @@ const zlib = require('zlib');
 const _ = require('lodash');
 
 const { restartPackage, startPackage, killPackage, killAllPackages,
-  upgradeNodejs } = require('./utils');
+  upgradeNodejs, reinstallPackage } = require('./utils');
 
 const { getLogger, clone } = require('@transitive-sdk/utils');
 
@@ -32,6 +32,11 @@ const commands = {
   restartPackage: ({pkg}) => {
     log.debug(`Restarting ${pkg}.`);
     restartPackage(pkg);
+  },
+
+  reinstallPackage: ({pkg}) => {
+    log.debug(`Reinstalling ${pkg}.`);
+    reinstallPackage(pkg);
   },
 
   startPackage: ({pkg}) => {

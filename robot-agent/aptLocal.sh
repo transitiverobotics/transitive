@@ -3,6 +3,25 @@
 set -e
 
 # -------------------------------------------------------------------------
+
+DIR=~/.transitive
+
+# Generate env file for using these locally installed packages
+M_ARCH=$(uname -m)
+cat > $DIR/etc/env_local << EOF
+# environment variables for using debian packages installed via aptLocal.sh
+# i.e., locally in ~/.transitive
+
+export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/lib/${M_ARCH}-linux-gnu:$DIR/usr/lib/${M_ARCH}-linux-gnu/:$DIR/usr/lib/
+
+export PYTHONPATH=\$PYTHONPATH:$DIR/usr/lib/python2.7/dist-packages:$DIR/usr/lib/python3/dist-packages
+
+export PATH=\$PATH:$DIR/usr/sbin:$DIR/usr/bin:$DIR/sbin:$DIR/bin
+
+export PKG_CONFIG_PATH=\$PKG_CONFIG_PATH:$DIR/usr/lib/${M_ARCH}-linux-gnu/pkgconfig
+EOF
+
+# -------------------------------------------------------------------------
 # See if all required packages are already installed, if so, skip the update
 
 echo "Checking package status"
@@ -79,18 +98,3 @@ for n in $(find $DIR/usr/bin -name 'ros*'); do
   sed -i 's/\/usr\/bin\/python/\/usr\/bin\/env python/' $n;
 done
 
-
-# Generate env file for using these locally installed packages
-M_ARCH=$(uname -m)
-cat > $DIR/etc/env_local << EOF
-# environment variables for using debian packages installed via aptLocal.sh
-# i.e., locally in ~/.transitive
-
-export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$DIR/lib/${M_ARCH}-linux-gnu:$DIR/usr/lib/${M_ARCH}-linux-gnu/:$DIR/usr/lib/
-
-export PYTHONPATH=\$PYTHONPATH:$DIR/usr/lib/python2.7/dist-packages:$DIR/usr/lib/python3/dist-packages
-
-export PATH=\$PATH:$DIR/usr/sbin:$DIR/usr/bin:$DIR/sbin:$DIR/bin
-
-export PKG_CONFIG_PATH=\$PKG_CONFIG_PATH:$DIR/usr/lib/${M_ARCH}-linux-gnu/pkgconfig
-EOF

@@ -154,6 +154,7 @@ const restartPackage = (name, startIfNotRunning = false) => {
 /** Force-reinstall package */
 const reinstallPackage = (name) => {
   exec(`rm -rf ${getPkgFolder(name)}/node_modules`);
+  exec(`rm -rf ${getPkgFolder(name)}/.robot_node_modules`);
   killPackage(name, 'SIGUSR1', (code) => {
     if (code == 1) {
       log.warn(`package ${name} not running`);

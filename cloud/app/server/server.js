@@ -1632,12 +1632,11 @@ class _robotAgent extends Capability {
         clickhousePlayUrl += `?${params.toString()}`;
       }
 
-      res.json({
+      const response = {
         jwtSecret: account.jwtSecret,
         capTokens: account.capTokens || {},
         cap_usage: account.cap_usage || {},
         openId: account.openId || {},
-        googleDomain: account.googleDomain || undefined,
         clickhouseCredentials: {
           ...account.clickhouseCredentials || {},
           url: clickhousePlayUrl
@@ -1651,7 +1650,15 @@ class _robotAgent extends Capability {
           ...account.hyperdxCredentials || {},
           url: `${httpProtocol}hyperdx.${process.env.TR_HOST}/login`
         }
-      });
+      };
+
+      if (account.googleDomain) {
+        response.googleDomain = account.googleDomain instanceof Array
+          ? account.googleDomain.join(',')
+          : account.googleDomain;
+      }
+
+      res.json(response);
     });
 
     /** Route used to update some of the details on the Security page. */
@@ -1664,7 +1671,7 @@ class _robotAgent extends Capability {
 
       const $set = {}
       if (req.body.googleDomain != undefined) {
-        $set.googleDomain = req.body.googleDomain;
+        $set.googleDomain = req.body.googleDomain.split(',').map(domain => domain.trim());
       }
 
       const accounts = Mongo.db.collection('accounts');

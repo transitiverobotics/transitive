@@ -372,9 +372,10 @@ export const Security = () => {
     <h5>Sign in with Google</h5>
 
     <Form.Text>
-      Here you can associate a Google Workspace domain with your account. Anyone
-      with an account on that workspace domain will be able to log into this
-      account "{session.user}" on this portal.
+      Here you can associate a (comma-separated list of) Google Workspace
+      domain(s) with your account. Anyone with an account on that/these workspace
+      domain(s) will be able to log into your "{session.user}" account on this
+      portal.
     </Form.Text>
 
     <Form.Group as={Row} controlId="google-domain">

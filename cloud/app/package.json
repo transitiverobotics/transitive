@@ -35,7 +35,7 @@
     "react-dom": "^18.3.1",
     "react-icons": "^4.11.0",
     "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.2.1",
+    "react-router-dom": "^7.18.4",
     "react-sparklines": "^1.7.0",
     "refractor": "^4.8.1",
     "semver": "^7.5.4"

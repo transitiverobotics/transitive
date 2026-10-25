@@ -1,4 +1,4 @@
-FROM node:24.16.0 AS base
+FROM node:24.22.1 AS base
 
 RUN mkdir -p /app
 COPY package*.json /app/

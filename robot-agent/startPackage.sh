@@ -84,11 +84,11 @@ do
   CURRENT_MODULES_VERSION=$(node -e "console.log(process.versions.modules)")
   COMPILED_MODULES_VERSION=$(cat .compiled_modules_version 2> /dev/null || echo "93")
 
-  if [ -e package-lock.json ] && [ $CURRENT_MODULES_VERSION != $COMPILED_MODULES_VERSION ]; then
+  if [ $CURRENT_MODULES_VERSION != $COMPILED_MODULES_VERSION ]; then
     echo "New node.js modules version detected ($CURRENT_MODULES_VERSION vs $COMPILED_MODULES_VERSION)"
     echo "Reinstalling to rebuild all native code in dependencies"
     echo '{"status": "reinstalling"}' > $STATUS_FILE
-    rm -rf node_modules package-lock.json
+    rm -rf node_modules package-lock.json .robot_node_modules
     npm i --no-save && echo $CURRENT_MODULES_VERSION > .compiled_modules_version
 
   elif ! npm outdated; then

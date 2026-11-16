@@ -76,9 +76,9 @@ const commands = {
       {encoding: 'utf8'});
   },
 
-  upgradeNodejs: () => {
+  upgradeNodejs: ({version = undefined}) => {
     return new Promise((resolve, reject) => {
-      upgradeNodejs((err, output) => {
+      upgradeNodejs(version, (err, output) => {
         resolve(err ? `Failed to upgrade nodejs: ${err}` : output);
       });
     });

@@ -374,8 +374,9 @@ const ensureDesiredPackages = (desired = {}) => {
 
 /** Upgrade node.js to latest version. Which one that is is set by the apt
 * sources added in aptCommon, which is part of the robot-agent release itself.
+* If no `version` is specified, the latest version from the repo is installed
 */
-const upgradeNodejs = (cb) => {
+const upgradeNodejs = (version, cb) => {
   log.debug('Upgrading nodejs to latest from active repos');
   // Need to (re)move old npm install, as would be done by nodejs preinst,
   // which we don't execute in aptLocal; see
@@ -390,7 +391,7 @@ const upgradeNodejs = (cb) => {
     log.warn(`Unable to move ${npmFolder}`, e);
   }
 
-  const cmd = `${__dirname}/aptFetch.sh nodejs`;
+  const cmd = `${__dirname}/aptFetch.sh nodejs${version ? `=${version}` : ''}`;
   // using aptFetch instead of aptLocal ensures that it will work even when
   // there are conflicting packages installed, such as node 10, see
   // #377#issuecomment-2041523598

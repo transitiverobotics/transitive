@@ -54,12 +54,12 @@ const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
 /** Ensure we are running the desired version of node.js */
 const ensureNodeVersion = (callback) => {
-  const desired = String(process.env.npm_package_config_desiredNodeVersion);
+  const desired = process.env.npm_package_config_desiredNodeVersion;
   const running = process.versions.node;
 
   if (!semver.satisfies(running, desired)) {
     log.debug(`Node.js running (${running}) != desired (${desired})`);
-    upgradeNodejs((err, output) => {
+    upgradeNodejs(desired, (err, output) => {
       if (err) {
         log.warn('New node.js version failed to install, continuing without:', err);
         callback();

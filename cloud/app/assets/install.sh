@@ -16,7 +16,7 @@ NORMAL="\033[0;39m"
 
 ARCH=$(dpkg --print-architecture)
 #NODEURL=https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/nodejs_16.20.2-deb-1nodesource1_${ARCH}.deb
-NODEURL=https://deb.nodesource.com/node_20.x/pool/main/n/nodejs/nodejs_20.12.1-1nodesource1_${ARCH}.deb
+NODEURL=https://deb.nodesource.com/node_20.x/pool/main/n/nodejs/nodejs_20.20.2-1nodesource1_${ARCH}.deb
 NODEDEB=/tmp/transitive_nodejs20.deb
 DIR=~/.transitive
 NODE=$DIR/usr/bin/node

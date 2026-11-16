@@ -31,6 +31,7 @@ if (!process.env.TR_USERID) {
 // --------------------------------------------------------------------------
 
 const {exec, execSync} = require('child_process');
+const semver = require('semver');
 const {restartPackage, startPackage, upgradeNodejs, killAllPackages,
   getInstalledPackages } = require('./utils');
 const { getLogger } = require('@transitive-sdk/utils');
@@ -53,11 +54,11 @@ const UPDATE_INTERVAL = 60 * 60 * 1000; // once an hour
 
 /** Ensure we are running the desired version of node.js */
 const ensureNodeVersion = (callback) => {
-  const desiredMajor = process.env.npm_package_config_desiredNodeVersion;
-  const runningMajor = parseInt(process.versions.node);
+  const desired = String(process.env.npm_package_config_desiredNodeVersion);
+  const running = process.versions.node;
 
-  if (runningMajor != desiredMajor) {
-    log.debug(`Node.js running (${runningMajor}) != desired (${desiredMajor})`);
+  if (!semver.satisfies(running, desired)) {
+    log.debug(`Node.js running (${running}) != desired (${desired})`);
     upgradeNodejs((err, output) => {
       if (err) {
         log.warn('New node.js version failed to install, continuing without:', err);

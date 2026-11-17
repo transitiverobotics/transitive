@@ -59,7 +59,8 @@ const ensureNodeVersion = (callback) => {
 
   if (!semver.satisfies(running, desired)) {
     log.debug(`Node.js running (${running}) != desired (${desired})`);
-    upgradeNodejs(desired, (err, output) => {
+    // Coerse the version constraint to name a version and install it.
+    upgradeNodejs(semver.coerce(desired).version, (err, output) => {
       if (err) {
         log.warn('New node.js version failed to install, continuing without:', err);
         callback();

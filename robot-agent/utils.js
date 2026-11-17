@@ -391,7 +391,7 @@ const upgradeNodejs = (version, cb) => {
     log.warn(`Unable to move ${npmFolder}`, e);
   }
 
-  const cmd = `${__dirname}/aptFetch.sh nodejs${version ? `=${version}` : ''}`;
+  const cmd = `${__dirname}/aptFetch.sh nodejs${version ? `=${version}*` : ''}`;
   // using aptFetch instead of aptLocal ensures that it will work even when
   // there are conflicting packages installed, such as node 10, see
   // #377#issuecomment-2041523598

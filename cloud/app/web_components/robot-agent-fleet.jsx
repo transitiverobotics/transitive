@@ -301,7 +301,7 @@ const Fleet = (props) => {
         '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',
         localDev && '-v /var/run/dbus:/var/run/dbus',
         localDev && '-v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket',
-        '--name tr-robot --hostname robot1 transitiverobotics/try_noetic',
+        '--name tr-robot --hostname robot1 transitiverobotics/try_jazzy',
         `${id} '${session.robot_token}'`,
         localDev && location.origin.replace('portal', 'install')
       ].filter(Boolean).join(' ');
@@ -312,7 +312,7 @@ const Fleet = (props) => {
         <div>
           Execute this on your robot to start the Transitive Agent in a Docker
           container:<Code language='bash' code={dockerCommand} />
-          Replace <tt>try_noetic</tt> with <tt>try_humble</tt> or <tt>try_jazzy
+          Replace <tt>try_jazzy</tt> with <tt>try_humble</tt> or <tt>try_noetic
           </tt>, depending on which ROS distro you want to
           use (if any). For instructions on how to pre-install the
           agent and capabilities in your own Docker image, please see the <a

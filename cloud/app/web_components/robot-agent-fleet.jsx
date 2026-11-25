@@ -165,6 +165,47 @@ const getHeartbeatIcon = (heartbeat) => new L.Icon.Default({
 });
 
 
+/** Component showing instructions for adding devices */
+const AddDevices = ({id, robotToken, show, host, ssl}) => {
+
+  // TODO: split this into dev/prod and our domain vs. custom
+  // in prod + custom we don't need to add avahi
+  const localDev = !location.hostname.endsWith('transitiverobotics.com');
+  const dockerCommand = ['docker run -it --rm --privileged',
+      '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',
+      localDev && '-v /var/run/dbus:/var/run/dbus',
+      localDev && '-v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket',
+      '--name tr-robot --hostname robot1 transitiverobotics/try_jazzy',
+      `${id} '${robotToken}'`,
+      localDev && location.origin.replace('portal', 'install')
+    ].filter(Boolean).join(' ');
+  const curlURL = `http${ssl ? 's' : ''}://install.${host}`;
+
+  return <Fold title="Add devices" expanded={show}>
+    <F>
+      <div>
+        Execute this on your robot to start the Transitive Agent in a Docker
+        container:<Code language='bash' code={dockerCommand} />
+        Replace <tt>try_jazzy</tt> with <tt>try_lyrical</tt>, <tt>try_kilted</tt>,
+        <tt>try_humble</tt> or <tt>try_noetic</tt>, depending on which ROS
+        distro you want to
+        use (if any). For instructions on how to pre-install the
+        agent and capabilities in your own Docker image, please see the <a
+          href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
+      </div>
+
+      <div>
+        Alternatively you can install the agent natively using this command:
+        <Code
+          code={`curl -s "${curlURL}?id=${id}&token=${
+            encodeURIComponent(robotToken)}" | bash`}
+          />
+      </div>
+    </F>
+  </Fold>;
+};
+
+
 /** Component showing the fleet from the robot-agent perspective */
 const Fleet = (props) => {
 
@@ -262,6 +303,8 @@ const Fleet = (props) => {
       .sort((a, b) => a.info.os?.hostname?.localeCompare(b.info.os?.hostname))
       .sort(compareHeartbeat);
 
+  const empty = (Object.keys(mergedData).length == 0);
+
   const stale = mergedData
       .filter(({status}) => heartbeatLevel(status.heartbeat) == 2)
       .map((device) => `/${id}/${device.deviceId}`);
@@ -280,8 +323,6 @@ const Fleet = (props) => {
       return agg;
     }, [0, 0, 0]);  // see heartbeat level in shared.jsx
 
-  const empty = (Object.keys(mergedData).length == 0);
-
   // set the fleet config
   const setFleetConfig = (key, value) => {
     mqttSync.data.update(`${fleetPrefixVersion}/config/${key}`, value);
@@ -291,45 +332,6 @@ const Fleet = (props) => {
   const fleetData = mqttSync.data.getByTopic(fleetPrefix);
   const fleetConfig = fleetData && mergeVersions(fleetData, 'config').config;
   log.debug({fleetConfig, mergedData});
-
-  /** Component showing instructions for adding devices */
-  const AddDevices = () => {
-    // TODO: split this into dev/prod and our domain vs. custom
-    // in prod + custom we don't need to add avahi
-    const localDev = !location.hostname.endsWith('transitiverobotics.com');
-    const dockerCommand = ['docker run -it --rm --privileged',
-        '-v $HOME/.tr_docker:/root/.transitive -v /run/udev:/run/udev',
-        localDev && '-v /var/run/dbus:/var/run/dbus',
-        localDev && '-v /var/run/avahi-daemon/socket:/var/run/avahi-daemon/socket',
-        '--name tr-robot --hostname robot1 transitiverobotics/try_jazzy',
-        `${id} '${session.robot_token}'`,
-        localDev && location.origin.replace('portal', 'install')
-      ].filter(Boolean).join(' ');
-    const curlURL = `http${ssl ? 's' : ''}://install.${host}`;
-
-    return <Fold title="Add devices" expanded={empty}>
-      <F>
-        <div>
-          Execute this on your robot to start the Transitive Agent in a Docker
-          container:<Code language='bash' code={dockerCommand} />
-          Replace <tt>try_jazzy</tt> with <tt>try_lyrical</tt>, <tt>try_kilted</tt>,
-          <tt>try_humble</tt> or <tt>try_noetic</tt>, depending on which ROS
-          distro you want to
-          use (if any). For instructions on how to pre-install the
-          agent and capabilities in your own Docker image, please see the <a
-            href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
-        </div>
-
-        <div>
-          Alternatively you can install the agent natively using this command:
-          <Code
-            code={`curl -s "${curlURL}?id=${id}&token=${
-              encodeURIComponent(session.robot_token)}" | bash`}
-            />
-        </div>
-      </F>
-    </Fold>;
-  }
 
   // gather data for showing devices on map
   const devicesWithLocations = mergedData.filter(({status, info: {geo}}) =>
@@ -457,7 +459,10 @@ const Fleet = (props) => {
       <hr/>
 
       <Delayed>
-        <AddDevices />
+        <AddDevices {...{id, host, ssl,
+            robotToken: session.robot_token,
+            show: empty
+          }}/>
       </Delayed>
     </div>
   </div>

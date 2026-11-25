@@ -31,10 +31,16 @@ const ContextAwareToggle = ({ children, eventKey, callback }) => {
 };
 
 /** A reusable folding component, title + body */
-export const Fold = ({title, children, expanded, style}) =>
-  <Accordion defaultActiveKey="0" style={style || {}}>
-    <ContextAwareToggle eventKey={expanded && '0'}>{title}</ContextAwareToggle>
-    <Accordion.Collapse eventKey={expanded && '0'} style={styles.body}>
+export const Fold = ({title, children, expanded, style, onSelect}) => {
+  const [activeKey, setActiveKey] = useState(undefined);
+
+  return <Accordion style={style || {}}
+    activeKey={activeKey ?? (expanded ? '1' : '0')}
+    onSelect={(e) => setActiveKey(a => (a ?? (expanded ? '1' : '0')) == '1' ? '0' : '1')}
+  >
+    <ContextAwareToggle eventKey={'1'}>{title}</ContextAwareToggle>
+    <Accordion.Collapse eventKey={'1'} style={styles.body}>
       {children}
     </Accordion.Collapse>
   </Accordion>;
+}

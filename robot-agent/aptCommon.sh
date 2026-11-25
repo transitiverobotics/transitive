@@ -47,7 +47,7 @@ setupSources() {
 
   # node.js:
   ARCH=$(dpkg --print-architecture)
-  echo "deb [arch=$ARCH signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" >> $DIR/etc/apt/sources.list.d/nodesource.list
+  echo "deb [arch=$ARCH signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > $DIR/etc/apt/sources.list.d/nodesource.list
   echo "deb [arch=$ARCH signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" >> $DIR/etc/apt/sources.list.d/nodesource.list
   echo "deb [arch=$ARCH signed-by=$DIR/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" >> $DIR/etc/apt/sources.list.d/nodesource.list
   rm -f $DIR/etc/apt/keyrings/nodesource.gpg

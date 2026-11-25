@@ -37,6 +37,8 @@ else
   tryToSourceROS iron
   tryToSourceROS jazzy
   tryToSourceROS kilted
+  tryToSourceROS lyrical
+  tryToSourceROS makoa
 fi
 
 TRANSITIVE_DIR=$HOME/.transitive

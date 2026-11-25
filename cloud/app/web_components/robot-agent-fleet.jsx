@@ -312,8 +312,9 @@ const Fleet = (props) => {
         <div>
           Execute this on your robot to start the Transitive Agent in a Docker
           container:<Code language='bash' code={dockerCommand} />
-          Replace <tt>try_jazzy</tt> with <tt>try_humble</tt> or <tt>try_noetic
-          </tt>, depending on which ROS distro you want to
+          Replace <tt>try_jazzy</tt> with <tt>try_lyrical</tt>, <tt>try_kilted</tt>,
+          <tt>try_humble</tt> or <tt>try_noetic</tt>, depending on which ROS
+          distro you want to
           use (if any). For instructions on how to pre-install the
           agent and capabilities in your own Docker image, please see the <a
             href={`//${host}/docs/guides/installing_in_docker/`}>documentation</a>.
